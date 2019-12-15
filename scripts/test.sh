@@ -41,7 +41,7 @@ start_ganache() {
   if [ "$SOLIDITY_COVERAGE" = true ]; then
     node_modules/.bin/testrpc-sc --gasLimit 0xfffffffffff --port "$ganache_port" "${accounts[@]}" > /dev/null &
   else
-    node_modules/.bin/ganache-cli --gasLimit 0xfffffffffff --port "$ganache_port" "${accounts[@]}" > /dev/null &
+    node_modules/.bin/ganache-cli -f "https://mainnet.infura.io/v3/feb075d9673744cf8b41fed05edc2c5a" --gasLimit 0xfffffffffff --port "$ganache_port" "${accounts[@]}" > /dev/null &
   fi
 
   ganache_pid=$!

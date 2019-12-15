@@ -6366,10 +6366,10 @@ truffle-flattener@^1.3.0:
     solidity-parser-antlr "^0.4.11"
     tsort "0.0.1"
 
-truffle@^5.1.3:
-  version "5.1.3"
-  resolved "https://registry.yarnpkg.com/truffle/-/truffle-5.1.3.tgz#e3e44ca7c0fe25708c421993f993a3de4883411f"
-  integrity sha512-fCL0pGCvBWPboyl3dzgAZFSgpBsgb5NdaaIXbouuqGxFjfgq5+JK2PZLEgN/GYBF+uEzcYg83hFOHCHlZJZINw==
+truffle@^5.1.4:
+  version "5.1.4"
+  resolved "https://registry.yarnpkg.com/truffle/-/truffle-5.1.4.tgz#1cf22d46e8ef3eae9ba39f13f4fc1b11fc36d3ba"
+  integrity sha512-HlefSmFCK/vd5jrGNpsJvsAhFdR3XPJH63ERQ1BHmVs8u1kt8OomExEov5HsWKqYCZIyERS/XNL2p/PYFJlmiQ==
   dependencies:
     app-module-path "^2.2.0"
     mocha "5.2.0"

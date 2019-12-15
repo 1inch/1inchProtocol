@@ -13,10 +13,10 @@ contract OneSplit {
     using SafeMath for uint256;
     using UniversalERC20 for IERC20;
 
-    IKyberNetworkProxy public kyberNetworkProxy = IKyberNetworkProxy(0xbFC22E3B81Bddc185eB7c50765a9F445589A12AE);
+    IKyberNetworkProxy public kyberNetworkProxy = IKyberNetworkProxy(0x818E6FECD516Ecc3849DAf6845e3EC868087B755);
     IUniswapFactory public uniswapFactory = IUniswapFactory(0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95);
 
-    function getConversionRate(
+    function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
@@ -29,17 +29,17 @@ contract OneSplit {
             uint[4] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
         )
     {
-        function(IERC20,IERC20,uint256) view returns (uint256)[4] memory reserves = [
+        function(IERC20,IERC20,uint256) view returns(uint256)[4] memory reserves = [
             _calculateUniswapReturn,
             _calculateKyberReturn,
-            _calculateNothingReturn,
-            _calculateNothingReturn
+            _calculateBancorReturn,
+            _calculateOasisReturn
         ];
 
         uint256[4] memory rates;
         uint256[4] memory fullRates;
-        for (uint i = 0; i < rates.length; i++) {
-            rates[i] = reserves[i](fromToken, toToken, amount.mul(i).div(parts));
+        for (uint i = 1; i < rates.length; i++) {
+            rates[i] = reserves[i](fromToken, toToken, amount.div(parts));
             fullRates[i] = rates[i];
         }
 
@@ -80,24 +80,23 @@ contract OneSplit {
         IERC20 toToken,
         uint256 amount
     ) internal view returns(uint256) {
-        IUniswapExchange fromExchange = IUniswapExchange(uniswapFactory.getExchange(fromToken));
-        IUniswapExchange toExchange = IUniswapExchange(uniswapFactory.getExchange(toToken));
+        uint256 returnAmount = amount;
 
-        if (address(toExchange) == address(0) && address(fromExchange) == address(0)) {
-            return amount;
+        if (!fromToken.isETH()) {
+            IUniswapExchange fromExchange = uniswapFactory.getExchange(fromToken);
+            if (fromExchange != IUniswapExchange(0)) {
+                returnAmount = fromExchange.getTokenToEthInputPrice(returnAmount);
+            }
         }
 
-        if (fromToken == IERC20(0)) {
-            return toExchange.getEthToTokenInputPrice(amount);
+        if (!toToken.isETH()) {
+            IUniswapExchange toExchange = uniswapFactory.getExchange(toToken);
+            if (toExchange != IUniswapExchange(0)) {
+                returnAmount = toExchange.getEthToTokenInputPrice(returnAmount);
+            }
         }
 
-        if (toToken == IERC20(0)) {
-            return fromExchange.getTokenToEthInputPrice(amount);
-        }
-
-        return toExchange.getEthToTokenInputPrice(
-            fromExchange.getTokenToEthInputPrice(amount)
-        );
+        return returnAmount;
     }
 
     function _calculateKyberReturn(
@@ -136,7 +135,16 @@ contract OneSplit {
             .div(1e18);
     }
 
-    function _calculateNothingReturn(
+    function _calculateBancorReturn(
+        IERC20 /*fromToken*/,
+        IERC20 /*toToken*/,
+        uint256 /*amount*/
+    ) internal view returns(uint256) {
+        this;
+        return 0;
+    }
+
+    function _calculateOasisReturn(
         IERC20 /*fromToken*/,
         IERC20 /*toToken*/,
         uint256 /*amount*/

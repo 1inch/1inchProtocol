@@ -74,7 +74,10 @@ library UniversalERC20 {
         }
 
         uint256 decimals = abi.decode(data, (uint256));
-
         return success ? decimals : 18;
+    }
+
+    function isETH(IERC20 token) internal pure returns(bool) {
+        return (address(token) == address(ZERO_ADDRESS) || address(token) == address(ETH_ADDRESS));
     }
 }
