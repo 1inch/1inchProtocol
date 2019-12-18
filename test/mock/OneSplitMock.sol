@@ -9,7 +9,8 @@ contract OneSplitMock is OneSplit {
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
-        uint256 parts
+        uint256 parts,
+        uint256 ignoreFlags
     )
         public
         // view
@@ -18,6 +19,7 @@ contract OneSplitMock is OneSplit {
             uint[4] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
         )
     {
-        return super.getExpectedReturn(fromToken, toToken, amount, parts);
+        this;
+        return super.getExpectedReturn(fromToken, toToken, amount, parts, ignoreFlags);
     }
 }
