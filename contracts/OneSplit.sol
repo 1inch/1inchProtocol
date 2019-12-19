@@ -7,7 +7,7 @@ import "./interface/IKyberUniswapReserve.sol";
 import "./interface/IKyberOasisReserve.sol";
 import "./interface/IBancorNetwork.sol";
 import "./interface/IBancorContractRegistry.sol";
-import "./interface/IBancorConverterRegistry.sol";
+import "./interface/IBancorNetworkPathFinder.sol";
 import "./interface/IOasisExchange.sol";
 import "./UniversalERC20.sol";
 
@@ -18,13 +18,12 @@ contract OneSplit {
     using UniversalERC20 for IERC20;
 
     IERC20 wethToken = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-    IERC20 bntToken = IERC20(0x1F573D6Fb3F13d689FF844B4cE37794d79a7FF1C);
     IERC20 bancorEtherToken = IERC20(0xc0829421C1d260BD3cB3E0F06cfE2D52db2cE315);
 
     IKyberNetworkProxy public kyberNetworkProxy = IKyberNetworkProxy(0x818E6FECD516Ecc3849DAf6845e3EC868087B755);
     IUniswapFactory public uniswapFactory = IUniswapFactory(0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95);
     IBancorContractRegistry public bancorContractRegistry = IBancorContractRegistry(0x52Ae12ABe5D8BD778BD5397F99cA900624CfADD4);
-    IBancorConverterRegistry public bancorConverterRegistry = IBancorConverterRegistry(0xf6E2D7F616B67E46D708e4410746E9AAb3a4C518);
+    IBancorNetworkPathFinder bancorNetworkPathFinder = IBancorNetworkPathFinder(0x6F0cD8C4f6F06eAB664C7E3031909452b4B72861);
     IOasisExchange public oasisExchange = IOasisExchange(0x39755357759cE0d7f32dC8dC45414CCa409AE24e);
 
     function log(uint256) external view {
@@ -170,7 +169,10 @@ contract OneSplit {
         uint256 amount
     ) internal view returns(uint256) {
         IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
-        address[] memory path = _buildBancorPath(fromToken, toToken);
+        address[] memory path = bancorNetworkPathFinder.generatePath(
+            fromToken.isETH() ? wethToken : fromToken,
+            toToken.isETH() ? wethToken : toToken
+        );
 
         (bool success, bytes memory data) = address(bancorNetwork).staticcall.gas(200000)(
             abi.encodeWithSelector(
@@ -213,84 +215,5 @@ contract OneSplit {
         uint256 /*amount*/
     ) internal view returns(uint256) {
         this;
-        return 0;
-    }
-
-    function _buildBancorPath(
-        IERC20 fromToken,
-        IERC20 toToken
-    ) internal view returns(address[] memory path) {
-        if (fromToken == toToken) {
-            return new address[](0);
-        }
-
-        if (fromToken.isETH()) {
-            fromToken = bancorEtherToken;
-        }
-        if (toToken.isETH()) {
-            toToken = bancorEtherToken;
-        }
-
-        if (fromToken == bntToken || toToken == bntToken) {
-            path = new address[](3);
-        } else {
-            path = new address[](5);
-        }
-
-        address fromConverter;
-        address toConverter;
-
-        if (fromToken != bntToken) {
-            (bool success, bytes memory data) = address(bancorConverterRegistry).staticcall.gas(10000)(abi.encodeWithSelector(
-                bancorConverterRegistry.getConvertibleTokenSmartToken.selector,
-                fromToken.isETH() ? bntToken : fromToken,
-                0
-            ));
-            if (!success) {
-                return new address[](0);
-            }
-
-            fromConverter = abi.decode(data, (address));
-            if (fromConverter == address(0)) {
-                return new address[](0);
-            }
-        }
-
-        if (toToken != bntToken) {
-            (bool success, bytes memory data) = address(bancorConverterRegistry).staticcall.gas(10000)(abi.encodeWithSelector(
-                bancorConverterRegistry.getConvertibleTokenSmartToken.selector,
-                toToken.isETH() ? bntToken : toToken,
-                0
-            ));
-            if (!success) {
-                return new address[](0);
-            }
-
-            toConverter = abi.decode(data, (address));
-            if (toConverter == address(0)) {
-                return new address[](0);
-            }
-        }
-
-        if (toToken == bntToken) {
-            path[0] = address(fromToken);
-            path[1] = fromConverter;
-            path[2] = address(bntToken);
-            return path;
-        }
-
-        if (fromToken == bntToken) {
-            path[0] = address(bntToken);
-            path[1] = toConverter;
-            path[2] = address(toToken);
-            return path;
-        }
-
-        path[0] = address(fromToken);
-        path[1] = fromConverter;
-        path[2] = address(bntToken);
-        path[3] = toConverter;
-        path[4] = address(toToken);
-        return path;
     }
 }
