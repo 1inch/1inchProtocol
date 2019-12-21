@@ -8,7 +8,9 @@ import "./interface/IKyberOasisReserve.sol";
 import "./interface/IBancorNetwork.sol";
 import "./interface/IBancorContractRegistry.sol";
 import "./interface/IBancorNetworkPathFinder.sol";
+import "./interface/IBancorEtherToken.sol";
 import "./interface/IOasisExchange.sol";
+import "./interface/IWETH.sol";
 import "./UniversalERC20.sol";
 
 
@@ -16,9 +18,11 @@ contract OneSplit {
 
     using SafeMath for uint256;
     using UniversalERC20 for IERC20;
+    using UniversalERC20 for IWETH;
+    using UniversalERC20 for IBancorEtherToken;
 
-    IERC20 wethToken = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-    IERC20 bancorEtherToken = IERC20(0xc0829421C1d260BD3cB3E0F06cfE2D52db2cE315);
+    IWETH wethToken = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+    IBancorEtherToken bancorEtherToken = IBancorEtherToken(0xc0829421C1d260BD3cB3E0F06cfE2D52db2cE315);
 
     IKyberNetworkProxy public kyberNetworkProxy = IKyberNetworkProxy(0x818E6FECD516Ecc3849DAf6845e3EC868087B755);
     IUniswapFactory public uniswapFactory = IUniswapFactory(0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95);
@@ -88,7 +92,44 @@ contract OneSplit {
         }
     }
 
-    // Helpers
+    function swap(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 minReturn,
+        uint256[] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
+    ) public payable {
+        fromToken.universalTransferFrom(msg.sender, address(this), amount);
+
+        function(IERC20,IERC20,uint256) returns(uint256)[4] memory reserves = [
+            _swapOnUniswap,
+            _swapOnKyber,
+            _swapOnBancor,
+            _swapOnOasis
+        ];
+
+        uint256 parts = 0;
+        for (uint i = 0; i < reserves.length; i++) {
+            parts = parts.add(distribution[i]);
+        }
+
+        uint256 remainingAmount;
+        for (uint i = 0; i < reserves.length; i++) {
+            uint256 swapAmount = amount.mul(distribution[i]).div(parts);
+            if (i == reserves.length - 1) {
+                swapAmount = remainingAmount;
+            }
+            remainingAmount -= swapAmount;
+            reserves[i](fromToken, toToken, swapAmount);
+        }
+
+        uint256 returnAmount = toToken.universalBalanceOf(address(this));
+        require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
+        toToken.universalTransfer(msg.sender, returnAmount);
+        fromToken.universalTransfer(msg.sender, fromToken.universalBalanceOf(address(this)));
+    }
+
+    // View Helpers
 
     function _calculateUniswapReturn(
         IERC20 fromToken,
@@ -170,8 +211,8 @@ contract OneSplit {
     ) internal view returns(uint256) {
         IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
         address[] memory path = bancorNetworkPathFinder.generatePath(
-            fromToken.isETH() ? wethToken : fromToken,
-            toToken.isETH() ? wethToken : toToken
+            fromToken.isETH() ? bancorEtherToken : fromToken,
+            toToken.isETH() ? bancorEtherToken : toToken
         );
 
         (bool success, bytes memory data) = address(bancorNetwork).staticcall.gas(200000)(
@@ -215,5 +256,110 @@ contract OneSplit {
         uint256 /*amount*/
     ) internal view returns(uint256) {
         this;
+    }
+
+    // Swap Helpers
+
+    function _swapOnUniswap(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    ) internal returns(uint256) {
+
+        uint256 returnAmount = amount;
+
+        if (!fromToken.isETH()) {
+            IUniswapExchange fromExchange = uniswapFactory.getExchange(fromToken);
+            if (fromExchange != IUniswapExchange(0)) {
+                _infiniteApproveIfNeeded(fromToken, address(fromExchange));
+                returnAmount = fromExchange.tokenToEthSwapInput(returnAmount, 1, now);
+            }
+        }
+
+        if (!toToken.isETH()) {
+            IUniswapExchange toExchange = uniswapFactory.getExchange(toToken);
+            if (toExchange != IUniswapExchange(0)) {
+                returnAmount = toExchange.ethToTokenSwapInput.value(returnAmount)(1, now);
+            }
+        }
+
+        return returnAmount;
+    }
+
+    function _swapOnKyber(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    ) internal returns(uint256) {
+        _infiniteApproveIfNeeded(fromToken, address(kyberNetworkProxy));
+        return kyberNetworkProxy.tradeWithHint.value(fromToken.isETH() ? amount : 0)(
+            fromToken.isETH() ? IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE) : fromToken,
+            amount,
+            toToken.isETH() ? IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE) : toToken,
+            address(this),
+            1 << 255,
+            0,
+            address(0),
+            ""
+        );
+    }
+
+    function _swapOnBancor(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    ) internal returns(uint256) {
+        if (fromToken.isETH()) {
+            bancorEtherToken.deposit.value(amount)();
+        }
+
+        IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
+        address[] memory path = bancorNetworkPathFinder.generatePath(
+            fromToken.isETH() ? bancorEtherToken : fromToken,
+            toToken.isETH() ? bancorEtherToken : toToken
+        );
+
+        _infiniteApproveIfNeeded(fromToken.isETH() ? wethToken : fromToken, address(bancorNetwork));
+        uint256 returnAmount = bancorNetwork.claimAndConvert(path, amount, 1);
+
+        if (toToken.isETH()) {
+            bancorEtherToken.withdraw(bancorEtherToken.balanceOf(address(this)));
+        }
+
+        return returnAmount;
+    }
+
+    function _swapOnOasis(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    ) internal returns(uint256) {
+        if (fromToken.isETH()) {
+            wethToken.deposit.value(amount)();
+        }
+
+        _infiniteApproveIfNeeded(fromToken.isETH() ? wethToken : fromToken, address(oasisExchange));
+        uint256 returnAmount = oasisExchange.sellAllAmount(
+            fromToken.isETH() ? wethToken : fromToken,
+            amount,
+            toToken.isETH() ? wethToken : toToken,
+            1
+        );
+
+        if (toToken.isETH()) {
+            wethToken.withdraw(wethToken.balanceOf(address(this)));
+        }
+
+        return returnAmount;
+    }
+
+    // Helpers
+
+    function _infiniteApproveIfNeeded(IERC20 token, address to) internal {
+        if (!token.isETH()) {
+            if ((token.allowance(address(this), to) >> 255) == 0) {
+                token.universalApprove(to, uint256(- 1));
+            }
+        }
     }
 }
