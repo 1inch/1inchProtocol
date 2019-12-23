@@ -750,9 +750,11 @@ contract OneSplit {
         view
         returns(
             uint256 returnAmount,
-            uint[4] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
+            uint256[] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
         )
     {
+        distribution = new uint256[](4);
+
         if (fromToken == toToken) {
             returnAmount = amount;
             return (returnAmount, distribution);
@@ -837,9 +839,66 @@ contract OneSplit {
         IERC20 toToken,
         uint256 amount,
         uint256 minReturn,
-        uint256[] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
+        uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
+        uint256 disableFlags // 16 - Compound
     ) public payable {
         fromToken.universalTransferFrom(msg.sender, address(this), amount);
+
+        _swap(fromToken, toToken, amount, distribution, disableFlags);
+
+        uint256 returnAmount = toToken.universalBalanceOf(address(this));
+        require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
+        toToken.universalTransfer(msg.sender, returnAmount);
+        fromToken.universalTransfer(msg.sender, fromToken.universalBalanceOf(address(this)));
+    }
+
+    function _swap(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
+        uint256 disableFlags // 16 - Compound
+    ) internal {
+        if (fromToken == toToken) {
+            return;
+        }
+
+        if ((disableFlags & 16 == 0) && _isCompoundToken(fromToken)) {
+            IERC20 underlying = _compoundUnderlyingAsset(fromToken);
+
+            ICompoundToken(address(fromToken)).redeem(amount);
+            uint256 underlyingAmount = underlying.universalBalanceOf(address(this));
+
+            return _swap(
+                underlying,
+                toToken,
+                underlyingAmount,
+                distribution,
+                disableFlags
+            );
+        }
+
+        if ((disableFlags & 16 == 0) && _isCompoundToken(toToken)) {
+            IERC20 underlying = _compoundUnderlyingAsset(toToken);
+
+            _swap(
+                fromToken,
+                underlying,
+                amount,
+                distribution,
+                disableFlags
+            );
+
+            uint256 underlyingAmount = underlying.universalBalanceOf(address(this));
+
+            if (underlying.isETH()) {
+                cETH.mint.value(underlyingAmount)();
+            } else {
+                _infiniteApproveIfNeeded(underlying, address(toToken));
+                ICompoundToken(address(toToken)).mint(underlyingAmount);
+            }
+            return;
+        }
 
         function(IERC20,IERC20,uint256) returns(uint256)[4] memory reserves = [
             _swapOnUniswap,
@@ -872,11 +931,25 @@ contract OneSplit {
             remainingAmount -= swapAmount;
             reserves[i](fromToken, toToken, swapAmount);
         }
+    }
 
-        uint256 returnAmount = toToken.universalBalanceOf(address(this));
-        require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
-        toToken.universalTransfer(msg.sender, returnAmount);
-        fromToken.universalTransfer(msg.sender, fromToken.universalBalanceOf(address(this)));
+    function goodSwap(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 minReturn,
+        uint256 parts,
+        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound
+    ) public payable {
+        (, uint256[] memory distribution) = getExpectedReturn(fromToken, toToken, amount, parts, disableFlags);
+        swap(
+            fromToken,
+            toToken,
+            amount,
+            minReturn,
+            distribution,
+            disableFlags
+        );
     }
 
     // View Helpers
