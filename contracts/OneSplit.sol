@@ -182,14 +182,34 @@ contract OneSplit {
         if (!fromToken.isETH()) {
             IUniswapExchange fromExchange = uniswapFactory.getExchange(fromToken);
             if (fromExchange != IUniswapExchange(0)) {
-                returnAmount = fromExchange.getTokenToEthInputPrice(returnAmount);
+                (bool success, bytes memory data) = address(fromExchange).staticcall.gas(200000)(
+                    abi.encodeWithSelector(
+                        fromExchange.getTokenToEthInputPrice.selector,
+                        returnAmount
+                    )
+                );
+                if (success) {
+                    returnAmount = abi.decode(data, (uint256));
+                } else {
+                    returnAmount = 0;
+                }
             }
         }
 
         if (!toToken.isETH()) {
             IUniswapExchange toExchange = uniswapFactory.getExchange(toToken);
             if (toExchange != IUniswapExchange(0)) {
-                returnAmount = toExchange.getEthToTokenInputPrice(returnAmount);
+                (bool success, bytes memory data) = address(toExchange).staticcall.gas(200000)(
+                    abi.encodeWithSelector(
+                        toExchange.getEthToTokenInputPrice.selector,
+                        returnAmount
+                    )
+                );
+                if (success) {
+                    returnAmount = abi.decode(data, (uint256));
+                } else {
+                    returnAmount = 0;
+                }
             }
         }
 
