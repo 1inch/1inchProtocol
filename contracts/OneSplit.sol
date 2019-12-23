@@ -63,8 +63,7 @@ contract OneSplit {
             return getExpectedReturn(
                 underlying,
                 toToken,
-                amount
-                    .mul(compoundRate).div(1e18),
+                amount.mul(compoundRate).div(1e18),
                 parts,
                 disableFlags
             );
@@ -75,16 +74,14 @@ contract OneSplit {
             uint256 compoundRate = ICompoundToken(address(toToken)).exchangeRateStored();
 
             (returnAmount, distribution) = getExpectedReturn(
+                fromToken,
                 underlying,
-                toToken,
                 amount,
                 parts,
                 disableFlags
             );
 
-            returnAmount = returnAmount
-                .mul(1e18).div(compoundRate);
-
+            returnAmount = returnAmount.mul(1e18).div(compoundRate);
             return (returnAmount, distribution);
         }
 
