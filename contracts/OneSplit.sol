@@ -95,23 +95,33 @@ contract OneSplit {
         IERC20 toToken,
         uint256 amount
     ) internal view returns(uint256) {
-        uint256 returnAmount = amount;
+        bool success;
+        bytes memory data;
+        address uniswap;
+        bytes4 signature;
 
-        if (!fromToken.isETH()) {
+        if (fromToken.isETH()) {
             IUniswapExchange fromExchange = uniswapFactory.getExchange(fromToken);
-            if (fromExchange != IUniswapExchange(0)) {
-                returnAmount = fromExchange.getTokenToEthInputPrice(returnAmount);
-            }
+            uniswap = address(fromExchange);
+            signature = fromExchange.getEthToTokenInputPrice.selector;
+        } else if (toToken.isETH()) {
+            IUniswapExchange toExchange = uniswapFactory.getExchange(fromToken);
+            uniswap = address(toExchange);
+            signature = toExchange.getTokenToEthInputPrice.selector;
+        } else {
+            require(false, "Token to Token swap is not implemented yet");
         }
 
-        if (!toToken.isETH()) {
-            IUniswapExchange toExchange = uniswapFactory.getExchange(toToken);
-            if (toExchange != IUniswapExchange(0)) {
-                returnAmount = toExchange.getEthToTokenInputPrice(returnAmount);
-            }
+        (success, data) = uniswap.staticcall.gas(200000)(abi.encodeWithSelector(
+            signature,
+            amount
+        ));
+
+        if (!success) {
+            return 0;
         }
 
-        return returnAmount;
+        return abi.decode(data, (uint256));
     }
 
     function _calculateKyberReturn(
