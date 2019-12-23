@@ -859,7 +859,7 @@ contract OneSplit {
 
         require(parts > 0, "OneSplit: distribution should contain non-zeros");
 
-        uint256 remainingAmount;
+        uint256 remainingAmount = amount;
         for (uint i = 0; i < reserves.length; i++) {
             if (distribution[i] == 0) {
                 continue;
@@ -1089,7 +1089,7 @@ contract OneSplit {
             toToken.isETH() ? bancorEtherToken : toToken
         );
 
-        _infiniteApproveIfNeeded(fromToken.isETH() ? wethToken : fromToken, address(bancorNetwork));
+        _infiniteApproveIfNeeded(fromToken.isETH() ? bancorEtherToken : fromToken, address(bancorNetwork));
         uint256 returnAmount = bancorNetwork.claimAndConvert(path, amount, 1);
 
         if (toToken.isETH()) {
