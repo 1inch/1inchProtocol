@@ -10,6 +10,7 @@ import "./interface/IBancorContractRegistry.sol";
 import "./interface/IBancorNetworkPathFinder.sol";
 import "./interface/IBancorEtherToken.sol";
 import "./interface/IOasisExchange.sol";
+import "./interface/ICompound.sol";
 import "./interface/IWETH.sol";
 import "./UniversalERC20.sol";
 
@@ -23,6 +24,9 @@ contract OneSplit {
 
     IWETH wethToken = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IBancorEtherToken bancorEtherToken = IBancorEtherToken(0xc0829421C1d260BD3cB3E0F06cfE2D52db2cE315);
+
+    ICompound public compound = ICompound(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
+    ICompoundEther public cETH = ICompoundEther(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
 
     IKyberNetworkProxy public kyberNetworkProxy = IKyberNetworkProxy(0x818E6FECD516Ecc3849DAf6845e3EC868087B755);
     IUniswapFactory public uniswapFactory = IUniswapFactory(0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95);
@@ -38,7 +42,7 @@ contract OneSplit {
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis
+        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound
     )
         public
         view
@@ -47,6 +51,43 @@ contract OneSplit {
             uint[4] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
         )
     {
+        if (fromToken == toToken) {
+            returnAmount = amount;
+            return (returnAmount, distribution);
+        }
+
+        if ((disableFlags & 16 == 0) && _isCompoundToken(fromToken)) {
+            IERC20 underlying = _compoundUnderlyingAsset(fromToken);
+            uint256 compoundRate = ICompoundToken(address(fromToken)).exchangeRateStored();
+
+            return getExpectedReturn(
+                underlying,
+                toToken,
+                amount
+                    .mul(compoundRate).div(1e18),
+                parts,
+                disableFlags
+            );
+        }
+
+        if ((disableFlags & 16 == 0) && _isCompoundToken(toToken)) {
+            IERC20 underlying = _compoundUnderlyingAsset(toToken);
+            uint256 compoundRate = ICompoundToken(address(toToken)).exchangeRateStored();
+
+            (returnAmount, distribution) = getExpectedReturn(
+                underlying,
+                toToken,
+                amount,
+                parts,
+                disableFlags
+            );
+
+            returnAmount = returnAmount
+                .mul(1e18).div(compoundRate);
+
+            return (returnAmount, distribution);
+        }
+
         function(IERC20,IERC20,uint256) view returns(uint256)[4] memory reserves = [
             ((disableFlags & 1) != 0) ? _calculateNoReturn : _calculateUniswapReturn,
             ((disableFlags & 2) != 0) ? _calculateNoReturn : _calculateKyberReturn,
@@ -361,5 +402,20 @@ contract OneSplit {
                 token.universalApprove(to, uint256(- 1));
             }
         }
+    }
+
+    function _isCompoundToken(IERC20 token) internal view returns(bool) {
+        if (token == cETH) {
+            return true;
+        }
+        (bool isListed,) = compound.markets(address(token));
+        return isListed;
+    }
+
+    function _compoundUnderlyingAsset(IERC20 asset) internal view returns(IERC20) {
+        if (asset == cETH) {
+            return IERC20(address(0));
+        }
+        return IERC20(ICompoundToken(address(asset)).underlying());
     }
 }
