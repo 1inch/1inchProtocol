@@ -382,25 +382,31 @@ contract IBancorContractRegistry {
         external view returns (address);
 }
 
-// File: contracts/interface/IBancorConverterRegistry.sol
+// File: contracts/interface/IBancorNetworkPathFinder.sol
 
 pragma solidity ^0.5.0;
 
 
 
-interface IBancorConverterRegistry {
+interface IBancorNetworkPathFinder {
 
-    function getConvertibleTokenSmartTokenCount(IERC20 convertibleToken)
-        external view returns(uint256);
-
-    function getConvertibleTokenSmartTokens(IERC20 convertibleToken)
+    function generatePath(IERC20 sourceToken, IERC20 targetToken)
         external view returns(address[] memory);
+}
 
-    function getConvertibleTokenSmartToken(IERC20 convertibleToken, uint256 index)
-        external view returns(address);
+// File: contracts/interface/IBancorEtherToken.sol
 
-    function isConvertibleTokenSmartToken(IERC20 convertibleToken, address value)
-        external view returns(bool);
+pragma solidity ^0.5.0;
+
+
+
+contract IBancorEtherToken is IERC20 {
+
+    function deposit()
+        external payable;
+
+    function withdraw(uint256 amount)
+        external;
 }
 
 // File: contracts/interface/IOasisExchange.sol
@@ -416,6 +422,49 @@ interface IOasisExchange {
 
     function sellAllAmount(IERC20 payGem, uint payAmt, IERC20 buyGem, uint256 minFillAmount)
         external returns(uint256 fillAmt);
+}
+
+// File: contracts/interface/ICompound.sol
+
+pragma solidity ^0.5.0;
+
+
+
+contract ICompound {
+    function markets(address cToken)
+        external
+        view
+        returns(bool isListed, uint256 collateralFactorMantissa);
+}
+
+
+contract ICompoundToken is IERC20 {
+    function underlying() external view returns(address);
+    function exchangeRateStored() external view returns(uint256);
+
+    function mint(uint256 mintAmount) external returns(uint256);
+    function redeem(uint256 redeemTokens) external returns(uint256);
+}
+
+
+contract ICompoundEther is IERC20 {
+    function mint() external payable;
+    function redeem(uint256 redeemTokens) external returns(uint256);
+}
+
+// File: contracts/interface/IWETH.sol
+
+pragma solidity ^0.5.0;
+
+
+
+contract IWETH is IERC20 {
+
+    function deposit()
+        external payable;
+
+    function withdraw(uint256 amount)
+        external;
 }
 
 // File: @openzeppelin/contracts/utils/Address.sol
@@ -665,19 +714,26 @@ pragma solidity ^0.5.0;
 
 
 
+
+
+
 contract OneSplit {
 
     using SafeMath for uint256;
     using UniversalERC20 for IERC20;
+    using UniversalERC20 for IWETH;
+    using UniversalERC20 for IBancorEtherToken;
 
-    IERC20 wethToken = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-    IERC20 bntToken = IERC20(0x1F573D6Fb3F13d689FF844B4cE37794d79a7FF1C);
-    IERC20 bancorEtherToken = IERC20(0xc0829421C1d260BD3cB3E0F06cfE2D52db2cE315);
+    IWETH wethToken = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+    IBancorEtherToken bancorEtherToken = IBancorEtherToken(0xc0829421C1d260BD3cB3E0F06cfE2D52db2cE315);
+
+    ICompound public compound = ICompound(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
+    ICompoundEther public cETH = ICompoundEther(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
 
     IKyberNetworkProxy public kyberNetworkProxy = IKyberNetworkProxy(0x818E6FECD516Ecc3849DAf6845e3EC868087B755);
     IUniswapFactory public uniswapFactory = IUniswapFactory(0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95);
     IBancorContractRegistry public bancorContractRegistry = IBancorContractRegistry(0x52Ae12ABe5D8BD778BD5397F99cA900624CfADD4);
-    IBancorConverterRegistry public bancorConverterRegistry = IBancorConverterRegistry(0xf6E2D7F616B67E46D708e4410746E9AAb3a4C518);
+    IBancorNetworkPathFinder bancorNetworkPathFinder = IBancorNetworkPathFinder(0x6F0cD8C4f6F06eAB664C7E3031909452b4B72861);
     IOasisExchange public oasisExchange = IOasisExchange(0x39755357759cE0d7f32dC8dC45414CCa409AE24e);
 
     function log(uint256) external view {
@@ -688,7 +744,7 @@ contract OneSplit {
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis
+        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound
     )
         public
         view
@@ -697,6 +753,40 @@ contract OneSplit {
             uint[4] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
         )
     {
+        if (fromToken == toToken) {
+            returnAmount = amount;
+            return (returnAmount, distribution);
+        }
+
+        if ((disableFlags & 16 == 0) && _isCompoundToken(fromToken)) {
+            IERC20 underlying = _compoundUnderlyingAsset(fromToken);
+            uint256 compoundRate = ICompoundToken(address(fromToken)).exchangeRateStored();
+
+            return getExpectedReturn(
+                underlying,
+                toToken,
+                amount.mul(compoundRate).div(1e18),
+                parts,
+                disableFlags
+            );
+        }
+
+        if ((disableFlags & 16 == 0) && _isCompoundToken(toToken)) {
+            IERC20 underlying = _compoundUnderlyingAsset(toToken);
+            uint256 compoundRate = ICompoundToken(address(toToken)).exchangeRateStored();
+
+            (returnAmount, distribution) = getExpectedReturn(
+                fromToken,
+                underlying,
+                amount,
+                parts,
+                disableFlags
+            );
+
+            returnAmount = returnAmount.mul(1e18).div(compoundRate);
+            return (returnAmount, distribution);
+        }
+
         function(IERC20,IERC20,uint256) view returns(uint256)[4] memory reserves = [
             ((disableFlags & 1) != 0) ? _calculateNoReturn : _calculateUniswapReturn,
             ((disableFlags & 2) != 0) ? _calculateNoReturn : _calculateKyberReturn,
@@ -742,7 +832,54 @@ contract OneSplit {
         }
     }
 
-    // Helpers
+    function swap(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 minReturn,
+        uint256[] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
+    ) public payable {
+        fromToken.universalTransferFrom(msg.sender, address(this), amount);
+
+        function(IERC20,IERC20,uint256) returns(uint256)[4] memory reserves = [
+            _swapOnUniswap,
+            _swapOnKyber,
+            _swapOnBancor,
+            _swapOnOasis
+        ];
+
+        uint256 parts = 0;
+        uint256 lastNonZeroIndex = 0;
+        for (uint i = 0; i < reserves.length; i++) {
+            if (distribution[i] > 0) {
+                parts = parts.add(distribution[i]);
+                lastNonZeroIndex = i;
+            }
+        }
+
+        require(parts > 0, "OneSplit: distribution should contain non-zeros");
+
+        uint256 remainingAmount;
+        for (uint i = 0; i < reserves.length; i++) {
+            if (distribution[i] == 0) {
+                continue;
+            }
+
+            uint256 swapAmount = amount.mul(distribution[i]).div(parts);
+            if (i == lastNonZeroIndex) {
+                swapAmount = remainingAmount;
+            }
+            remainingAmount -= swapAmount;
+            reserves[i](fromToken, toToken, swapAmount);
+        }
+
+        uint256 returnAmount = toToken.universalBalanceOf(address(this));
+        require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
+        toToken.universalTransfer(msg.sender, returnAmount);
+        fromToken.universalTransfer(msg.sender, fromToken.universalBalanceOf(address(this)));
+    }
+
+    // View Helpers
 
     function _calculateUniswapReturn(
         IERC20 fromToken,
@@ -754,14 +891,34 @@ contract OneSplit {
         if (!fromToken.isETH()) {
             IUniswapExchange fromExchange = uniswapFactory.getExchange(fromToken);
             if (fromExchange != IUniswapExchange(0)) {
-                returnAmount = fromExchange.getTokenToEthInputPrice(returnAmount);
+                (bool success, bytes memory data) = address(fromExchange).staticcall.gas(200000)(
+                    abi.encodeWithSelector(
+                        fromExchange.getTokenToEthInputPrice.selector,
+                        returnAmount
+                    )
+                );
+                if (success) {
+                    returnAmount = abi.decode(data, (uint256));
+                } else {
+                    returnAmount = 0;
+                }
             }
         }
 
         if (!toToken.isETH()) {
             IUniswapExchange toExchange = uniswapFactory.getExchange(toToken);
             if (toExchange != IUniswapExchange(0)) {
-                returnAmount = toExchange.getEthToTokenInputPrice(returnAmount);
+                (bool success, bytes memory data) = address(toExchange).staticcall.gas(200000)(
+                    abi.encodeWithSelector(
+                        toExchange.getEthToTokenInputPrice.selector,
+                        returnAmount
+                    )
+                );
+                if (success) {
+                    returnAmount = abi.decode(data, (uint256));
+                } else {
+                    returnAmount = 0;
+                }
             }
         }
 
@@ -823,7 +980,10 @@ contract OneSplit {
         uint256 amount
     ) internal view returns(uint256) {
         IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
-        address[] memory path = _buildBancorPath(fromToken, toToken);
+        address[] memory path = bancorNetworkPathFinder.generatePath(
+            fromToken.isETH() ? bancorEtherToken : fromToken,
+            toToken.isETH() ? bancorEtherToken : toToken
+        );
 
         (bool success, bytes memory data) = address(bancorNetwork).staticcall.gas(200000)(
             abi.encodeWithSelector(
@@ -866,84 +1026,125 @@ contract OneSplit {
         uint256 /*amount*/
     ) internal view returns(uint256) {
         this;
-        return 0;
     }
 
-    function _buildBancorPath(
+    // Swap Helpers
+
+    function _swapOnUniswap(
         IERC20 fromToken,
-        IERC20 toToken
-    ) internal view returns(address[] memory path) {
-        if (fromToken == toToken) {
-            return new address[](0);
+        IERC20 toToken,
+        uint256 amount
+    ) internal returns(uint256) {
+
+        uint256 returnAmount = amount;
+
+        if (!fromToken.isETH()) {
+            IUniswapExchange fromExchange = uniswapFactory.getExchange(fromToken);
+            if (fromExchange != IUniswapExchange(0)) {
+                _infiniteApproveIfNeeded(fromToken, address(fromExchange));
+                returnAmount = fromExchange.tokenToEthSwapInput(returnAmount, 1, now);
+            }
         }
 
+        if (!toToken.isETH()) {
+            IUniswapExchange toExchange = uniswapFactory.getExchange(toToken);
+            if (toExchange != IUniswapExchange(0)) {
+                returnAmount = toExchange.ethToTokenSwapInput.value(returnAmount)(1, now);
+            }
+        }
+
+        return returnAmount;
+    }
+
+    function _swapOnKyber(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    ) internal returns(uint256) {
+        _infiniteApproveIfNeeded(fromToken, address(kyberNetworkProxy));
+        return kyberNetworkProxy.tradeWithHint.value(fromToken.isETH() ? amount : 0)(
+            fromToken.isETH() ? IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE) : fromToken,
+            amount,
+            toToken.isETH() ? IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE) : toToken,
+            address(this),
+            1 << 255,
+            0,
+            address(0),
+            ""
+        );
+    }
+
+    function _swapOnBancor(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    ) internal returns(uint256) {
         if (fromToken.isETH()) {
-            fromToken = bancorEtherToken;
+            bancorEtherToken.deposit.value(amount)();
         }
+
+        IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
+        address[] memory path = bancorNetworkPathFinder.generatePath(
+            fromToken.isETH() ? bancorEtherToken : fromToken,
+            toToken.isETH() ? bancorEtherToken : toToken
+        );
+
+        _infiniteApproveIfNeeded(fromToken.isETH() ? wethToken : fromToken, address(bancorNetwork));
+        uint256 returnAmount = bancorNetwork.claimAndConvert(path, amount, 1);
+
         if (toToken.isETH()) {
-            toToken = bancorEtherToken;
+            bancorEtherToken.withdraw(bancorEtherToken.balanceOf(address(this)));
         }
 
-        if (fromToken == bntToken || toToken == bntToken) {
-            path = new address[](3);
-        } else {
-            path = new address[](5);
+        return returnAmount;
+    }
+
+    function _swapOnOasis(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    ) internal returns(uint256) {
+        if (fromToken.isETH()) {
+            wethToken.deposit.value(amount)();
         }
 
-        address fromConverter;
-        address toConverter;
+        _infiniteApproveIfNeeded(fromToken.isETH() ? wethToken : fromToken, address(oasisExchange));
+        uint256 returnAmount = oasisExchange.sellAllAmount(
+            fromToken.isETH() ? wethToken : fromToken,
+            amount,
+            toToken.isETH() ? wethToken : toToken,
+            1
+        );
 
-        if (fromToken != bntToken) {
-            (bool success, bytes memory data) = address(bancorConverterRegistry).staticcall.gas(10000)(abi.encodeWithSelector(
-                bancorConverterRegistry.getConvertibleTokenSmartToken.selector,
-                fromToken.isETH() ? bntToken : fromToken,
-                0
-            ));
-            if (!success) {
-                return new address[](0);
-            }
-
-            fromConverter = abi.decode(data, (address));
-            if (fromConverter == address(0)) {
-                return new address[](0);
-            }
+        if (toToken.isETH()) {
+            wethToken.withdraw(wethToken.balanceOf(address(this)));
         }
 
-        if (toToken != bntToken) {
-            (bool success, bytes memory data) = address(bancorConverterRegistry).staticcall.gas(10000)(abi.encodeWithSelector(
-                bancorConverterRegistry.getConvertibleTokenSmartToken.selector,
-                toToken.isETH() ? bntToken : toToken,
-                0
-            ));
-            if (!success) {
-                return new address[](0);
-            }
+        return returnAmount;
+    }
 
-            toConverter = abi.decode(data, (address));
-            if (toConverter == address(0)) {
-                return new address[](0);
+    // Helpers
+
+    function _infiniteApproveIfNeeded(IERC20 token, address to) internal {
+        if (!token.isETH()) {
+            if ((token.allowance(address(this), to) >> 255) == 0) {
+                token.universalApprove(to, uint256(- 1));
             }
         }
+    }
 
-        if (toToken == bntToken) {
-            path[0] = address(fromToken);
-            path[1] = fromConverter;
-            path[2] = address(bntToken);
-            return path;
+    function _isCompoundToken(IERC20 token) internal view returns(bool) {
+        if (token == cETH) {
+            return true;
         }
+        (bool isListed,) = compound.markets(address(token));
+        return isListed;
+    }
 
-        if (fromToken == bntToken) {
-            path[0] = address(bntToken);
-            path[1] = toConverter;
-            path[2] = address(toToken);
-            return path;
+    function _compoundUnderlyingAsset(IERC20 asset) internal view returns(IERC20) {
+        if (asset == cETH) {
+            return IERC20(address(0));
         }
-
-        path[0] = address(fromToken);
-        path[1] = fromConverter;
-        path[2] = address(bntToken);
-        path[3] = toConverter;
-        path[4] = address(toToken);
-        return path;
+        return IERC20(ICompoundToken(address(asset)).underlying());
     }
 }

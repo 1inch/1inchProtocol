@@ -147,14 +147,24 @@ contract OneSplit {
         ];
 
         uint256 parts = 0;
+        uint256 lastNonZeroIndex = 0;
         for (uint i = 0; i < reserves.length; i++) {
-            parts = parts.add(distribution[i]);
+            if (distribution[i] > 0) {
+                parts = parts.add(distribution[i]);
+                lastNonZeroIndex = i;
+            }
         }
+
+        require(parts > 0, "OneSplit: distribution should contain non-zeros");
 
         uint256 remainingAmount;
         for (uint i = 0; i < reserves.length; i++) {
+            if (distribution[i] == 0) {
+                continue;
+            }
+
             uint256 swapAmount = amount.mul(distribution[i]).div(parts);
-            if (i == reserves.length - 1) {
+            if (i == lastNonZeroIndex) {
                 swapAmount = remainingAmount;
             }
             remainingAmount -= swapAmount;
