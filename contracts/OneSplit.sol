@@ -88,10 +88,10 @@ contract OneSplit {
         }
 
         function(IERC20,IERC20,uint256) view returns(uint256)[4] memory reserves = [
-            ((disableFlags & 1) != 0) ? _calculateNoReturn : _calculateUniswapReturn,
-            ((disableFlags & 2) != 0) ? _calculateNoReturn : _calculateKyberReturn,
-            ((disableFlags & 4) != 0) ? _calculateNoReturn : _calculateBancorReturn,
-            ((disableFlags & 8) != 0) ? _calculateNoReturn : _calculateOasisReturn
+            uint256(disableFlags & 1) != 0 ? _calculateNoReturn : _calculateUniswapReturn,
+            uint256(disableFlags & 2) != 0 ? _calculateNoReturn : _calculateKyberReturn,
+            uint256(disableFlags & 4) != 0 ? _calculateNoReturn : _calculateBancorReturn,
+            uint256(disableFlags & 8) != 0 ? _calculateNoReturn : _calculateOasisReturn
         ];
 
         uint256[4] memory rates;
