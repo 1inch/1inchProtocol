@@ -343,6 +343,15 @@ interface IKyberOasisReserve {
     function otc() external view returns(address);
 }
 
+// File: contracts/interface/IKyberBancorReserve.sol
+
+pragma solidity ^0.5.0;
+
+
+contract IKyberBancorReserve {
+    function bancorEth() public view returns(address);
+}
+
 // File: contracts/interface/IBancorNetwork.sol
 
 pragma solidity ^0.5.0;
@@ -682,11 +691,11 @@ library UniversalERC20 {
             return 18;
         }
 
-        (bool success, bytes memory data) = address(token).staticcall.gas(2300)(
+        (bool success, bytes memory data) = address(token).staticcall.gas(5000)(
             abi.encodeWithSignature("decimals()")
         );
         if (!success) {
-            (success, data) = address(token).staticcall.gas(2300)(
+            (success, data) = address(token).staticcall.gas(5000)(
                 abi.encodeWithSignature("DECIMALS()")
             );
         }
@@ -702,6 +711,7 @@ library UniversalERC20 {
 // File: contracts/OneSplit.sol
 
 pragma solidity ^0.5.0;
+
 
 
 
@@ -790,10 +800,10 @@ contract OneSplit {
         }
 
         function(IERC20,IERC20,uint256) view returns(uint256)[4] memory reserves = [
-            ((disableFlags & 1) != 0) ? _calculateNoReturn : _calculateUniswapReturn,
-            ((disableFlags & 2) != 0) ? _calculateNoReturn : _calculateKyberReturn,
-            ((disableFlags & 4) != 0) ? _calculateNoReturn : _calculateBancorReturn,
-            ((disableFlags & 8) != 0) ? _calculateNoReturn : _calculateOasisReturn
+            uint256(disableFlags & 1) != 0 ? _calculateNoReturn : _calculateUniswapReturn,
+            uint256(disableFlags & 2) != 0 ? _calculateNoReturn : _calculateKyberReturn,
+            uint256(disableFlags & 4) != 0 ? _calculateNoReturn : _calculateBancorReturn,
+            uint256(disableFlags & 8) != 0 ? _calculateNoReturn : _calculateOasisReturn
         ];
 
         uint256[4] memory rates;
@@ -1025,6 +1035,14 @@ contract OneSplit {
 
         (address reserve, uint256 rate) = abi.decode(data, (address,uint256));
 
+        // Check for Uniswap, Oasis and Bancor reserves
+        if (reserve == 0x54A4a1167B004b004520c605E3f01906f683413d ||
+            reserve == 0xCf1394C5e2e879969fdB1f464cE1487147863dCb ||
+            reserve == 0x053AA84FCC676113a57e0EbB0bD1913839874bE4)
+        {
+            return 0;
+        }
+
         // Check for Uniswap reserve
         (success,) = reserve.staticcall.gas(2300)(abi.encodeWithSelector(
             IKyberUniswapReserve(reserve).uniswapFactory.selector
@@ -1036,6 +1054,14 @@ contract OneSplit {
         // Check for Oasis reserve
         (success,) = reserve.staticcall.gas(2300)(abi.encodeWithSelector(
             IKyberOasisReserve(reserve).otc.selector
+        ));
+        if (success) {
+            return 0;
+        }
+
+        // Check for Bancor reserve
+        (success,) = reserve.staticcall.gas(2300)(abi.encodeWithSelector(
+            IKyberBancorReserve(reserve).bancorEth.selector
         ));
         if (success) {
             return 0;
