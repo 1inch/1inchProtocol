@@ -237,6 +237,62 @@ interface IERC20 {
     event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
+// File: @openzeppelin/contracts/token/ERC20/ERC20Detailed.sol
+
+pragma solidity ^0.5.0;
+
+
+/**
+ * @dev Optional functions from the ERC20 standard.
+ */
+contract ERC20Detailed is IERC20 {
+    string private _name;
+    string private _symbol;
+    uint8 private _decimals;
+
+    /**
+     * @dev Sets the values for `name`, `symbol`, and `decimals`. All three of
+     * these values are immutable: they can only be set once during
+     * construction.
+     */
+    constructor (string memory name, string memory symbol, uint8 decimals) public {
+        _name = name;
+        _symbol = symbol;
+        _decimals = decimals;
+    }
+
+    /**
+     * @dev Returns the name of the token.
+     */
+    function name() public view returns (string memory) {
+        return _name;
+    }
+
+    /**
+     * @dev Returns the symbol of the token, usually a shorter version of the
+     * name.
+     */
+    function symbol() public view returns (string memory) {
+        return _symbol;
+    }
+
+    /**
+     * @dev Returns the number of decimals used to get its user representation.
+     * For example, if `decimals` equals `2`, a balance of `505` tokens should
+     * be displayed to a user as `5,05` (`505 / 10 ** 2`).
+     *
+     * Tokens usually opt for a value of 18, imitating the relationship between
+     * Ether and Wei.
+     *
+     * NOTE: This information is only used for _display_ purposes: it in
+     * no way affects any of the arithmetic of the contract, including
+     * {IERC20-balanceOf} and {IERC20-transfer}.
+     */
+    function decimals() public view returns (uint8) {
+        return _decimals;
+    }
+}
+
 // File: contracts/interface/IUniswapExchange.sol
 
 pragma solidity ^0.5.0;
@@ -459,6 +515,30 @@ contract ICompoundToken is IERC20 {
 contract ICompoundEther is IERC20 {
     function mint() external payable;
     function redeem(uint256 redeemTokens) external returns(uint256);
+}
+
+// File: contracts/interface/IFulcrum.sol
+
+pragma solidity ^0.5.0;
+
+
+
+contract IFulcrumToken is IERC20 {
+
+    function tokenPrice() external view returns(uint256);
+    function loanTokenAddress() external view returns(address);
+
+    function mintWithEther(address receiver)
+        external payable returns (uint256 mintAmount);
+
+    function mint(address receiver, uint256 depositAmount)
+        external returns (uint256 mintAmount);
+
+    function burnToEther(address receiver, uint256 burnAmount)
+        external returns (uint256 loanAmountPaid);
+
+    function burn(address receiver, uint256 burnAmount)
+        external returns (uint256 loanAmountPaid);
 }
 
 // File: contracts/interface/IWETH.sol
@@ -727,6 +807,8 @@ pragma solidity ^0.5.0;
 
 
 
+
+
 contract OneSplit {
 
     using SafeMath for uint256;
@@ -754,7 +836,7 @@ contract OneSplit {
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound
+        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum
     )
         public
         view
@@ -797,6 +879,39 @@ contract OneSplit {
 
             returnAmount = returnAmount.mul(1e18).div(compoundRate);
             return (returnAmount, distribution);
+        }
+
+        if (disableFlags & 32 == 0) {
+            IERC20 underlying = _isFulcrumToken(fromToken);
+            if (underlying != IERC20(-1)) {
+                uint256 fulcrumRate = IFulcrumToken(address(fromToken)).tokenPrice();
+
+                return getExpectedReturn(
+                    underlying,
+                    toToken,
+                    amount.mul(fulcrumRate).div(1e18),
+                    parts,
+                    disableFlags
+                );
+            }
+        }
+
+        if (disableFlags & 32 == 0) {
+            IERC20 underlying = _isFulcrumToken(toToken);
+            if (underlying != IERC20(-1)) {
+                uint256 fulcrumRate = IFulcrumToken(address(toToken)).tokenPrice();
+
+                (returnAmount, distribution) = getExpectedReturn(
+                    fromToken,
+                    underlying,
+                    amount,
+                    parts,
+                    disableFlags
+                );
+
+                returnAmount = returnAmount.mul(1e18).div(fulcrumRate);
+                return (returnAmount, distribution);
+            }
         }
 
         function(IERC20,IERC20,uint256) view returns(uint256)[4] memory reserves = [
@@ -908,6 +1023,50 @@ contract OneSplit {
                 ICompoundToken(address(toToken)).mint(underlyingAmount);
             }
             return;
+        }
+
+        if (disableFlags & 32 == 0) {
+            IERC20 underlying = _isFulcrumToken(fromToken);
+            if (underlying != IERC20(-1)) {
+                if (underlying.isETH()) {
+                    IFulcrumToken(address(fromToken)).burnToEther(address(this), amount);
+                } else {
+                    IFulcrumToken(address(fromToken)).burn(address(this), amount);
+                }
+
+                uint256 underlyingAmount = underlying.universalBalanceOf(address(this));
+
+                return _swap(
+                    underlying,
+                    toToken,
+                    underlyingAmount,
+                    distribution,
+                    disableFlags
+                );
+            }
+        }
+
+        if (disableFlags & 32 == 0) {
+            IERC20 underlying = _isFulcrumToken(toToken);
+            if (underlying != IERC20(-1)) {
+                _swap(
+                    fromToken,
+                    underlying,
+                    amount,
+                    distribution,
+                    disableFlags
+                );
+
+                uint256 underlyingAmount = underlying.universalBalanceOf(address(this));
+
+                if (underlying.isETH()) {
+                    cETH.mint.value(underlyingAmount)();
+                } else {
+                    _infiniteApproveIfNeeded(underlying, address(toToken));
+                    ICompoundToken(address(toToken)).mint(underlyingAmount);
+                }
+                return;
+            }
         }
 
         function(IERC20,IERC20,uint256) returns(uint256)[4] memory reserves = [
@@ -1245,5 +1404,41 @@ contract OneSplit {
             return IERC20(address(0));
         }
         return IERC20(ICompoundToken(address(asset)).underlying());
+    }
+
+    function _isFulcrumToken(IERC20 token) public view returns(IERC20) {
+        if (token.isETH()) {
+            return IERC20(-1);
+        }
+
+        (bool success, bytes memory data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
+            ERC20Detailed(address(token)).symbol.selector
+        ));
+        if (!success) {
+            return IERC20(-1);
+        }
+
+        bool foundBZX = false;
+        for (uint i = 0; i < data.length - 3; i++) {
+            if (data[i + 0] == "b" &&
+                data[i + 1] == "Z" &&
+                data[i + 2] == "x")
+            {
+                foundBZX = true;
+                break;
+            }
+        }
+        if (!foundBZX) {
+            return IERC20(-1);
+        }
+
+        (success, data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
+            IFulcrumToken(address(token)).loanTokenAddress.selector
+        ));
+        if (!success) {
+            return IERC20(-1);
+        }
+
+        return abi.decode(data, (IERC20));
     }
 }
