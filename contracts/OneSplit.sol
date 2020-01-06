@@ -46,6 +46,7 @@ contract OneSplit {
     uint256 constant public FLAG_DISABLE_OASIS = 0x08;
     uint256 constant public FLAG_DISABLE_COMPOUND = 0x10;
     uint256 constant public FLAG_DISABLE_FULCRUM = 0x20;
+    IERC20 constant public ETH_ADDRESS = IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
     IWETH wethToken = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IBancorEtherToken bancorEtherToken = IBancorEtherToken(0xc0829421C1d260BD3cB3E0F06cfE2D52db2cE315);
@@ -197,7 +198,7 @@ contract OneSplit {
         uint256 amount,
         uint256 minReturn,
         uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
-        uint256 disableFlags // 16 - Compound
+        uint256 disableFlags // 16 - Compound, 32 - Fulcrum
     ) public payable {
         fromToken.universalTransferFrom(msg.sender, address(this), amount);
 
@@ -340,7 +341,7 @@ contract OneSplit {
         uint256 amount,
         uint256 minReturn,
         uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound
+        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum
     ) public payable {
         (, uint256[] memory distribution) = getExpectedReturn(fromToken, toToken, amount, parts, disableFlags);
         swap(
@@ -415,10 +416,29 @@ contract OneSplit {
 
         IKyberNetworkContract kyberNetworkContract = IKyberNetworkContract(abi.decode(data, (address)));
 
-        (success, data) = address(kyberNetworkContract).staticcall.gas(200000)(abi.encodeWithSelector(
+        if (fromToken.isETH() || toToken.isETH()) {
+            return _calculateKyberReturnWithEth(kyberNetworkContract, fromToken, toToken, amount, disableFlags);
+        }
+
+        uint256 value = _calculateKyberReturnWithEth(kyberNetworkContract, fromToken, ETH_ADDRESS, amount, disableFlags);
+        if (value == 0) {
+            return 0;
+        }
+
+        return _calculateKyberReturnWithEth(kyberNetworkContract, ETH_ADDRESS, toToken, value, disableFlags);
+    }
+
+    function _calculateKyberReturnWithEth(
+        IKyberNetworkContract kyberNetworkContract,
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 disableFlags
+    ) public view returns(uint256) {
+        (bool success, bytes memory data) = address(kyberNetworkContract).staticcall.gas(200000)(abi.encodeWithSelector(
             kyberNetworkContract.searchBestRate.selector,
-            fromToken.isETH() ? IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE) : fromToken,
-            toToken.isETH() ? IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE) : toToken,
+            fromToken.isETH() ? ETH_ADDRESS : fromToken,
+            toToken.isETH() ? ETH_ADDRESS : toToken,
             amount,
             true
         ));
@@ -565,9 +585,9 @@ contract OneSplit {
     ) internal returns(uint256) {
         _infiniteApproveIfNeeded(fromToken, address(kyberNetworkProxy));
         return kyberNetworkProxy.tradeWithHint.value(fromToken.isETH() ? amount : 0)(
-            fromToken.isETH() ? IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE) : fromToken,
+            fromToken.isETH() ? ETH_ADDRESS : fromToken,
             amount,
-            toToken.isETH() ? IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE) : toToken,
+            toToken.isETH() ? ETH_ADDRESS : toToken,
             address(this),
             1 << 255,
             0,
