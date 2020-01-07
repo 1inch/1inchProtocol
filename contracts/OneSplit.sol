@@ -318,7 +318,7 @@ contract OneSplit {
                     IFulcrumToken(address(toToken)).mintWithEther.value(underlyingAmount)(address(this));
                 } else {
                     _infiniteApproveIfNeeded(underlying, address(toToken));
-                    ICompoundToken(address(toToken)).mint(underlyingAmount);
+                    IFulcrumToken(address(toToken)).mint(address(this), underlyingAmount);
                 }
                 return;
             }
@@ -684,17 +684,21 @@ contract OneSplit {
         }
 
         (bool success, bytes memory data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
-            ERC20Detailed(address(token)).symbol.selector
+            ERC20Detailed(address(token)).name.selector
         ));
         if (!success) {
             return IERC20(-1);
         }
 
         bool foundBZX = false;
-        for (uint i = 0; i < data.length - 3; i++) {
-            if (data[i + 0] == "b" &&
-                data[i + 1] == "Z" &&
-                data[i + 2] == "x")
+        for (uint i = 0; i < data.length - 7; i++) {
+            if (data[i + 0] == "F" &&
+                data[i + 1] == "u" &&
+                data[i + 2] == "l" &&
+                data[i + 3] == "c" &&
+                data[i + 4] == "r" &&
+                data[i + 5] == "u" &&
+                data[i + 6] == "m")
             {
                 foundBZX = true;
                 break;
