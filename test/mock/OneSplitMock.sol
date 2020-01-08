@@ -16,7 +16,7 @@ contract OneSplitMock is OneSplit {
         // view
         returns(
             uint256 returnAmount,
-            uint[4] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
+            uint[] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
         )
     {
         this;

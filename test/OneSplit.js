@@ -11,13 +11,13 @@ contract('OneSplit', function ([_, addr1]) {
 
         it('should work', async function () {
             // const tx = await this.split.getExpectedReturnMock(
-            //     '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+            //     '0x0000000000000000000000000000000000000000',
             //     '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359',
             //     web3.utils.toWei('20'),
             //     10
             // );
             const res = await this.split.getExpectedReturn(
-                '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', // ETH
+                '0x0000000000000000000000000000000000000000', // ETH
                 '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359', // DAI
                 web3.utils.toWei('20'),
                 10,
