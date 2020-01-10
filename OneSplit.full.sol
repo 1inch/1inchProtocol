@@ -556,6 +556,90 @@ contract IWETH is IERC20 {
         external;
 }
 
+// File: contracts/interface/IChai.sol
+
+pragma solidity ^0.5.0;
+
+
+
+interface IPot {
+    function dsr() external view returns (uint256);
+    function chi() external view returns (uint256);
+    function rho() external view returns (uint256);
+    function drip() external returns (uint256);
+    function join(uint256) external;
+    function exit(uint256) external;
+}
+
+
+contract IChai is IERC20 {
+
+    function POT() public view returns(IPot);
+
+    function join(address dst, uint wad) external;
+
+    function exit(address src, uint wad) external;
+}
+
+
+library ChaiHelper {
+
+    IPot private constant POT = IPot(0x197E90f9FAD81970bA7976f33CbD77088E5D7cf7);
+    uint256 private constant RAY = 10 ** 27;
+
+    function _mul(uint x, uint y) private pure returns (uint z) {
+        require(y == 0 || (z = x * y) / y == x);
+    }
+
+    function _rmul(uint x, uint y) private pure returns (uint z) {
+        // always rounds down
+        z = _mul(x, y) / RAY;
+    }
+
+    function _rdiv(uint x, uint y) private pure returns (uint z) {
+        // always rounds down
+        z = _mul(x, RAY) / y;
+    }
+
+    function rpow(uint x, uint n, uint base) private pure returns (uint z) {
+        assembly {
+            switch x case 0 {switch n case 0 {z := base} default {z := 0}}
+            default {
+                switch mod(n, 2) case 0 { z := base } default { z := x }
+                let half := div(base, 2)  // for rounding.
+                for { n := div(n, 2) } n { n := div(n,2) } {
+                    let xx := mul(x, x)
+                    if iszero(eq(div(xx, x), x)) { revert(0,0) }
+                    let xxRound := add(xx, half)
+                    if lt(xxRound, xx) { revert(0,0) }
+                    x := div(xxRound, base)
+                    if mod(n,2) {
+                        let zx := mul(z, x)
+                        if and(iszero(iszero(x)), iszero(eq(div(zx, x), z))) { revert(0,0) }
+                        let zxRound := add(zx, half)
+                        if lt(zxRound, zx) { revert(0,0) }
+                        z := div(zxRound, base)
+                    }
+                }
+            }
+        }
+    }
+
+    function potDrip() private view returns(uint256) {
+        return _rmul(rpow(POT.dsr(), now - POT.rho(), RAY), POT.chi());
+    }
+
+    function daiToChai(IChai /*chai*/, uint256 amount) internal view returns(uint256) {
+        uint chi = (now > POT.rho()) ? potDrip() : POT.chi();
+        return _rdiv(amount, chi);
+    }
+
+    function chaiToDai(IChai /*chai*/, uint256 amount) internal view returns(uint256) {
+        uint chi = (now > POT.rho()) ? potDrip() : POT.chi();
+        return _rmul(chi, amount);
+    }
+}
+
 // File: @openzeppelin/contracts/utils/Address.sol
 
 pragma solidity ^0.5.5;
@@ -809,6 +893,7 @@ pragma solidity ^0.5.0;
 
 
 
+
 library DisableFlags {
     function enabled(uint256 disableFlags, uint256 flag) internal pure returns(bool) {
         return (disableFlags & flag) == 0;
@@ -824,6 +909,7 @@ contract OneSplit {
 
     using SafeMath for uint256;
     using DisableFlags for uint256;
+    using ChaiHelper for IChai;
     using UniversalERC20 for IERC20;
     using UniversalERC20 for IWETH;
     using UniversalERC20 for IBancorEtherToken;
@@ -837,6 +923,8 @@ contract OneSplit {
     uint256 constant public FLAG_OASIS = 0x08;
     uint256 constant public FLAG_COMPOUND = 0x10;
     uint256 constant public FLAG_FULCRUM = 0x20;
+    uint256 constant public FLAG_CHAI = 0x40;
+
     IERC20 constant public ETH_ADDRESS = IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
     IWETH wethToken = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
@@ -844,6 +932,9 @@ contract OneSplit {
 
     ICompound public compound = ICompound(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
     ICompoundEther public cETH = ICompoundEther(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
+
+    IERC20 public dai = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
+    IChai public chai = IChai(0x06AF07097C9Eeb7fD685c692751D5C66dB49c215);
 
     IKyberNetworkProxy public kyberNetworkProxy = IKyberNetworkProxy(0x818E6FECD516Ecc3849DAf6845e3EC868087B755);
     IUniswapFactory public uniswapFactory = IUniswapFactory(0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95);
@@ -958,6 +1049,27 @@ contract OneSplit {
                 returnAmount = returnAmount.mul(1e18).div(fulcrumRate);
                 return (returnAmount, distribution);
             }
+        }
+
+        if (disableFlags.enabled(FLAG_CHAI) && fromToken == IERC20(chai)) {
+            return getExpectedReturn(
+                dai,
+                toToken,
+                chai.chaiToDai(amount),
+                parts,
+                disableFlags
+            );
+        }
+
+        if (disableFlags.enabled(FLAG_CHAI) && toToken == IERC20(chai)) {
+            (returnAmount, distribution) = getExpectedReturn(
+                fromToken,
+                dai,
+                amount,
+                parts,
+                disableFlags
+            );
+            return (chai.daiToChai(returnAmount), distribution);
         }
 
         function(IERC20,IERC20,uint256) view returns(uint256)[4] memory reserves = [
@@ -1113,6 +1225,32 @@ contract OneSplit {
                 }
                 return;
             }
+        }
+
+        if (disableFlags.enabled(FLAG_CHAI) && fromToken == IERC20(chai)) {
+            chai.exit(address(this), amount);
+
+            return _swap(
+                dai,
+                toToken,
+                dai.balanceOf(address(this)),
+                distribution,
+                disableFlags
+            );
+        }
+
+        if (disableFlags.enabled(FLAG_CHAI) && toToken == IERC20(chai)) {
+            _swap(
+                fromToken,
+                dai,
+                amount,
+                distribution,
+                disableFlags
+            );
+
+            _infiniteApproveIfNeeded(dai, address(chai));
+            chai.join(address(this), dai.balanceOf(address(this)));
+            return;
         }
 
         function(IERC20,IERC20,uint256) returns(uint256)[4] memory reserves = [

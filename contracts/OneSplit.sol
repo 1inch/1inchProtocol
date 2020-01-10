@@ -15,6 +15,7 @@ import "./interface/IOasisExchange.sol";
 import "./interface/ICompound.sol";
 import "./interface/IFulcrum.sol";
 import "./interface/IWETH.sol";
+import "./interface/IChai.sol";
 import "./UniversalERC20.sol";
 
 
@@ -33,6 +34,7 @@ contract OneSplit {
 
     using SafeMath for uint256;
     using DisableFlags for uint256;
+    using ChaiHelper for IChai;
     using UniversalERC20 for IERC20;
     using UniversalERC20 for IWETH;
     using UniversalERC20 for IBancorEtherToken;
@@ -46,6 +48,8 @@ contract OneSplit {
     uint256 constant public FLAG_OASIS = 0x08;
     uint256 constant public FLAG_COMPOUND = 0x10;
     uint256 constant public FLAG_FULCRUM = 0x20;
+    uint256 constant public FLAG_CHAI = 0x40;
+
     IERC20 constant public ETH_ADDRESS = IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
     IWETH wethToken = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
@@ -53,6 +57,9 @@ contract OneSplit {
 
     ICompound public compound = ICompound(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
     ICompoundEther public cETH = ICompoundEther(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
+
+    IERC20 public dai = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
+    IChai public chai = IChai(0x06AF07097C9Eeb7fD685c692751D5C66dB49c215);
 
     IKyberNetworkProxy public kyberNetworkProxy = IKyberNetworkProxy(0x818E6FECD516Ecc3849DAf6845e3EC868087B755);
     IUniswapFactory public uniswapFactory = IUniswapFactory(0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95);
@@ -167,6 +174,27 @@ contract OneSplit {
                 returnAmount = returnAmount.mul(1e18).div(fulcrumRate);
                 return (returnAmount, distribution);
             }
+        }
+
+        if (disableFlags.enabled(FLAG_CHAI) && fromToken == IERC20(chai)) {
+            return getExpectedReturn(
+                dai,
+                toToken,
+                chai.chaiToDai(amount),
+                parts,
+                disableFlags
+            );
+        }
+
+        if (disableFlags.enabled(FLAG_CHAI) && toToken == IERC20(chai)) {
+            (returnAmount, distribution) = getExpectedReturn(
+                fromToken,
+                dai,
+                amount,
+                parts,
+                disableFlags
+            );
+            return (chai.daiToChai(returnAmount), distribution);
         }
 
         function(IERC20,IERC20,uint256) view returns(uint256)[4] memory reserves = [
@@ -322,6 +350,32 @@ contract OneSplit {
                 }
                 return;
             }
+        }
+
+        if (disableFlags.enabled(FLAG_CHAI) && fromToken == IERC20(chai)) {
+            chai.exit(address(this), amount);
+
+            return _swap(
+                dai,
+                toToken,
+                dai.balanceOf(address(this)),
+                distribution,
+                disableFlags
+            );
+        }
+
+        if (disableFlags.enabled(FLAG_CHAI) && toToken == IERC20(chai)) {
+            _swap(
+                fromToken,
+                dai,
+                amount,
+                distribution,
+                disableFlags
+            );
+
+            _infiniteApproveIfNeeded(dai, address(chai));
+            chai.join(address(this), dai.balanceOf(address(this)));
+            return;
         }
 
         function(IERC20,IERC20,uint256) returns(uint256)[4] memory reserves = [
