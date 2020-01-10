@@ -68,6 +68,7 @@ contract OneSplit {
     IOasisExchange public oasisExchange = IOasisExchange(0x39755357759cE0d7f32dC8dC45414CCa409AE24e);
 
     function() external payable {
+        // solium-disable-next-line security/no-tx-origin
         require(msg.sender != tx.origin);
     }
 

@@ -43,6 +43,7 @@ library ChaiHelper {
     }
 
     function rpow(uint x, uint n, uint base) private pure returns (uint z) {
+        // solium-disable-next-line security/no-inline-assembly
         assembly {
             switch x case 0 {switch n case 0 {z := base} default {z := 0}}
             default {
