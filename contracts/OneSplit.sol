@@ -18,14 +18,15 @@ import "./interface/IWETH.sol";
 import "./interface/IChai.sol";
 import "./interface/IAaveToken.sol";
 import "./UniversalERC20.sol";
+import "./interface/iiRebalancingSetIssuanceModule.sol";
 
 
 library DisableFlags {
-    function enabled(uint256 disableFlags, uint256 flag) internal pure returns(bool) {
+    function enabled(uint256 disableFlags, uint256 flag) internal pure returns (bool) {
         return (disableFlags & flag) == 0;
     }
 
-    function disabled(uint256 disableFlags, uint256 flag) internal pure returns(bool) {
+    function disabled(uint256 disableFlags, uint256 flag) internal pure returns (bool) {
         return (disableFlags & flag) != 0;
     }
 }
@@ -51,6 +52,7 @@ contract OneSplit {
     uint256 constant public FLAG_FULCRUM = 0x20;
     uint256 constant public FLAG_CHAI = 0x40;
     uint256 constant public FLAG_AAVE = 0x80;
+    uint256 constant public FLAG_TOKEN_SETS = 0x100;
 
     IERC20 constant public ETH_ADDRESS = IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
@@ -69,6 +71,7 @@ contract OneSplit {
     IBancorContractRegistry public bancorContractRegistry = IBancorContractRegistry(0x52Ae12ABe5D8BD778BD5397F99cA900624CfADD4);
     IBancorNetworkPathFinder bancorNetworkPathFinder = IBancorNetworkPathFinder(0x6F0cD8C4f6F06eAB664C7E3031909452b4B72861);
     IOasisExchange public oasisExchange = IOasisExchange(0x39755357759cE0d7f32dC8dC45414CCa409AE24e);
+    iRebalancingSetIssuanceModule public rebalancingSetIssuanceModule = iRebalancingSetIssuanceModule(0xceda8318522d348f1d1aca48b24629b8fbf09020);
 
     function() external payable {
         // solium-disable-next-line security/no-tx-origin
@@ -84,7 +87,7 @@ contract OneSplit {
         uint256 amount,
         uint256 parts,
         uint256 disableFlags
-    ) public view returns(uint256[] memory results) {
+    ) public view returns (uint256[] memory results) {
         results = new uint256[](parts);
         for (uint i = 0; i < parts; i++) {
             (results[i],) = getExpectedReturn(
@@ -102,14 +105,14 @@ contract OneSplit {
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum
+        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - CHAI, 128 - Aave, 256 - TokenSets
     )
-        public
-        view
-        returns(
-            uint256 returnAmount,
-            uint256[] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
-        )
+    public
+    view
+    returns (
+        uint256 returnAmount,
+        uint256[] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
+    )
     {
         distribution = new uint256[](4);
 
@@ -121,7 +124,7 @@ contract OneSplit {
         if (disableFlags.enabled(FLAG_COMPOUND)) {
             if (_isCompoundToken(fromToken)) {
                 IERC20 underlying = _compoundUnderlyingAsset(fromToken);
-                if (underlying != IERC20(-1)) {
+                if (underlying != IERC20(- 1)) {
                     uint256 compoundRate = ICompoundToken(address(fromToken)).exchangeRateStored();
 
                     return getExpectedReturn(
@@ -136,7 +139,7 @@ contract OneSplit {
 
             if (_isCompoundToken(toToken)) {
                 IERC20 underlying = _compoundUnderlyingAsset(toToken);
-                if (underlying != IERC20(-1)) {
+                if (underlying != IERC20(- 1)) {
                     uint256 compoundRate = ICompoundToken(address(toToken)).exchangeRateStored();
 
                     (returnAmount, distribution) = getExpectedReturn(
@@ -155,7 +158,7 @@ contract OneSplit {
 
         if (disableFlags.enabled(FLAG_FULCRUM)) {
             IERC20 underlying = _isFulcrumToken(fromToken);
-            if (underlying != IERC20(-1)) {
+            if (underlying != IERC20(- 1)) {
                 uint256 fulcrumRate = IFulcrumToken(address(fromToken)).tokenPrice();
 
                 return getExpectedReturn(
@@ -168,7 +171,7 @@ contract OneSplit {
             }
 
             underlying = _isFulcrumToken(toToken);
-            if (underlying != IERC20(-1)) {
+            if (underlying != IERC20(- 1)) {
                 uint256 fulcrumRate = IFulcrumToken(address(toToken)).tokenPrice();
 
                 (returnAmount, distribution) = getExpectedReturn(
@@ -209,7 +212,7 @@ contract OneSplit {
 
         if (disableFlags.enabled(FLAG_AAVE)) {
             IERC20 underlying = _isAaveToken(fromToken);
-            if (underlying != IERC20(-1)) {
+            if (underlying != IERC20(- 1)) {
                 return getExpectedReturn(
                     underlying,
                     toToken,
@@ -220,7 +223,7 @@ contract OneSplit {
             }
 
             underlying = _isAaveToken(toToken);
-            if (underlying != IERC20(-1)) {
+            if (underlying != IERC20(- 1)) {
                 return getExpectedReturn(
                     fromToken,
                     underlying,
@@ -231,11 +234,36 @@ contract OneSplit {
             }
         }
 
-        function(IERC20,IERC20,uint256) view returns(uint256)[4] memory reserves = [
-            disableFlags.disabled(FLAG_UNISWAP) ? _calculateNoReturn : calculateUniswapReturn,
-            disableFlags.disabled(FLAG_KYBER)   ? _calculateNoReturn : calculateKyberReturn,
-            disableFlags.disabled(FLAG_BANCOR)  ? _calculateNoReturn : calculateBancorReturn,
-            disableFlags.disabled(FLAG_OASIS)   ? _calculateNoReturn : calculateOasisReturn
+        if (disableFlags.enabled(FLAG_TOKEN_SETS)) {
+
+            IERC20 underlying = _isTokenSetsToken(fromToken);
+            if (underlying != IERC20(- 1)) {
+                return getExpectedReturn(
+                    underlying,
+                    toToken,
+                    amount,
+                    parts,
+                    disableFlags
+                );
+            }
+
+            underlying = _isTokenSetsToken(toToken);
+            if (underlying != IERC20(- 1)) {
+                return getExpectedReturn(
+                    fromToken,
+                    underlying,
+                    amount,
+                    parts,
+                    disableFlags
+                );
+            }
+        }
+
+        function(IERC20, IERC20, uint256) view returns (uint256)[4] memory reserves = [
+        disableFlags.disabled(FLAG_UNISWAP) ? _calculateNoReturn : calculateUniswapReturn,
+        disableFlags.disabled(FLAG_KYBER) ? _calculateNoReturn : calculateKyberReturn,
+        disableFlags.disabled(FLAG_BANCOR) ? _calculateNoReturn : calculateBancorReturn,
+        disableFlags.disabled(FLAG_OASIS) ? _calculateNoReturn : calculateOasisReturn
         ];
 
         uint256[4] memory rates;
@@ -346,7 +374,7 @@ contract OneSplit {
 
         if (disableFlags.enabled(FLAG_FULCRUM)) {
             IERC20 underlying = _isFulcrumToken(fromToken);
-            if (underlying != IERC20(-1)) {
+            if (underlying != IERC20(- 1)) {
                 if (underlying.isETH()) {
                     IFulcrumToken(address(fromToken)).burnToEther(address(this), amount);
                 } else {
@@ -365,7 +393,7 @@ contract OneSplit {
             }
 
             underlying = _isFulcrumToken(toToken);
-            if (underlying != IERC20(-1)) {
+            if (underlying != IERC20(- 1)) {
                 _swap(
                     fromToken,
                     underlying,
@@ -416,7 +444,7 @@ contract OneSplit {
 
         if (disableFlags.enabled(FLAG_AAVE)) {
             IERC20 underlying = _isAaveToken(fromToken);
-            if (underlying != IERC20(-1)) {
+            if (underlying != IERC20(- 1)) {
                 IAaveToken(address(fromToken)).redeem(amount);
 
                 return _swap(
@@ -429,7 +457,7 @@ contract OneSplit {
             }
 
             underlying = _isAaveToken(toToken);
-            if (underlying != IERC20(-1)) {
+            if (underlying != IERC20(- 1)) {
                 _swap(
                     fromToken,
                     underlying,
@@ -450,11 +478,49 @@ contract OneSplit {
             }
         }
 
-        function(IERC20,IERC20,uint256) returns(uint256)[4] memory reserves = [
-            _swapOnUniswap,
-            _swapOnKyber,
-            _swapOnBancor,
-            _swapOnOasis
+        if (disableFlags.enabled(FLAG_TOKEN_SETS)) {
+
+            if (_isTokenSetsToken(fromToken) != IERC20(- 1)) {
+                iRebalancingSetIssuanceModule(address(fromToken)).redeem(amount);
+
+                return _swap(
+                    underlying,
+                    toToken,
+                    amount,
+                    distribution,
+                    disableFlags
+                );
+            }
+
+            if (_isTokenSetsToken(toToken) != IERC20(- 1)) {
+
+                _swap(
+                    fromToken,
+                    underlying,
+                    amount,
+                    distribution,
+                    disableFlags
+                );
+
+                uint256 underlyingAmount = IERC20(ETH_ADDRESS).universalBalanceOf(address(this));
+
+                _infiniteApproveIfNeeded(underlying, aave.core());
+                rebalancingSetIssuanceModule.issueRebalancingSetWrappingEther
+                .value(underlyingAmount)(
+                    underlying.isETH() ? ETH_ADDRESS : underlying,
+                    underlyingAmount,
+                    1101
+                );
+
+                return;
+            }
+        }
+
+        function(IERC20, IERC20, uint256) returns (uint256)[4] memory reserves = [
+        _swapOnUniswap,
+        _swapOnKyber,
+        _swapOnBancor,
+        _swapOnOasis
         ];
 
         uint256 parts = 0;
@@ -508,7 +574,7 @@ contract OneSplit {
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount
-    ) public view returns(uint256) {
+    ) public view returns (uint256) {
         uint256 returnAmount = amount;
 
         if (!fromToken.isETH()) {
@@ -552,10 +618,10 @@ contract OneSplit {
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount
-    ) public view returns(uint256) {
+    ) public view returns (uint256) {
         (bool success, bytes memory data) = address(kyberNetworkProxy).staticcall.gas(2300)(abi.encodeWithSelector(
-            kyberNetworkProxy.kyberNetworkContract.selector
-        ));
+                kyberNetworkProxy.kyberNetworkContract.selector
+            ));
         if (!success) {
             return 0;
         }
@@ -579,62 +645,62 @@ contract OneSplit {
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount
-    ) public view returns(uint256) {
+    ) public view returns (uint256) {
         (bool success, bytes memory data) = address(kyberNetworkContract).staticcall.gas(200000)(abi.encodeWithSelector(
-            kyberNetworkContract.searchBestRate.selector,
-            fromToken.isETH() ? ETH_ADDRESS : fromToken,
-            toToken.isETH() ? ETH_ADDRESS : toToken,
-            amount,
-            true
-        ));
+                kyberNetworkContract.searchBestRate.selector,
+                fromToken.isETH() ? ETH_ADDRESS : fromToken,
+                toToken.isETH() ? ETH_ADDRESS : toToken,
+                amount,
+                true
+            ));
         if (!success) {
             return 0;
         }
 
-        (address reserve, uint256 rate) = abi.decode(data, (address,uint256));
+        (address reserve, uint256 rate) = abi.decode(data, (address, uint256));
 
         if (reserve == 0x54A4a1167B004b004520c605E3f01906f683413d || // Uniswap
-            reserve == 0xCf1394C5e2e879969fdB1f464cE1487147863dCb || // Oasis
-            reserve == 0x053AA84FCC676113a57e0EbB0bD1913839874bE4)   // Bancor
+        reserve == 0xCf1394C5e2e879969fdB1f464cE1487147863dCb || // Oasis
+        reserve == 0x053AA84FCC676113a57e0EbB0bD1913839874bE4)   // Bancor
         {
             return 0;
         }
 
         // Check for Uniswap reserve
         (success,) = reserve.staticcall.gas(2300)(abi.encodeWithSelector(
-            IKyberUniswapReserve(reserve).uniswapFactory.selector
-        ));
+                IKyberUniswapReserve(reserve).uniswapFactory.selector
+            ));
         if (success) {
             return 0;
         }
 
         // Check for Oasis reserve
         (success,) = reserve.staticcall.gas(2300)(abi.encodeWithSelector(
-            IKyberOasisReserve(reserve).otc.selector
-        ));
+                IKyberOasisReserve(reserve).otc.selector
+            ));
         if (success) {
             return 0;
         }
 
         // Check for Bancor reserve
         (success,) = reserve.staticcall.gas(2300)(abi.encodeWithSelector(
-            IKyberBancorReserve(reserve).bancorEth.selector
-        ));
+                IKyberBancorReserve(reserve).bancorEth.selector
+            ));
         if (success) {
             return 0;
         }
 
         return rate.mul(amount)
-            .mul(10 ** IERC20(toToken).universalDecimals())
-            .div(10 ** IERC20(fromToken).universalDecimals())
-            .div(1e18);
+        .mul(10 ** IERC20(toToken).universalDecimals())
+        .div(10 ** IERC20(fromToken).universalDecimals())
+        .div(1e18);
     }
 
     function calculateBancorReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount
-    ) public view returns(uint256) {
+    ) public view returns (uint256) {
         IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
         address[] memory path = bancorNetworkPathFinder.generatePath(
             fromToken.isETH() ? bancorEtherToken : fromToken,
@@ -652,7 +718,7 @@ contract OneSplit {
             return 0;
         }
 
-        (uint256 returnAmount,) = abi.decode(data, (uint256,uint256));
+        (uint256 returnAmount,) = abi.decode(data, (uint256, uint256));
         return returnAmount;
     }
 
@@ -660,7 +726,7 @@ contract OneSplit {
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount
-    ) public view returns(uint256) {
+    ) public view returns (uint256) {
         (bool success, bytes memory data) = address(oasisExchange).staticcall.gas(500000)(
             abi.encodeWithSelector(
                 oasisExchange.getBuyAmount.selector,
@@ -680,7 +746,7 @@ contract OneSplit {
         IERC20 /*fromToken*/,
         IERC20 /*toToken*/,
         uint256 /*amount*/
-    ) internal view returns(uint256) {
+    ) internal view returns (uint256) {
         this;
     }
 
@@ -690,7 +756,7 @@ contract OneSplit {
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount
-    ) internal returns(uint256) {
+    ) internal returns (uint256) {
 
         uint256 returnAmount = amount;
 
@@ -716,7 +782,7 @@ contract OneSplit {
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount
-    ) internal returns(uint256) {
+    ) internal returns (uint256) {
         _infiniteApproveIfNeeded(fromToken, address(kyberNetworkProxy));
         return kyberNetworkProxy.tradeWithHint.value(fromToken.isETH() ? amount : 0)(
             fromToken.isETH() ? ETH_ADDRESS : fromToken,
@@ -734,7 +800,7 @@ contract OneSplit {
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount
-    ) internal returns(uint256) {
+    ) internal returns (uint256) {
         if (fromToken.isETH()) {
             bancorEtherToken.deposit.value(amount)();
         }
@@ -759,7 +825,7 @@ contract OneSplit {
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount
-    ) internal returns(uint256) {
+    ) internal returns (uint256) {
         if (fromToken.isETH()) {
             wethToken.deposit.value(amount)();
         }
@@ -789,110 +855,150 @@ contract OneSplit {
         }
     }
 
-    function _isCompoundToken(IERC20 token) internal view returns(bool) {
+    function _isCompoundToken(IERC20 token) internal view returns (bool) {
         if (token == cETH) {
             return true;
         }
 
         (bool success, bytes memory data) = address(compound).staticcall.gas(5000)(abi.encodeWithSelector(
-            compound.markets.selector,
-            token
-        ));
+                compound.markets.selector,
+                token
+            ));
         if (!success) {
             return false;
         }
 
-        (bool isListed,) = abi.decode(data, (bool,uint256));
+        (bool isListed,) = abi.decode(data, (bool, uint256));
         return isListed;
     }
 
-    function _compoundUnderlyingAsset(IERC20 asset) internal view returns(IERC20) {
+    function _compoundUnderlyingAsset(IERC20 asset) internal view returns (IERC20) {
         if (asset == cETH) {
             return IERC20(address(0));
         }
 
         (bool success, bytes memory data) = address(asset).staticcall.gas(5000)(abi.encodeWithSelector(
-            ICompoundToken(address(asset)).underlying.selector
-        ));
+                ICompoundToken(address(asset)).underlying.selector
+            ));
         if (!success) {
-            return IERC20(-1);
+            return IERC20(- 1);
         }
 
         return abi.decode(data, (IERC20));
     }
 
-    function _isFulcrumToken(IERC20 token) public view returns(IERC20) {
+    function _isFulcrumToken(IERC20 token) public view returns (IERC20) {
         if (token.isETH()) {
-            return IERC20(-1);
+            return IERC20(- 1);
         }
 
         (bool success, bytes memory data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
-            ERC20Detailed(address(token)).name.selector
-        ));
+                ERC20Detailed(address(token)).name.selector
+            ));
         if (!success) {
-            return IERC20(-1);
+            return IERC20(- 1);
         }
 
         bool foundBZX = false;
         for (uint i = 0; i < data.length - 7; i++) {
             if (data[i + 0] == "F" &&
-                data[i + 1] == "u" &&
-                data[i + 2] == "l" &&
-                data[i + 3] == "c" &&
-                data[i + 4] == "r" &&
-                data[i + 5] == "u" &&
-                data[i + 6] == "m")
+            data[i + 1] == "u" &&
+            data[i + 2] == "l" &&
+            data[i + 3] == "c" &&
+            data[i + 4] == "r" &&
+            data[i + 5] == "u" &&
+            data[i + 6] == "m")
             {
                 foundBZX = true;
                 break;
             }
         }
         if (!foundBZX) {
-            return IERC20(-1);
+            return IERC20(- 1);
         }
 
         (success, data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
-            IFulcrumToken(address(token)).loanTokenAddress.selector
-        ));
+                IFulcrumToken(address(token)).loanTokenAddress.selector
+            ));
         if (!success) {
-            return IERC20(-1);
+            return IERC20(- 1);
         }
 
         return abi.decode(data, (IERC20));
     }
 
-    function _isAaveToken(IERC20 token) public view returns(IERC20) {
+    function _isAaveToken(IERC20 token) public view returns (IERC20) {
         if (token.isETH()) {
-            return IERC20(-1);
+            return IERC20(- 1);
         }
 
         (bool success, bytes memory data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
-            ERC20Detailed(address(token)).name.selector
-        ));
+                ERC20Detailed(address(token)).name.selector
+            ));
         if (!success) {
-            return IERC20(-1);
+            return IERC20(- 1);
         }
 
         bool foundAave = false;
         for (uint i = 0; i < data.length - 4; i++) {
             if (data[i + 0] == "A" &&
-                data[i + 1] == "a" &&
-                data[i + 2] == "v" &&
-                data[i + 3] == "e")
+            data[i + 1] == "a" &&
+            data[i + 2] == "v" &&
+            data[i + 3] == "e")
             {
                 foundAave = true;
                 break;
             }
         }
         if (!foundAave) {
-            return IERC20(-1);
+            return IERC20(- 1);
         }
 
         (success, data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
-            IAaveToken(address(token)).underlyingAssetAddress.selector
-        ));
+                IAaveToken(address(token)).underlyingAssetAddress.selector
+            ));
         if (!success) {
-            return IERC20(-1);
+            return IERC20(- 1);
+        }
+
+        return abi.decode(data, (IERC20));
+    }
+
+    function _isTokenSetsToken(IERC20 token) public view returns (IERC20) {
+
+        if (token.isETH()) {
+            return IERC20(- 1);
+        }
+
+        (bool success, bytes memory data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
+                ERC20Detailed(address(token)).name.selector
+            ));
+        if (!success) {
+            return IERC20(- 1);
+        }
+
+        bool found = false;
+        for (uint i = 0; i < data.length - 4; i++) {
+            if (data[i + 0] == " " &&
+            data[i + 1] == "S" &&
+            data[i + 2] == "e" &&
+            data[i + 3] == "t")
+            {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            return IERC20(- 1);
+        }
+
+        (success, data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
+                IRebalancingSetToken(address(token)).currentSet.selector
+            ));
+
+        if (!success) {
+            return IERC20(- 1);
         }
 
         return abi.decode(data, (IERC20));
