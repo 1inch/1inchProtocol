@@ -1,0 +1,96 @@
+pragma solidity ^0.5.0;
+
+import "./OneSplitBase.sol";
+
+contract OneSplitMultiPath is OneSplitBase {
+
+    function getExpectedReturn(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 disableFlags
+    )
+        public
+        view
+        returns (
+            uint256 returnAmount,
+            uint256[] memory distribution
+        )
+    {
+        if (!fromToken.isETH() && !toToken.isETH()) {
+            (uint256 result, uint256[] memory dist) = getExpectedReturn(
+                fromToken,
+                ETH_ADDRESS,
+                amount,
+                parts,
+                disableFlags
+            );
+            for (uint i = 0; i < distribution.length; i++) {
+                distribution[i] = distribution[i].add(dist[i]);
+            }
+
+            (returnAmount, dist) = getExpectedReturn(
+                ETH_ADDRESS,
+                toToken,
+                result,
+                parts,
+                disableFlags
+            );
+            for (uint i = 0; i < distribution.length; i++) {
+                distribution[i] = distribution[i].add(dist[i] << 8).add(1 << 255);
+            }
+            return (returnAmount, distribution);
+        }
+
+        super.getExpectedReturn(
+            fromToken,
+            toToken,
+            amount,
+            parts,
+            disableFlags
+        );
+    }
+
+    function _swap(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256[] memory distribution,
+        uint256 disableFlags
+    ) internal {
+        if (!fromToken.isETH() && !toToken.isETH()) {
+            uint256[] memory dist = new uint256[](distribution.length);
+            for (uint i = 0; i < distribution.length; i++) {
+                dist[i] = distribution[i] & 0xFF;
+            }
+            _swap(
+                fromToken,
+                ETH_ADDRESS,
+                amount,
+                dist,
+                disableFlags
+            );
+
+            for (uint i = 0; i < distribution.length; i++) {
+                dist[i] = (distribution[i] >> 8) & 0xFF;
+            }
+            _swap(
+                ETH_ADDRESS,
+                toToken,
+                address(this).balance,
+                distribution,
+                disableFlags
+            );
+            return;
+        }
+
+        super._swap(
+            fromToken,
+            toToken,
+            amount,
+            distribution,
+            disableFlags
+        );
+    }
+}
