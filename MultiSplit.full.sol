@@ -548,7 +548,7 @@ contract MultiSplit {
         (returnAmount, distribution) = oneSplit.getExpectedReturn(
             ETH_ADDRESS,
             toToken,
-            returnAmount,
+            hopReturnAmount,
             parts,
             disableFlags
         );
