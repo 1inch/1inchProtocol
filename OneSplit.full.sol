@@ -934,33 +934,10 @@ contract OneSplitBase {
         IERC20 toToken,
         uint256 amount
     ) public view returns(uint256) {
-        if (fromToken.isETH() || toToken.isETH()) {
-            (bool success, bytes memory data) = address(kyberNetworkContract).staticcall.gas(400000)(abi.encodeWithSelector(
-                kyberNetworkContract.searchBestRate.selector,
-                fromToken.isETH() ? ETH_ADDRESS : fromToken,
-                toToken.isETH() ? ETH_ADDRESS : toToken,
-                amount,
-                true
-            ));
-            if (!success) {
-                return 0;
-            }
-
-            (address reserve, uint256 rate) = abi.decode(data, (address,uint256));
-            if (!_checkReserveIsOK(reserve)) {
-                return 0;
-            }
-
-            return rate.mul(amount)
-                .mul(10 ** IERC20(toToken).universalDecimals())
-                .div(10 ** IERC20(fromToken).universalDecimals())
-                .div(1e18);
-        }
-
-        (bool success, bytes memory data) = address(kyberNetworkContract).staticcall.gas(400000)(abi.encodeWithSelector(
+        (bool success, bytes memory data) = address(kyberNetworkContract).staticcall.gas(200000)(abi.encodeWithSelector(
             kyberNetworkContract.searchBestRate.selector,
-            fromToken,
-            ETH_ADDRESS,
+            fromToken.isETH() ? ETH_ADDRESS : fromToken,
+            toToken.isETH() ? ETH_ADDRESS : toToken,
             amount,
             true
         ));
@@ -969,51 +946,20 @@ contract OneSplitBase {
         }
 
         (address reserve, uint256 rate) = abi.decode(data, (address,uint256));
-        if (!_checkReserveIsOK(reserve)) {
-            return 0;
-        }
 
-        uint256 amountOnFirstStep = rate.mul(amount)
-            .mul(1e18)
-            .div(10 ** IERC20(fromToken).universalDecimals())
-            .div(1e18);
-
-        (success, data) = address(kyberNetworkContract).staticcall.gas(400000)(abi.encodeWithSelector(
-            kyberNetworkContract.searchBestRate.selector,
-            ETH_ADDRESS,
-            toToken,
-            amountOnFirstStep,
-            true
-        ));
-        if (!success) {
-            return 0;
-        }
-
-        (reserve, rate) = abi.decode(data, (address,uint256));
-        if (!_checkReserveIsOK(reserve)) {
-            return 0;
-        }
-
-        return rate.mul(amountOnFirstStep)
-            .mul(10 ** IERC20(toToken).universalDecimals())
-            .div(1e18)
-            .div(1e18);
-    }
-
-    function _checkReserveIsOK(address reserve) internal view returns(bool) {
         if (reserve == 0x54A4a1167B004b004520c605E3f01906f683413d || // Uniswap
             reserve == 0xCf1394C5e2e879969fdB1f464cE1487147863dCb || // Oasis
             reserve == 0x053AA84FCC676113a57e0EbB0bD1913839874bE4)   // Bancor
         {
-            return false;
+            return 0;
         }
 
         // Check for Uniswap reserve
-        (bool success,) = reserve.staticcall.gas(2300)(abi.encodeWithSelector(
+        (success,) = reserve.staticcall.gas(2300)(abi.encodeWithSelector(
             IKyberUniswapReserve(reserve).uniswapFactory.selector
         ));
         if (success) {
-            return false;
+            return 0;
         }
 
         // Check for Oasis reserve
@@ -1021,7 +967,7 @@ contract OneSplitBase {
             IKyberOasisReserve(reserve).otc.selector
         ));
         if (success) {
-            return false;
+            return 0;
         }
 
         // Check for Bancor reserve
@@ -1029,10 +975,13 @@ contract OneSplitBase {
             IKyberBancorReserve(reserve).bancorEth.selector
         ));
         if (success) {
-            return false;
+            return 0;
         }
 
-        return true;
+        return rate.mul(amount)
+            .mul(10 ** IERC20(toToken).universalDecimals())
+            .div(10 ** IERC20(fromToken).universalDecimals())
+            .div(1e18);
     }
 
     function calculateBancorReturn(
