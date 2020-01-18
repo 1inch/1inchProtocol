@@ -80,6 +80,8 @@ contract OneSplitBase {
             uint256[] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
         )
     {
+        distribution = new uint256[](4);
+
         if (fromToken == toToken) {
             return (amount, distribution);
         }

@@ -30,10 +30,8 @@ contract OneSplit is
             uint256[] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
         )
     {
-        distribution = new uint256[](4);
-
         if (fromToken == toToken) {
-            return (amount, distribution);
+            return (amount, new uint256[](4));
         }
 
         return super.getExpectedReturn(

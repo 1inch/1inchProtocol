@@ -30,6 +30,7 @@ contract OneSplitSmartToken is OneSplitBase {
         }
 
         if (disableFlags.enabled(FLAG_SMART_TOKEN)) {
+            distribution = new uint256[](4);
             if (smartTokenRegistry.isSmartToken(fromToken)) {
                 // ISmartTokenConverter converter = ISmartToken(address(fromToken)).owner();
 
