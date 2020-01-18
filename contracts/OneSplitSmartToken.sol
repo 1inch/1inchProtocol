@@ -31,97 +31,85 @@ contract OneSplitSmartToken is OneSplitBase {
 
         if (disableFlags.enabled(FLAG_SMART_TOKEN)) {
             if (smartTokenRegistry.isSmartToken(fromToken)) {
-                ISmartTokenConverter converter = ISmartToken(address(fromToken)).owner();
+                // ISmartTokenConverter converter = ISmartToken(address(fromToken)).owner();
 
-                IERC20[] memory tokens = new IERC20[](converter.connectorTokenCount());
-                uint256[] memory ratios = new uint256[](tokens.length);
-                uint256 totalRatio = 0;
-                for (uint256 i = 0; i < tokens.length; i++) {
-                    tokens[i] = converter.connectorTokens(i);
-                    ratios[i] = converter.getReserveRatio(tokens[i]);
-                    totalRatio = totalRatio.add(ratios[i]);
-                }
+                // TokensWithRatio memory tokens = _getTokens(converter);
 
-                for (uint256 i = 0; i < tokens.length; i++) {
-                    uint256 srcAmount = smartTokenFormula.calculateLiquidateReturn(
-                        toToken.totalSupply(),
-                        tokens[i].balanceOf(address(converter)),
-                        uint32(totalRatio),
-                        amount
-                    );
+                // for (uint256 i = 0; i < tokens.tokens.length; i++) {
+                //     uint256 srcAmount = smartTokenFormula.calculateLiquidateReturn(
+                //         toToken.totalSupply(),
+                //         tokens.tokens[i].balanceOf(address(converter)),
+                //         uint32(tokens.totalRatio),
+                //         amount
+                //     );
 
-                    (uint256 ret, uint256[] memory dist) = super.getExpectedReturn(
-                        tokens[i],
-                        toToken,
-                        srcAmount,
-                        parts,
-                        disableFlags
-                    );
+                //     (uint256 ret, uint256[] memory dist) = super.getExpectedReturn(
+                //         tokens.tokens[i],
+                //         toToken,
+                //         srcAmount,
+                //         parts,
+                //         disableFlags
+                //     );
 
-                    returnAmount = returnAmount.add(ret);
-                    for (uint j = 0; j < distribution.length; j++) {
-                        distribution[j] = distribution[j].add(dist[j] << (i * 8));
-                    }
-                }
-                for (uint j = 0; j < distribution.length; j++) {
-                    distribution[j] = distribution[j].add(1 << 255);
-                }
-                return (returnAmount, distribution);
+                //     returnAmount = returnAmount.add(ret);
+                //     for (uint j = 0; j < distribution.length; j++) {
+                //         distribution[j] = distribution[j].add(dist[j] << (i * 8));
+                //     }
+                // }
+                // for (uint j = 0; j < distribution.length; j++) {
+                //     distribution[j] = distribution[j].add(1 << 255);
+                // }
+                // return (returnAmount, distribution);
             }
 
-            // if (smartTokenRegistry.isSmartToken(toToken)) {
-            //     ISmartTokenConverter converter = ISmartToken(address(fromToken)).owner();
+            if (smartTokenRegistry.isSmartToken(toToken)) {
+                // ISmartTokenConverter converter = ISmartToken(address(fromToken)).owner();
 
-            //     IERC20[] memory tokens = new IERC20[](converter.connectorTokenCount());
-            //     uint256[] memory ratios = new uint256[](tokens.length);
-            //     uint256 totalRatio = 0;
-            //     for (uint256 i = 0; i < tokens.length; i++) {
-            //         tokens[i] = converter.connectorTokens(i);
-            //         ratios[i] = converter.getReserveRatio(tokens[i]);
-            //         totalRatio = totalRatio.add(ratios[i]);
-            //     }
+                // TokensWithRatio memory tokens = _getTokens(converter);
 
-            //     uint256 minFundAmount = uint256(-1);
-            //     uint256[] memory fundAmounts = new uint256[](tokens.length);
-            //     for (uint256 i = 0; i < tokens.length; i++) {
-            //         (uint256 tokenAmount, uint256[] memory dist) = super.getExpectedReturn(
-            //             fromToken,
-            //             tokens[i],
-            //             amount.mul(ratios[i]).div(totalRatio),
-            //             parts,
-            //             disableFlags | FLAG_BANCOR
-            //         );
-            //         for (uint j = 0; j < distribution.length; j++) {
-            //             distribution[j] = distribution[j].add(dist[j] << (i * 8));
-            //         }
+                // uint256 minFundAmount = uint256(-1);
+                // uint256[] memory fundAmounts = new uint256[](tokens.tokens.length);
+                // for (uint256 i = 0; i < tokens.tokens.length; i++) {
+                //     (uint256 tokenAmount, uint256[] memory dist) = super.getExpectedReturn(
+                //         fromToken,
+                //         tokens.tokens[i],
+                //         amount.mul(tokens.ratios[i]).div(tokens.totalRatio),
+                //         parts,
+                //         disableFlags | FLAG_BANCOR
+                //     );
+                //     for (uint j = 0; j < distribution.length; j++) {
+                //         distribution[j] = distribution[j].add(dist[j] << (i * 8));
+                //     }
 
-            //         fundAmounts[i] = toToken.totalSupply()
-            //             .mul(tokenAmount)
-            //             .div(tokens[i].balanceOf(address(converter)));
+                //     fundAmounts[i] = toToken.totalSupply()
+                //         .mul(tokenAmount)
+                //         .div(tokens.tokens[i].balanceOf(address(converter)));
 
-            //         if (fundAmounts[i] < minFundAmount) {
-            //             minFundAmount = fundAmounts[i];
-            //         }
-            //     }
+                //     if (fundAmounts[i] < minFundAmount) {
+                //         minFundAmount = fundAmounts[i];
+                //     }
+                // }
 
-            //     // Swap leftovers for SmartToken
-            //     for (uint256 i = 0; i < tokens.length; i++) {
-            //         uint256 leftover = fundAmounts[i].sub(minFundAmount)
-            //             .mul(tokens[i].balanceOf(address(converter)))
-            //             .div(toToken.totalSupply());
+                // // Swap leftovers for SmartToken
+                // for (uint256 i = 0; i < tokens.tokens.length; i++) {
+                //     uint256 leftover = fundAmounts[i].sub(minFundAmount)
+                //         .mul(tokens.tokens[i].balanceOf(address(converter)))
+                //         .div(toToken.totalSupply());
 
-            //         minFundAmount = minFundAmount.add(
-            //             smartTokenFormula.calculatePurchaseReturn(
-            //                 toToken.totalSupply(),
-            //                 tokens[i].balanceOf(address(converter)),
-            //                 uint32(totalRatio),
-            //                 leftover
-            //             )
-            //         );
-            //     }
+                //     if (leftover > 0) {
+                //         minFundAmount = minFundAmount.add(
+                //             smartTokenFormula.calculatePurchaseReturn(
+                //                 toToken.totalSupply(),
+                //                 tokens.tokens[i].balanceOf(address(converter)),
+                //                 uint32(tokens.totalRatio),
+                //                 leftover
+                //             )
+                //         );
+                //     }
+                // }
 
-            //     return (minFundAmount, distribution);
-            // }
+                // return (minFundAmount, distribution);
+            }
         }
 
         return super.getExpectedReturn(
@@ -153,5 +141,27 @@ contract OneSplitSmartToken is OneSplitBase {
             distribution,
             disableFlags
         );
+    }
+
+    struct TokensWithRatio {
+        IERC20[] tokens;
+        uint256[] ratios;
+        uint256 totalRatio;
+    }
+
+    function _getTokens(
+        ISmartTokenConverter converter
+    )
+        private
+        view
+        returns(TokensWithRatio memory tokens)
+    {
+        tokens.tokens = new IERC20[](converter.connectorTokenCount());
+        tokens.ratios = new uint256[](tokens.tokens.length);
+        for (uint256 i = 0; i < tokens.tokens.length; i++) {
+            tokens.tokens[i] = converter.connectorTokens(i);
+            tokens.ratios[i] = converter.getReserveRatio(tokens.tokens[i]);
+            tokens.totalRatio = tokens.totalRatio.add(tokens.ratios[i]);
+        }
     }
 }
