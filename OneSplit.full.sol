@@ -934,7 +934,7 @@ contract OneSplitBase {
         IERC20 toToken,
         uint256 amount
     ) public view returns(uint256) {
-        (bool success, bytes memory data) = address(kyberNetworkContract).staticcall.gas(200000)(abi.encodeWithSelector(
+        (bool success, bytes memory data) = address(kyberNetworkContract).staticcall.gas(400000)(abi.encodeWithSelector(
             kyberNetworkContract.searchBestRate.selector,
             fromToken.isETH() ? ETH_ADDRESS : fromToken,
             toToken.isETH() ? ETH_ADDRESS : toToken,
