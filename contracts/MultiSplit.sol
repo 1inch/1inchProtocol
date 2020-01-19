@@ -7,7 +7,7 @@ contract MultiSplit {
 
     using UniversalERC20 for IERC20;
 
-    IOneSplit oneSplit = IOneSplit(0x25C40bC17E4BF2f8C23aCc99a7A38568f0890157);
+    IOneSplit oneSplit = IOneSplit(0x00CD1b195B403a5e3D6534afD942C928fC9217f0);
     IERC20 constant public ETH_ADDRESS = IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
     function getExpectedReturn(
@@ -57,7 +57,7 @@ contract MultiSplit {
         fromToken.universalTransferFrom(msg.sender, address(this), amount);
         fromToken.universalApprove(address(oneSplit), uint256(- 1));
 
-        oneSplit.swap(
+        oneSplit.swap.value(address(this).balance)(
             fromToken,
             ETH_ADDRESS,
             amount,
