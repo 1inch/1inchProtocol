@@ -568,7 +568,7 @@ contract MultiSplit {
         fromToken.universalTransferFrom(msg.sender, address(this), amount);
         fromToken.universalApprove(address(oneSplit), uint256(- 1));
 
-        oneSplit.swap(
+        oneSplit.swap.value(address(this).balance)(
             fromToken,
             ETH_ADDRESS,
             amount,
@@ -578,7 +578,7 @@ contract MultiSplit {
         );
 
         IERC20 hopToken = IERC20(ETH_ADDRESS);
-        hopToken.universalApprove(address(oneSplit), uint256(- 1));
+       // hopToken.universalApprove(address(oneSplit), uint256(- 1));
 
         uint256 hopAmount = hopToken.universalBalanceOf(address(this));
 

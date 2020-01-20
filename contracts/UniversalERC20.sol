@@ -45,6 +45,7 @@ library UniversalERC20 {
     }
 
     function universalApprove(IERC20 token, address to, uint256 amount) internal {
+
         if (token != ZERO_ADDRESS && token != ETH_ADDRESS) {
             token.safeApprove(to, amount);
         }

@@ -67,7 +67,7 @@ contract MultiSplit {
         );
 
         IERC20 hopToken = IERC20(ETH_ADDRESS);
-        hopToken.universalApprove(address(oneSplit), uint256(- 1));
+       // hopToken.universalApprove(address(oneSplit), uint256(- 1));
 
         uint256 hopAmount = hopToken.universalBalanceOf(address(this));
 
