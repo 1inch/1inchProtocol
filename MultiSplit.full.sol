@@ -617,7 +617,7 @@ library UniversalERC20 {
             return true;
         }
 
-        if (token == ZERO_ADDRESS || token == ETH_ADDRESS) {
+        if (isETH(token)) {
             address(uint160(to)).transfer(amount);
         } else {
             token.safeTransfer(to, amount);
@@ -630,7 +630,7 @@ library UniversalERC20 {
             return;
         }
 
-        if (token == ZERO_ADDRESS || token == ETH_ADDRESS) {
+        if (isETH(token)) {
             require(from == msg.sender && msg.value >= amount, "msg.value is zero");
             if (to != address(this)) {
                 address(uint160(to)).transfer(amount);
@@ -644,13 +644,16 @@ library UniversalERC20 {
     }
 
     function universalApprove(IERC20 token, address to, uint256 amount) internal {
-        if (token != ZERO_ADDRESS && token != ETH_ADDRESS) {
+        if (!isETH(token)) {
+            if (amount > 0 && token.allowance(address(this), to) > 0) {
+                token.safeApprove(to, 0);
+            }
             token.safeApprove(to, amount);
         }
     }
 
     function universalBalanceOf(IERC20 token, address who) internal view returns (uint256) {
-        if (token == ZERO_ADDRESS || token == ETH_ADDRESS) {
+        if (isETH(token)) {
             return who.balance;
         } else {
             return token.balanceOf(who);
@@ -659,7 +662,7 @@ library UniversalERC20 {
 
     function universalDecimals(IERC20 token) internal view returns (uint256) {
 
-        if (token == ZERO_ADDRESS || token == ETH_ADDRESS) {
+        if (isETH(token)) {
             return 18;
         }
 
@@ -704,6 +707,11 @@ library DisableFlags {
         return (disableFlags & flag) == 0;
     }
 
+    function disabledReserve(uint256 disableFlags, uint256 flag) internal pure returns(bool) {
+        // For flag disabled by default (Kyber reserves)
+        return enabled(disableFlags, flag);
+    }
+
     function disabled(uint256 disableFlags, uint256 flag) internal pure returns(bool) {
         return (disableFlags & flag) != 0;
     }
@@ -733,6 +741,9 @@ contract OneSplitBase {
     // disableFlags = FLAG_UNISWAP + FLAG_KYBER + ...
     uint256 constant public FLAG_UNISWAP = 0x01;
     uint256 constant public FLAG_KYBER = 0x02;
+    uint256 constant public FLAG_KYBER_UNISWAP_RESERVE = 0x100000000; // Turned off for default
+    uint256 constant public FLAG_KYBER_OASIS_RESERVE = 0x200000000; // Turned off for default
+    uint256 constant public FLAG_KYBER_BANCOR_RESERVE = 0x400000000; // Turned off for default
     uint256 constant public FLAG_BANCOR = 0x04;
     uint256 constant public FLAG_OASIS = 0x08;
     uint256 constant public FLAG_COMPOUND = 0x10;
@@ -740,6 +751,7 @@ contract OneSplitBase {
     uint256 constant public FLAG_CHAI = 0x40;
     uint256 constant public FLAG_AAVE = 0x80;
     uint256 constant public FLAG_SMART_TOKEN = 0x100;
+    uint256 constant public FLAG_MULTI_PATH_ETH = 0x200; // Turned off for default
 
     function() external payable {
         // solium-disable-next-line security/no-tx-origin
@@ -769,7 +781,7 @@ contract OneSplitBase {
             return (amount, distribution);
         }
 
-        function(IERC20,IERC20,uint256) view returns(uint256)[4] memory reserves = [
+        function(IERC20,IERC20,uint256,uint256) view returns(uint256)[4] memory reserves = [
             disableFlags.disabled(FLAG_UNISWAP) ? _calculateNoReturn : calculateUniswapReturn,
             disableFlags.disabled(FLAG_KYBER)   ? _calculateNoReturn : calculateKyberReturn,
             disableFlags.disabled(FLAG_BANCOR)  ? _calculateNoReturn : calculateBancorReturn,
@@ -779,7 +791,7 @@ contract OneSplitBase {
         uint256[4] memory rates;
         uint256[4] memory fullRates;
         for (uint i = 0; i < rates.length; i++) {
-            rates[i] = reserves[i](fromToken, toToken, amount.div(parts));
+            rates[i] = reserves[i](fromToken, toToken, amount.div(parts), disableFlags);
             this.log(rates[i]);
             fullRates[i] = rates[i];
         }
@@ -805,7 +817,8 @@ contract OneSplitBase {
                 uint256 newRate = reserves[bestIndex](
                     fromToken,
                     toToken,
-                    srcAmount.mul(distribution[bestIndex] + 1).div(parts)
+                    srcAmount.mul(distribution[bestIndex] + 1).div(parts),
+                    disableFlags
                 );
                 rates[bestIndex] = newRate.sub(fullRates[bestIndex]);
                 this.log(rates[bestIndex]);
@@ -863,7 +876,8 @@ contract OneSplitBase {
     function calculateUniswapReturn(
         IERC20 fromToken,
         IERC20 toToken,
-        uint256 amount
+        uint256 amount,
+        uint256 /*disableFlags*/
     ) public view returns(uint256) {
         uint256 returnAmount = amount;
 
@@ -881,6 +895,8 @@ contract OneSplitBase {
                 } else {
                     returnAmount = 0;
                 }
+            } else {
+                returnAmount = 0;
             }
         }
 
@@ -898,6 +914,8 @@ contract OneSplitBase {
                 } else {
                     returnAmount = 0;
                 }
+            } else {
+                returnAmount = 0;
             }
         }
 
@@ -907,7 +925,8 @@ contract OneSplitBase {
     function calculateKyberReturn(
         IERC20 fromToken,
         IERC20 toToken,
-        uint256 amount
+        uint256 amount,
+        uint256 disableFlags
     ) public view returns(uint256) {
         (bool success, bytes memory data) = address(kyberNetworkProxy).staticcall.gas(2300)(abi.encodeWithSelector(
             kyberNetworkProxy.kyberNetworkContract.selector
@@ -919,23 +938,26 @@ contract OneSplitBase {
         IKyberNetworkContract kyberNetworkContract = IKyberNetworkContract(abi.decode(data, (address)));
 
         if (fromToken.isETH() || toToken.isETH()) {
-            return _calculateKyberReturnWithEth(kyberNetworkContract, fromToken, toToken, amount);
+            return _calculateKyberReturnWithEth(kyberNetworkContract, fromToken, toToken, amount, disableFlags);
         }
 
-        uint256 value = _calculateKyberReturnWithEth(kyberNetworkContract, fromToken, ETH_ADDRESS, amount);
+        uint256 value = _calculateKyberReturnWithEth(kyberNetworkContract, fromToken, ETH_ADDRESS, amount, disableFlags);
         if (value == 0) {
             return 0;
         }
 
-        return _calculateKyberReturnWithEth(kyberNetworkContract, ETH_ADDRESS, toToken, value);
+        return _calculateKyberReturnWithEth(kyberNetworkContract, ETH_ADDRESS, toToken, value, disableFlags);
     }
 
     function _calculateKyberReturnWithEth(
         IKyberNetworkContract kyberNetworkContract,
         IERC20 fromToken,
         IERC20 toToken,
-        uint256 amount
+        uint256 amount,
+        uint256 disableFlags
     ) public view returns(uint256) {
+        require(fromToken.isETH() || toToken.isETH(), "One of the tokens should be ETH");
+
         (bool success, bytes memory data) = address(kyberNetworkContract).staticcall.gas(400000)(abi.encodeWithSelector(
             kyberNetworkContract.searchBestRate.selector,
             fromToken.isETH() ? ETH_ADDRESS : fromToken,
@@ -949,35 +971,38 @@ contract OneSplitBase {
 
         (address reserve, uint256 rate) = abi.decode(data, (address,uint256));
 
-        if (reserve == 0x54A4a1167B004b004520c605E3f01906f683413d || // Uniswap
-            reserve == 0xCf1394C5e2e879969fdB1f464cE1487147863dCb || // Oasis
-            reserve == 0x053AA84FCC676113a57e0EbB0bD1913839874bE4)   // Bancor
+        if ((reserve == 0x54A4a1167B004b004520c605E3f01906f683413d && disableFlags.disabledReserve(FLAG_KYBER_UNISWAP_RESERVE)) ||
+            (reserve == 0xCf1394C5e2e879969fdB1f464cE1487147863dCb && disableFlags.disabledReserve(FLAG_KYBER_OASIS_RESERVE)) ||
+            (reserve == 0x053AA84FCC676113a57e0EbB0bD1913839874bE4 && disableFlags.disabledReserve(FLAG_KYBER_BANCOR_RESERVE)))
         {
             return 0;
         }
 
-        // Check for Uniswap reserve
-        (success,) = reserve.staticcall.gas(2300)(abi.encodeWithSelector(
-            IKyberUniswapReserve(reserve).uniswapFactory.selector
-        ));
-        if (success) {
-            return 0;
+        if (disableFlags.disabledReserve(FLAG_KYBER_UNISWAP_RESERVE)) {
+            (success,) = reserve.staticcall.gas(2300)(abi.encodeWithSelector(
+                IKyberUniswapReserve(reserve).uniswapFactory.selector
+            ));
+            if (success) {
+                return 0;
+            }
         }
 
-        // Check for Oasis reserve
-        (success,) = reserve.staticcall.gas(2300)(abi.encodeWithSelector(
-            IKyberOasisReserve(reserve).otc.selector
-        ));
-        if (success) {
-            return 0;
+        if (disableFlags.disabledReserve(FLAG_KYBER_OASIS_RESERVE)) {
+            (success,) = reserve.staticcall.gas(2300)(abi.encodeWithSelector(
+                IKyberOasisReserve(reserve).otc.selector
+            ));
+            if (success) {
+                return 0;
+            }
         }
 
-        // Check for Bancor reserve
-        (success,) = reserve.staticcall.gas(2300)(abi.encodeWithSelector(
-            IKyberBancorReserve(reserve).bancorEth.selector
-        ));
-        if (success) {
-            return 0;
+        if (disableFlags.disabledReserve(FLAG_KYBER_BANCOR_RESERVE)) {
+            (success,) = reserve.staticcall.gas(2300)(abi.encodeWithSelector(
+                IKyberBancorReserve(reserve).bancorEth.selector
+            ));
+            if (success) {
+                return 0;
+            }
         }
 
         return rate.mul(amount)
@@ -989,7 +1014,8 @@ contract OneSplitBase {
     function calculateBancorReturn(
         IERC20 fromToken,
         IERC20 toToken,
-        uint256 amount
+        uint256 amount,
+        uint256 /*disableFlags*/
     ) public view returns(uint256) {
         IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
         address[] memory path = bancorNetworkPathFinder.generatePath(
@@ -1015,7 +1041,8 @@ contract OneSplitBase {
     function calculateOasisReturn(
         IERC20 fromToken,
         IERC20 toToken,
-        uint256 amount
+        uint256 amount,
+        uint256 /*disableFlags*/
     ) public view returns(uint256) {
         (bool success, bytes memory data) = address(oasisExchange).staticcall.gas(500000)(
             abi.encodeWithSelector(
@@ -1035,7 +1062,8 @@ contract OneSplitBase {
     function _calculateNoReturn(
         IERC20 /*fromToken*/,
         IERC20 /*toToken*/,
-        uint256 /*amount*/
+        uint256 /*amount*/,
+        uint256 /*disableFlags*/
     ) internal view returns(uint256) {
         this;
     }
@@ -2088,9 +2116,6 @@ contract OneSplitSmartToken is OneSplitBase {
                 //         distribution[j] = distribution[j].add(dist[j] << (i * 8));
                 //     }
                 // }
-                // for (uint j = 0; j < distribution.length; j++) {
-                //     distribution[j] = distribution[j].add(1 << 255);
-                // }
                 // return (returnAmount, distribution);
             }
 
@@ -2344,7 +2369,7 @@ contract OneSplitMultiPath is OneSplitBase {
             uint256[] memory distribution
         )
     {
-        if (!fromToken.isETH() && !toToken.isETH()) {
+        if (!fromToken.isETH() && !toToken.isETH() && !disableFlags.disabledReserve(FLAG_MULTI_PATH_ETH)) {
             (uint256 result, uint256[] memory dist) = getExpectedReturn(
                 fromToken,
                 ETH_ADDRESS,
@@ -2364,7 +2389,7 @@ contract OneSplitMultiPath is OneSplitBase {
                 disableFlags
             );
             for (uint i = 0; i < distribution.length; i++) {
-                distribution[i] = distribution[i].add(dist[i] << 8).add(1 << 255);
+                distribution[i] = distribution[i].add(dist[i] << 8);
             }
             return (returnAmount, distribution);
         }
@@ -2385,7 +2410,7 @@ contract OneSplitMultiPath is OneSplitBase {
         uint256[] memory distribution,
         uint256 disableFlags
     ) internal {
-        if (!fromToken.isETH() && !toToken.isETH()) {
+        if (!fromToken.isETH() && !toToken.isETH() && !disableFlags.disabledReserve(FLAG_MULTI_PATH_ETH)) {
             uint256[] memory dist = new uint256[](distribution.length);
             for (uint i = 0; i < distribution.length; i++) {
                 dist[i] = distribution[i] & 0xFF;

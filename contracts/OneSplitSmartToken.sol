@@ -57,9 +57,6 @@ contract OneSplitSmartToken is OneSplitBase {
                 //         distribution[j] = distribution[j].add(dist[j] << (i * 8));
                 //     }
                 // }
-                // for (uint j = 0; j < distribution.length; j++) {
-                //     distribution[j] = distribution[j].add(1 << 255);
-                // }
                 // return (returnAmount, distribution);
             }
 

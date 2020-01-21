@@ -645,6 +645,9 @@ library UniversalERC20 {
 
     function universalApprove(IERC20 token, address to, uint256 amount) internal {
         if (!isETH(token)) {
+            if (amount > 0 && token.allowance(address(this), to) > 0) {
+                token.safeApprove(to, 0);
+            }
             token.safeApprove(to, amount);
         }
     }
@@ -748,6 +751,7 @@ contract OneSplitBase {
     uint256 constant public FLAG_CHAI = 0x40;
     uint256 constant public FLAG_AAVE = 0x80;
     uint256 constant public FLAG_SMART_TOKEN = 0x100;
+    uint256 constant public FLAG_MULTI_PATH_ETH = 0x200; // Turned off for default
 
     function() external payable {
         // solium-disable-next-line security/no-tx-origin
@@ -2111,9 +2115,6 @@ contract OneSplitSmartToken is OneSplitBase {
                 //     for (uint j = 0; j < distribution.length; j++) {
                 //         distribution[j] = distribution[j].add(dist[j] << (i * 8));
                 //     }
-                // }
-                // for (uint j = 0; j < distribution.length; j++) {
-                //     distribution[j] = distribution[j].add(1 << 255);
                 // }
                 // return (returnAmount, distribution);
             }
