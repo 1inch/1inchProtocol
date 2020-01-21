@@ -37,8 +37,6 @@
     "lint:sol:fix": "solium -d . --fix",
     "lint": "npm run lint:js && npm run lint:sol",
     "lint:fix": "npm run lint:js:fix && npm run lint:sol:fix",
-    "dist": "yarn run dist:one && yarn run dist:multi",
-    "dist:one": "truffle-flattener ./contracts/OneSplit.sol > OneSplit.full.sol && solcjs --bin --abi --optimize OneSplit.full.sol && mv OneSplit_full_sol_OneSplit.bin OneSplit.full.bin && mv OneSplit_full_sol_OneSplit.abi OneSplit.full.abi && rm *_sol_*",
-    "dist:multi": "truffle-flattener ./contracts/MultiSplit.sol > MultiSplit.full.sol && solcjs --bin --abi --optimize MultiSplit.full.sol && mv MultiSplit_full_sol_MultiSplit.bin MultiSplit.full.bin && mv MultiSplit_full_sol_MultiSplit.abi MultiSplit.full.abi && rm *_sol_*"
+    "dist": "truffle-flattener ./contracts/OneSplit.sol > OneSplit.full.sol && solcjs --bin --abi --optimize OneSplit.full.sol && mv OneSplit_full_sol_OneSplit.bin OneSplit.full.bin && mv OneSplit_full_sol_OneSplit.abi OneSplit.full.abi && rm *_sol_*"
   }
 }
