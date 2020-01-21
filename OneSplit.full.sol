@@ -645,6 +645,9 @@ library UniversalERC20 {
 
     function universalApprove(IERC20 token, address to, uint256 amount) internal {
         if (!isETH(token)) {
+            if (amount > 0 && token.allowance(address(this), to) > 0) {
+                token.safeApprove(to, 0);
+            }
             token.safeApprove(to, amount);
         }
     }
@@ -748,6 +751,7 @@ contract OneSplitBase {
     uint256 constant public FLAG_CHAI = 0x40;
     uint256 constant public FLAG_AAVE = 0x80;
     uint256 constant public FLAG_SMART_TOKEN = 0x100;
+    uint256 constant public FLAG_MULTI_PATH_ETH = 0x200; // Turned off for default
 
     function() external payable {
         // solium-disable-next-line security/no-tx-origin
@@ -1167,6 +1171,102 @@ contract OneSplitBase {
                 token.universalApprove(to, uint256(- 1));
             }
         }
+    }
+}
+
+// File: contracts/OneSplitMultiPath.sol
+
+pragma solidity ^0.5.0;
+
+
+contract OneSplitMultiPath is OneSplitBase {
+
+    function getExpectedReturn(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 disableFlags
+    )
+        public
+        view
+        returns (
+            uint256 returnAmount,
+            uint256[] memory distribution
+        )
+    {
+        if (!fromToken.isETH() && !toToken.isETH() && !disableFlags.disabledReserve(FLAG_MULTI_PATH_ETH)) {
+            (returnAmount, distribution) = getExpectedReturn(
+                fromToken,
+                ETH_ADDRESS,
+                amount,
+                parts,
+                disableFlags
+            );
+
+            uint256[] memory dist;
+            (returnAmount, dist) = getExpectedReturn(
+                ETH_ADDRESS,
+                toToken,
+                returnAmount,
+                parts,
+                disableFlags
+            );
+            for (uint i = 0; i < distribution.length; i++) {
+                distribution[i] = distribution[i].add(dist[i] << 8);
+            }
+            return (returnAmount, distribution);
+        }
+
+        return super.getExpectedReturn(
+            fromToken,
+            toToken,
+            amount,
+            parts,
+            disableFlags
+        );
+    }
+
+    function _swap(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256[] memory distribution,
+        uint256 disableFlags
+    ) internal {
+        if (!fromToken.isETH() && !toToken.isETH() && !disableFlags.disabledReserve(FLAG_MULTI_PATH_ETH)) {
+            uint256[] memory dist = new uint256[](distribution.length);
+            for (uint i = 0; i < distribution.length; i++) {
+                dist[i] = distribution[i] & 0xFF;
+            }
+            _swap(
+                fromToken,
+                ETH_ADDRESS,
+                amount,
+                dist,
+                disableFlags
+            );
+
+            for (uint i = 0; i < distribution.length; i++) {
+                dist[i] = (distribution[i] >> 8) & 0xFF;
+            }
+            _swap(
+                ETH_ADDRESS,
+                toToken,
+                address(this).balance,
+                dist,
+                disableFlags
+            );
+            return;
+        }
+
+        super._swap(
+            fromToken,
+            toToken,
+            amount,
+            distribution,
+            disableFlags
+        );
     }
 }
 
@@ -2112,9 +2212,6 @@ contract OneSplitSmartToken is OneSplitBase {
                 //         distribution[j] = distribution[j].add(dist[j] << (i * 8));
                 //     }
                 // }
-                // for (uint j = 0; j < distribution.length; j++) {
-                //     distribution[j] = distribution[j].add(1 << 255);
-                // }
                 // return (returnAmount, distribution);
             }
 
@@ -2233,8 +2330,10 @@ pragma solidity ^0.5.0;
 
 
 
+
 contract OneSplit is
     OneSplitBase,
+    OneSplitMultiPath,
     OneSplitChai,
     OneSplitAave,
     OneSplitFulcrum,

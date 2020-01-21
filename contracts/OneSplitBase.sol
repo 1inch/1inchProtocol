@@ -65,6 +65,7 @@ contract OneSplitBase {
     uint256 constant public FLAG_CHAI = 0x40;
     uint256 constant public FLAG_AAVE = 0x80;
     uint256 constant public FLAG_SMART_TOKEN = 0x100;
+    uint256 constant public FLAG_MULTI_PATH_ETH = 0x200; // Turned off for default
 
     function() external payable {
         // solium-disable-next-line security/no-tx-origin
