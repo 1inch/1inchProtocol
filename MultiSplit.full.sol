@@ -402,13 +402,17 @@ library UniversalERC20 {
     IERC20 private constant ETH_ADDRESS = IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
     function universalTransfer(IERC20 token, address to, uint256 amount) internal returns(bool) {
+
         if (amount == 0) {
             return true;
         }
 
-        if (token == ZERO_ADDRESS || token == ETH_ADDRESS) {
+        if (isETH(token)) {
+
             address(uint160(to)).transfer(amount);
+            return true;
         } else {
+
             token.safeTransfer(to, amount);
             return true;
         }
@@ -419,7 +423,7 @@ library UniversalERC20 {
             return;
         }
 
-        if (token == ZERO_ADDRESS || token == ETH_ADDRESS) {
+        if (isETH(token)) {
             require(from == msg.sender && msg.value >= amount, "msg.value is zero");
             if (to != address(this)) {
                 address(uint160(to)).transfer(amount);
@@ -433,13 +437,15 @@ library UniversalERC20 {
     }
 
     function universalApprove(IERC20 token, address to, uint256 amount) internal {
-        if (token != ZERO_ADDRESS && token != ETH_ADDRESS) {
+
+        if (!isETH(token)) {
             token.safeApprove(to, amount);
         }
     }
 
     function universalBalanceOf(IERC20 token, address who) internal view returns (uint256) {
-        if (token == ZERO_ADDRESS || token == ETH_ADDRESS) {
+        
+        if (isETH(token)) {
             return who.balance;
         } else {
             return token.balanceOf(who);
@@ -448,7 +454,7 @@ library UniversalERC20 {
 
     function universalDecimals(IERC20 token) internal view returns (uint256) {
 
-        if (token == ZERO_ADDRESS || token == ETH_ADDRESS) {
+        if (isETH(token)) {
             return 18;
         }
 
@@ -566,7 +572,7 @@ contract MultiSplit {
     ) public payable {
 
         fromToken.universalTransferFrom(msg.sender, address(this), amount);
-        fromToken.universalApprove(address(oneSplit), uint256(- 1));
+        infiniteApproveIfNeeded(fromToken, address(oneSplit));
 
         oneSplit.swap.value(address(this).balance)(
             fromToken,
@@ -578,7 +584,7 @@ contract MultiSplit {
         );
 
         IERC20 hopToken = IERC20(ETH_ADDRESS);
-       // hopToken.universalApprove(address(oneSplit), uint256(- 1));
+        infiniteApproveIfNeeded(hopToken, address(oneSplit));
 
         uint256 hopAmount = hopToken.universalBalanceOf(address(this));
 
@@ -594,6 +600,16 @@ contract MultiSplit {
         fromToken.universalTransfer(msg.sender, fromToken.universalBalanceOf(address(this)));
         hopToken.universalTransfer(msg.sender, hopToken.universalBalanceOf(address(this)));
         toToken.universalTransfer(msg.sender, toToken.universalBalanceOf(address(this)));
+    }
+
+    function infiniteApproveIfNeeded(IERC20 token, address to) internal {
+
+        if (!token.isETH()) {
+
+            if ((token.allowance(address(this), to) >> 255) == 0) {
+                token.universalApprove(to, uint256(- 1));
+            }
+        }
     }
 
     function() external payable {

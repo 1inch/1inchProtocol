@@ -14,13 +14,17 @@ library UniversalERC20 {
     IERC20 private constant ETH_ADDRESS = IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
     function universalTransfer(IERC20 token, address to, uint256 amount) internal returns(bool) {
+
         if (amount == 0) {
             return true;
         }
 
-        if (token == ZERO_ADDRESS || token == ETH_ADDRESS) {
+        if (isETH(token)) {
+
             address(uint160(to)).transfer(amount);
+            return true;
         } else {
+
             token.safeTransfer(to, amount);
             return true;
         }
@@ -31,7 +35,7 @@ library UniversalERC20 {
             return;
         }
 
-        if (token == ZERO_ADDRESS || token == ETH_ADDRESS) {
+        if (isETH(token)) {
             require(from == msg.sender && msg.value >= amount, "msg.value is zero");
             if (to != address(this)) {
                 address(uint160(to)).transfer(amount);
@@ -46,13 +50,14 @@ library UniversalERC20 {
 
     function universalApprove(IERC20 token, address to, uint256 amount) internal {
 
-        if (token != ZERO_ADDRESS && token != ETH_ADDRESS) {
+        if (!isETH(token)) {
             token.safeApprove(to, amount);
         }
     }
 
     function universalBalanceOf(IERC20 token, address who) internal view returns (uint256) {
-        if (token == ZERO_ADDRESS || token == ETH_ADDRESS) {
+        
+        if (isETH(token)) {
             return who.balance;
         } else {
             return token.balanceOf(who);
@@ -61,7 +66,7 @@ library UniversalERC20 {
 
     function universalDecimals(IERC20 token) internal view returns (uint256) {
 
-        if (token == ZERO_ADDRESS || token == ETH_ADDRESS) {
+        if (isETH(token)) {
             return 18;
         }
 

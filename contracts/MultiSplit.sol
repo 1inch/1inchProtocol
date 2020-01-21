@@ -55,7 +55,7 @@ contract MultiSplit {
     ) public payable {
 
         fromToken.universalTransferFrom(msg.sender, address(this), amount);
-        fromToken.universalApprove(address(oneSplit), uint256(- 1));
+        infiniteApproveIfNeeded(fromToken, address(oneSplit));
 
         oneSplit.swap.value(address(this).balance)(
             fromToken,
@@ -67,7 +67,7 @@ contract MultiSplit {
         );
 
         IERC20 hopToken = IERC20(ETH_ADDRESS);
-       // hopToken.universalApprove(address(oneSplit), uint256(- 1));
+        infiniteApproveIfNeeded(hopToken, address(oneSplit));
 
         uint256 hopAmount = hopToken.universalBalanceOf(address(this));
 
@@ -83,6 +83,16 @@ contract MultiSplit {
         fromToken.universalTransfer(msg.sender, fromToken.universalBalanceOf(address(this)));
         hopToken.universalTransfer(msg.sender, hopToken.universalBalanceOf(address(this)));
         toToken.universalTransfer(msg.sender, toToken.universalBalanceOf(address(this)));
+    }
+
+    function infiniteApproveIfNeeded(IERC20 token, address to) internal {
+
+        if (!token.isETH()) {
+
+            if ((token.allowance(address(this), to) >> 255) == 0) {
+                token.universalApprove(to, uint256(- 1));
+            }
+        }
     }
 
     function() external payable {
