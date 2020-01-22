@@ -18,22 +18,26 @@ contract OneSplitMultiPath is OneSplitBase {
             uint256[] memory distribution
         )
     {
+        if (fromToken == toToken) {
+            return (amount, new uint256[](4));
+        }
+
         if (!fromToken.isETH() && !toToken.isETH() && !disableFlags.disabledReserve(FLAG_MULTI_PATH_ETH)) {
-            (returnAmount, distribution) = getExpectedReturn(
+            (returnAmount, distribution) = super.getExpectedReturn(
                 fromToken,
                 ETH_ADDRESS,
                 amount,
                 parts,
-                disableFlags
+                disableFlags | FLAG_BANCOR
             );
 
             uint256[] memory dist;
-            (returnAmount, dist) = getExpectedReturn(
+            (returnAmount, dist) = super.getExpectedReturn(
                 ETH_ADDRESS,
                 toToken,
                 returnAmount,
                 parts,
-                disableFlags
+                disableFlags | FLAG_BANCOR
             );
             for (uint i = 0; i < distribution.length; i++) {
                 distribution[i] = distribution[i].add(dist[i] << 8);
@@ -62,7 +66,7 @@ contract OneSplitMultiPath is OneSplitBase {
             for (uint i = 0; i < distribution.length; i++) {
                 dist[i] = distribution[i] & 0xFF;
             }
-            _swap(
+            super._swap(
                 fromToken,
                 ETH_ADDRESS,
                 amount,
@@ -73,7 +77,7 @@ contract OneSplitMultiPath is OneSplitBase {
             for (uint i = 0; i < distribution.length; i++) {
                 dist[i] = (distribution[i] >> 8) & 0xFF;
             }
-            _swap(
+            super._swap(
                 ETH_ADDRESS,
                 toToken,
                 address(this).balance,

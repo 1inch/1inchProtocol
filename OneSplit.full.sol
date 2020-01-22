@@ -1,4 +1,143 @@
 
+// File: @openzeppelin/contracts/token/ERC20/IERC20.sol
+
+pragma solidity ^0.5.0;
+
+/**
+ * @dev Interface of the ERC20 standard as defined in the EIP. Does not include
+ * the optional functions; to access them see {ERC20Detailed}.
+ */
+interface IERC20 {
+    /**
+     * @dev Returns the amount of tokens in existence.
+     */
+    function totalSupply() external view returns (uint256);
+
+    /**
+     * @dev Returns the amount of tokens owned by `account`.
+     */
+    function balanceOf(address account) external view returns (uint256);
+
+    /**
+     * @dev Moves `amount` tokens from the caller's account to `recipient`.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * Emits a {Transfer} event.
+     */
+    function transfer(address recipient, uint256 amount) external returns (bool);
+
+    /**
+     * @dev Returns the remaining number of tokens that `spender` will be
+     * allowed to spend on behalf of `owner` through {transferFrom}. This is
+     * zero by default.
+     *
+     * This value changes when {approve} or {transferFrom} are called.
+     */
+    function allowance(address owner, address spender) external view returns (uint256);
+
+    /**
+     * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * IMPORTANT: Beware that changing an allowance with this method brings the risk
+     * that someone may use both the old and the new allowance by unfortunate
+     * transaction ordering. One possible solution to mitigate this race
+     * condition is to first reduce the spender's allowance to 0 and set the
+     * desired value afterwards:
+     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
+     *
+     * Emits an {Approval} event.
+     */
+    function approve(address spender, uint256 amount) external returns (bool);
+
+    /**
+     * @dev Moves `amount` tokens from `sender` to `recipient` using the
+     * allowance mechanism. `amount` is then deducted from the caller's
+     * allowance.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * Emits a {Transfer} event.
+     */
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+
+    /**
+     * @dev Emitted when `value` tokens are moved from one account (`from`) to
+     * another (`to`).
+     *
+     * Note that `value` may be zero.
+     */
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    /**
+     * @dev Emitted when the allowance of a `spender` for an `owner` is set by
+     * a call to {approve}. `value` is the new allowance.
+     */
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+}
+
+// File: contracts/IOneSplit.sol
+
+pragma solidity ^0.5.0;
+
+
+
+contract IOneSplit {
+
+    // disableFlags = FLAG_UNISWAP + FLAG_KYBER + ...
+    uint256 constant public FLAG_UNISWAP = 0x01;
+    uint256 constant public FLAG_KYBER = 0x02;
+    uint256 constant public FLAG_KYBER_UNISWAP_RESERVE = 0x100000000; // Turned off by default
+    uint256 constant public FLAG_KYBER_OASIS_RESERVE = 0x200000000; // Turned off by default
+    uint256 constant public FLAG_KYBER_BANCOR_RESERVE = 0x400000000; // Turned off by default
+    uint256 constant public FLAG_BANCOR = 0x04;
+    uint256 constant public FLAG_OASIS = 0x08;
+    uint256 constant public FLAG_COMPOUND = 0x10;
+    uint256 constant public FLAG_FULCRUM = 0x20;
+    uint256 constant public FLAG_CHAI = 0x40;
+    uint256 constant public FLAG_AAVE = 0x80;
+    uint256 constant public FLAG_SMART_TOKEN = 0x100;
+    uint256 constant public FLAG_MULTI_PATH_ETH = 0x200; // Turned off by default
+
+    function getExpectedReturn(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken
+    )
+        public
+        view
+        returns(
+            uint256 returnAmount,
+            uint256[] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
+        );
+
+    function swap(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 minReturn,
+        uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
+        uint256 disableFlags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken
+    )
+        public
+        payable;
+
+    function goodSwap(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 minReturn,
+        uint256 parts,
+        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken
+    )
+        public
+        payable;
+}
+
 // File: @openzeppelin/contracts/math/SafeMath.sol
 
 pragma solidity ^0.5.0;
@@ -156,85 +295,6 @@ library SafeMath {
         require(b != 0, errorMessage);
         return a % b;
     }
-}
-
-// File: @openzeppelin/contracts/token/ERC20/IERC20.sol
-
-pragma solidity ^0.5.0;
-
-/**
- * @dev Interface of the ERC20 standard as defined in the EIP. Does not include
- * the optional functions; to access them see {ERC20Detailed}.
- */
-interface IERC20 {
-    /**
-     * @dev Returns the amount of tokens in existence.
-     */
-    function totalSupply() external view returns (uint256);
-
-    /**
-     * @dev Returns the amount of tokens owned by `account`.
-     */
-    function balanceOf(address account) external view returns (uint256);
-
-    /**
-     * @dev Moves `amount` tokens from the caller's account to `recipient`.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * Emits a {Transfer} event.
-     */
-    function transfer(address recipient, uint256 amount) external returns (bool);
-
-    /**
-     * @dev Returns the remaining number of tokens that `spender` will be
-     * allowed to spend on behalf of `owner` through {transferFrom}. This is
-     * zero by default.
-     *
-     * This value changes when {approve} or {transferFrom} are called.
-     */
-    function allowance(address owner, address spender) external view returns (uint256);
-
-    /**
-     * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * IMPORTANT: Beware that changing an allowance with this method brings the risk
-     * that someone may use both the old and the new allowance by unfortunate
-     * transaction ordering. One possible solution to mitigate this race
-     * condition is to first reduce the spender's allowance to 0 and set the
-     * desired value afterwards:
-     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-     *
-     * Emits an {Approval} event.
-     */
-    function approve(address spender, uint256 amount) external returns (bool);
-
-    /**
-     * @dev Moves `amount` tokens from `sender` to `recipient` using the
-     * allowance mechanism. `amount` is then deducted from the caller's
-     * allowance.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * Emits a {Transfer} event.
-     */
-    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
-
-    /**
-     * @dev Emitted when `value` tokens are moved from one account (`from`) to
-     * another (`to`).
-     *
-     * Note that `value` may be zero.
-     */
-    event Transfer(address indexed from, address indexed to, uint256 value);
-
-    /**
-     * @dev Emitted when the allowance of a `spender` for an `owner` is set by
-     * a call to {approve}. `value` is the new allowance.
-     */
-    event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
 // File: contracts/interface/IUniswapExchange.sol
@@ -702,6 +762,7 @@ pragma solidity ^0.5.0;
 
 
 
+
 library DisableFlags {
     function enabled(uint256 disableFlags, uint256 flag) internal pure returns(bool) {
         return (disableFlags & flag) == 0;
@@ -718,7 +779,7 @@ library DisableFlags {
 }
 
 
-contract OneSplitBase {
+contract OneSplitBase is IOneSplit {
     using SafeMath for uint256;
     using DisableFlags for uint256;
 
@@ -737,21 +798,6 @@ contract OneSplitBase {
     IBancorContractRegistry public bancorContractRegistry = IBancorContractRegistry(0x52Ae12ABe5D8BD778BD5397F99cA900624CfADD4);
     IBancorNetworkPathFinder bancorNetworkPathFinder = IBancorNetworkPathFinder(0x6F0cD8C4f6F06eAB664C7E3031909452b4B72861);
     IOasisExchange public oasisExchange = IOasisExchange(0x39755357759cE0d7f32dC8dC45414CCa409AE24e);
-
-    // disableFlags = FLAG_UNISWAP + FLAG_KYBER + ...
-    uint256 constant public FLAG_UNISWAP = 0x01;
-    uint256 constant public FLAG_KYBER = 0x02;
-    uint256 constant public FLAG_KYBER_UNISWAP_RESERVE = 0x100000000; // Turned off for default
-    uint256 constant public FLAG_KYBER_OASIS_RESERVE = 0x200000000; // Turned off for default
-    uint256 constant public FLAG_KYBER_BANCOR_RESERVE = 0x400000000; // Turned off for default
-    uint256 constant public FLAG_BANCOR = 0x04;
-    uint256 constant public FLAG_OASIS = 0x08;
-    uint256 constant public FLAG_COMPOUND = 0x10;
-    uint256 constant public FLAG_FULCRUM = 0x20;
-    uint256 constant public FLAG_CHAI = 0x40;
-    uint256 constant public FLAG_AAVE = 0x80;
-    uint256 constant public FLAG_SMART_TOKEN = 0x100;
-    uint256 constant public FLAG_MULTI_PATH_ETH = 0x200; // Turned off for default
 
     function() external payable {
         // solium-disable-next-line security/no-tx-origin
@@ -820,7 +866,11 @@ contract OneSplitBase {
                     srcAmount.mul(distribution[bestIndex] + 1).div(parts),
                     disableFlags
                 );
-                rates[bestIndex] = newRate.sub(fullRates[bestIndex]);
+                if (newRate > fullRates[bestIndex]) {
+                    rates[bestIndex] = newRate.sub(fullRates[bestIndex]);
+                } else {
+                    rates[bestIndex] = 0;
+                }
                 this.log(rates[bestIndex]);
                 fullRates[bestIndex] = newRate;
             }
@@ -958,7 +1008,7 @@ contract OneSplitBase {
     ) public view returns(uint256) {
         require(fromToken.isETH() || toToken.isETH(), "One of the tokens should be ETH");
 
-        (bool success, bytes memory data) = address(kyberNetworkContract).staticcall.gas(400000)(abi.encodeWithSelector(
+        (bool success, bytes memory data) = address(kyberNetworkContract).staticcall.gas(1500000)(abi.encodeWithSelector(
             kyberNetworkContract.searchBestRate.selector,
             fromToken.isETH() ? ETH_ADDRESS : fromToken,
             toToken.isETH() ? ETH_ADDRESS : toToken,
@@ -971,7 +1021,7 @@ contract OneSplitBase {
 
         (address reserve, uint256 rate) = abi.decode(data, (address,uint256));
 
-        if ((reserve == 0x54A4a1167B004b004520c605E3f01906f683413d && disableFlags.disabledReserve(FLAG_KYBER_UNISWAP_RESERVE)) ||
+        if ((reserve == 0x31E085Afd48a1d6e51Cc193153d625e8f0514C7F && disableFlags.disabledReserve(FLAG_KYBER_UNISWAP_RESERVE)) ||
             (reserve == 0xCf1394C5e2e879969fdB1f464cE1487147863dCb && disableFlags.disabledReserve(FLAG_KYBER_OASIS_RESERVE)) ||
             (reserve == 0x053AA84FCC676113a57e0EbB0bD1913839874bE4 && disableFlags.disabledReserve(FLAG_KYBER_BANCOR_RESERVE)))
         {
@@ -1023,7 +1073,7 @@ contract OneSplitBase {
             toToken.isETH() ? bancorEtherToken : toToken
         );
 
-        (bool success, bytes memory data) = address(bancorNetwork).staticcall.gas(200000)(
+        (bool success, bytes memory data) = address(bancorNetwork).staticcall.gas(500000)(
             abi.encodeWithSelector(
                 bancorNetwork.getReturnByPath.selector,
                 path,
@@ -1195,22 +1245,26 @@ contract OneSplitMultiPath is OneSplitBase {
             uint256[] memory distribution
         )
     {
+        if (fromToken == toToken) {
+            return (amount, new uint256[](4));
+        }
+
         if (!fromToken.isETH() && !toToken.isETH() && !disableFlags.disabledReserve(FLAG_MULTI_PATH_ETH)) {
-            (returnAmount, distribution) = getExpectedReturn(
+            (returnAmount, distribution) = super.getExpectedReturn(
                 fromToken,
                 ETH_ADDRESS,
                 amount,
                 parts,
-                disableFlags
+                disableFlags | FLAG_BANCOR
             );
 
             uint256[] memory dist;
-            (returnAmount, dist) = getExpectedReturn(
+            (returnAmount, dist) = super.getExpectedReturn(
                 ETH_ADDRESS,
                 toToken,
                 returnAmount,
                 parts,
-                disableFlags
+                disableFlags | FLAG_BANCOR
             );
             for (uint i = 0; i < distribution.length; i++) {
                 distribution[i] = distribution[i].add(dist[i] << 8);
@@ -1239,7 +1293,7 @@ contract OneSplitMultiPath is OneSplitBase {
             for (uint i = 0; i < distribution.length; i++) {
                 dist[i] = distribution[i] & 0xFF;
             }
-            _swap(
+            super._swap(
                 fromToken,
                 ETH_ADDRESS,
                 amount,
@@ -1250,7 +1304,7 @@ contract OneSplitMultiPath is OneSplitBase {
             for (uint i = 0; i < distribution.length; i++) {
                 dist[i] = (distribution[i] >> 8) & 0xFF;
             }
-            _swap(
+            super._swap(
                 ETH_ADDRESS,
                 toToken,
                 address(this).balance,
@@ -1324,7 +1378,7 @@ contract OneSplitCompound is OneSplitBase {
         )
     {
         if (fromToken == toToken) {
-            return (amount, distribution);
+            return (amount, new uint256[](4));
         }
 
         if (disableFlags.enabled(FLAG_COMPOUND)) {
@@ -1568,7 +1622,7 @@ contract OneSplitFulcrum is OneSplitBase {
         )
     {
         if (fromToken == toToken) {
-            return (amount, distribution);
+            return (amount, new uint256[](4));
         }
 
         if (disableFlags.enabled(FLAG_FULCRUM)) {
@@ -1827,7 +1881,7 @@ contract OneSplitChai is OneSplitBase {
         )
     {
         if (fromToken == toToken) {
-            return (amount, distribution);
+            return (amount, new uint256[](4));
         }
 
         if (disableFlags.enabled(FLAG_CHAI)) {
@@ -2181,7 +2235,7 @@ contract OneSplitSmartToken is OneSplitBase {
         )
     {
         if (fromToken == toToken) {
-            return (amount, distribution);
+            return (amount, new uint256[](4));
         }
 
         if (disableFlags.enabled(FLAG_SMART_TOKEN)) {
@@ -2331,7 +2385,9 @@ pragma solidity ^0.5.0;
 
 
 
+
 contract OneSplit is
+    IOneSplit,
     OneSplitBase,
     OneSplitMultiPath,
     OneSplitChai,

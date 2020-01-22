@@ -1,5 +1,6 @@
 pragma solidity ^0.5.0;
 
+import "./IOneSplit.sol";
 import "./OneSplitBase.sol";
 import "./OneSplitMultiPath.sol";
 import "./OneSplitCompound.sol";
@@ -10,6 +11,7 @@ import "./OneSplitSmartToken.sol";
 
 
 contract OneSplit is
+    IOneSplit,
     OneSplitBase,
     OneSplitMultiPath,
     OneSplitChai,

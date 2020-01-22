@@ -13,6 +13,7 @@ import "./interface/IBancorNetworkPathFinder.sol";
 import "./interface/IBancorEtherToken.sol";
 import "./interface/IOasisExchange.sol";
 import "./interface/IWETH.sol";
+import "./IOneSplit.sol";
 import "./UniversalERC20.sol";
 
 
@@ -32,7 +33,7 @@ library DisableFlags {
 }
 
 
-contract OneSplitBase {
+contract OneSplitBase is IOneSplit {
     using SafeMath for uint256;
     using DisableFlags for uint256;
 
@@ -51,21 +52,6 @@ contract OneSplitBase {
     IBancorContractRegistry public bancorContractRegistry = IBancorContractRegistry(0x52Ae12ABe5D8BD778BD5397F99cA900624CfADD4);
     IBancorNetworkPathFinder bancorNetworkPathFinder = IBancorNetworkPathFinder(0x6F0cD8C4f6F06eAB664C7E3031909452b4B72861);
     IOasisExchange public oasisExchange = IOasisExchange(0x39755357759cE0d7f32dC8dC45414CCa409AE24e);
-
-    // disableFlags = FLAG_UNISWAP + FLAG_KYBER + ...
-    uint256 constant public FLAG_UNISWAP = 0x01;
-    uint256 constant public FLAG_KYBER = 0x02;
-    uint256 constant public FLAG_KYBER_UNISWAP_RESERVE = 0x100000000; // Turned off for default
-    uint256 constant public FLAG_KYBER_OASIS_RESERVE = 0x200000000; // Turned off for default
-    uint256 constant public FLAG_KYBER_BANCOR_RESERVE = 0x400000000; // Turned off for default
-    uint256 constant public FLAG_BANCOR = 0x04;
-    uint256 constant public FLAG_OASIS = 0x08;
-    uint256 constant public FLAG_COMPOUND = 0x10;
-    uint256 constant public FLAG_FULCRUM = 0x20;
-    uint256 constant public FLAG_CHAI = 0x40;
-    uint256 constant public FLAG_AAVE = 0x80;
-    uint256 constant public FLAG_SMART_TOKEN = 0x100;
-    uint256 constant public FLAG_MULTI_PATH_ETH = 0x200; // Turned off for default
 
     function() external payable {
         // solium-disable-next-line security/no-tx-origin
@@ -134,7 +120,11 @@ contract OneSplitBase {
                     srcAmount.mul(distribution[bestIndex] + 1).div(parts),
                     disableFlags
                 );
-                rates[bestIndex] = newRate.sub(fullRates[bestIndex]);
+                if (newRate > fullRates[bestIndex]) {
+                    rates[bestIndex] = newRate.sub(fullRates[bestIndex]);
+                } else {
+                    rates[bestIndex] = 0;
+                }
                 this.log(rates[bestIndex]);
                 fullRates[bestIndex] = newRate;
             }
@@ -272,7 +262,7 @@ contract OneSplitBase {
     ) public view returns(uint256) {
         require(fromToken.isETH() || toToken.isETH(), "One of the tokens should be ETH");
 
-        (bool success, bytes memory data) = address(kyberNetworkContract).staticcall.gas(400000)(abi.encodeWithSelector(
+        (bool success, bytes memory data) = address(kyberNetworkContract).staticcall.gas(1500000)(abi.encodeWithSelector(
             kyberNetworkContract.searchBestRate.selector,
             fromToken.isETH() ? ETH_ADDRESS : fromToken,
             toToken.isETH() ? ETH_ADDRESS : toToken,
@@ -285,7 +275,7 @@ contract OneSplitBase {
 
         (address reserve, uint256 rate) = abi.decode(data, (address,uint256));
 
-        if ((reserve == 0x54A4a1167B004b004520c605E3f01906f683413d && disableFlags.disabledReserve(FLAG_KYBER_UNISWAP_RESERVE)) ||
+        if ((reserve == 0x31E085Afd48a1d6e51Cc193153d625e8f0514C7F && disableFlags.disabledReserve(FLAG_KYBER_UNISWAP_RESERVE)) ||
             (reserve == 0xCf1394C5e2e879969fdB1f464cE1487147863dCb && disableFlags.disabledReserve(FLAG_KYBER_OASIS_RESERVE)) ||
             (reserve == 0x053AA84FCC676113a57e0EbB0bD1913839874bE4 && disableFlags.disabledReserve(FLAG_KYBER_BANCOR_RESERVE)))
         {
@@ -337,7 +327,7 @@ contract OneSplitBase {
             toToken.isETH() ? bancorEtherToken : toToken
         );
 
-        (bool success, bytes memory data) = address(bancorNetwork).staticcall.gas(200000)(
+        (bool success, bytes memory data) = address(bancorNetwork).staticcall.gas(500000)(
             abi.encodeWithSelector(
                 bancorNetwork.getReturnByPath.selector,
                 path,

@@ -26,7 +26,7 @@ contract OneSplitSmartToken is OneSplitBase {
         )
     {
         if (fromToken == toToken) {
-            return (amount, distribution);
+            return (amount, new uint256[](4));
         }
 
         if (disableFlags.enabled(FLAG_SMART_TOKEN)) {
