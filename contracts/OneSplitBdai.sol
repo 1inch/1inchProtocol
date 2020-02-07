@@ -71,7 +71,13 @@ contract OneSplitBdai is OneSplitBase {
         if (disableFlags.enabled(FLAG_BDAI)) {
             if (fromToken == IERC20(bdai)) {
                 bdai.exit(amount);
-                btu.universalTransfer(msg.sender, btu.balanceOf(address(this)));
+                super._swap(
+                    btu,
+                    toToken,
+                    btu.balanceOf(address(this)),
+                    distribution,
+                    disableFlags
+                );
 
                 return
                     super._swap(
