@@ -7,7 +7,7 @@ contract MultiSplit {
 
     using UniversalERC20 for IERC20;
 
-    IOneSplit oneSplit = IOneSplit(0x00CD1b195B403a5e3D6534afD942C928fC9217f0);
+    IOneSplit oneSplit = IOneSplit(0xDFf2AA5689FCBc7F479d8c84aC857563798436DD);
     IERC20 constant public ETH_ADDRESS = IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
     function getExpectedReturn(
