@@ -2,6 +2,7 @@ pragma solidity ^0.5.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+
 contract IOneSplit {
     // disableFlags = FLAG_UNISWAP + FLAG_KYBER + ...
     uint256 public constant FLAG_UNISWAP = 0x01;

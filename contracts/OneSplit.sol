@@ -10,6 +10,7 @@ import "./OneSplitBdai.sol";
 import "./OneSplitAave.sol";
 import "./OneSplitSmartToken.sol";
 
+
 contract OneSplit is
     IOneSplit,
     OneSplitBase,
@@ -103,7 +104,14 @@ contract OneSplit is
             parts,
             disableFlags
         );
-        swap(fromToken, toToken, amount, minReturn, distribution, disableFlags);
+        swap(
+            fromToken,
+            toToken,
+            amount,
+            minReturn,
+            distribution,
+            disableFlags
+        );
     }
 
     // DEPERECATED:
