@@ -6,15 +6,16 @@ import "./OneSplitMultiPath.sol";
 import "./OneSplitCompound.sol";
 import "./OneSplitFulcrum.sol";
 import "./OneSplitChai.sol";
+import "./OneSplitBdai.sol";
 import "./OneSplitAave.sol";
 import "./OneSplitSmartToken.sol";
-
 
 contract OneSplit is
     IOneSplit,
     OneSplitBase,
     OneSplitMultiPath,
     OneSplitChai,
+    OneSplitBdai,
     OneSplitAave,
     OneSplitFulcrum,
     OneSplitCompound,
@@ -25,11 +26,11 @@ contract OneSplit is
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken
+        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
     )
         public
         view
-        returns(
+        returns (
             uint256 returnAmount,
             uint256[] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
         )
@@ -38,13 +39,14 @@ contract OneSplit is
             return (amount, new uint256[](4));
         }
 
-        return super.getExpectedReturn(
-            fromToken,
-            toToken,
-            amount,
-            parts,
-            disableFlags
-        );
+        return
+            super.getExpectedReturn(
+                fromToken,
+                toToken,
+                amount,
+                parts,
+                disableFlags
+            );
     }
 
     function swap(
@@ -53,16 +55,22 @@ contract OneSplit is
         uint256 amount,
         uint256 minReturn,
         uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
-        uint256 disableFlags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken
+        uint256 disableFlags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
     ) public payable {
         fromToken.universalTransferFrom(msg.sender, address(this), amount);
 
         _swap(fromToken, toToken, amount, distribution, disableFlags);
 
         uint256 returnAmount = toToken.universalBalanceOf(address(this));
-        require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
+        require(
+            returnAmount >= minReturn,
+            "OneSplit: actual return amount is less than minReturn"
+        );
         toToken.universalTransfer(msg.sender, returnAmount);
-        fromToken.universalTransfer(msg.sender, fromToken.universalBalanceOf(address(this)));
+        fromToken.universalTransfer(
+            msg.sender,
+            fromToken.universalBalanceOf(address(this))
+        );
     }
 
     function _swap(
@@ -70,19 +78,14 @@ contract OneSplit is
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
-        uint256 disableFlags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken
+        uint256 disableFlags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
     ) internal {
         if (fromToken == toToken) {
             return;
         }
 
-        return super._swap(
-            fromToken,
-            toToken,
-            amount,
-            distribution,
-            disableFlags
-        );
+        return
+            super._swap(fromToken, toToken, amount, distribution, disableFlags);
     }
 
     function goodSwap(
@@ -91,17 +94,16 @@ contract OneSplit is
         uint256 amount,
         uint256 minReturn,
         uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken
+        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
     ) public payable {
-        (, uint256[] memory distribution) = getExpectedReturn(fromToken, toToken, amount, parts, disableFlags);
-        swap(
+        (, uint256[] memory distribution) = getExpectedReturn(
             fromToken,
             toToken,
             amount,
-            minReturn,
-            distribution,
+            parts,
             disableFlags
         );
+        swap(fromToken, toToken, amount, minReturn, distribution, disableFlags);
     }
 
     // DEPERECATED:
@@ -112,10 +114,10 @@ contract OneSplit is
         uint256 amount,
         uint256 parts,
         uint256 disableFlags
-    ) public view returns(uint256[] memory results) {
+    ) public view returns (uint256[] memory results) {
         results = new uint256[](parts);
-        for (uint i = 0; i < parts; i++) {
-            (results[i],) = getExpectedReturn(
+        for (uint256 i = 0; i < parts; i++) {
+            (results[i], ) = getExpectedReturn(
                 fromToken,
                 toToken,
                 amount.mul(i + 1).div(parts),
