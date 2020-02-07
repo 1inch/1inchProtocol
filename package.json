@@ -1,42 +1,52 @@
 {
-  "name": "OneSplit",
-  "version": "0.0.1",
-  "description": "",
-  "repository": {
-    "type": "git",
-    "url": "git@github.com:CryptoManiacsZone/1split.git"
-  },
-  "license": "MIT",
-  "dependencies": {
-    "@openzeppelin/contracts": "^2.4.0"
-  },
-  "devDependencies": {
-    "chai": "^4.2.0",
-    "coveralls": "^3.0.9",
-    "eslint": "^6.7.2",
-    "eslint-config-standard": "^14.1.0",
-    "eslint-plugin-import": "^2.14.0",
-    "eslint-plugin-node": "^10.0.0",
-    "eslint-plugin-promise": "^4.0.1",
-    "eslint-plugin-standard": "^4.0.0",
-    "eth-gas-reporter": "^0.2.14",
-    "ganache-cli": "^6.7.0",
-    "@openzeppelin/test-helpers": "^0.5.1",
-    "solc": "^0.5.14",
-    "solidity-coverage": "^0.6.7",
-    "ethlint": "^1.2.5",
-    "truffle": "^5.1.4",
-    "truffle-flattener": "^1.3.0"
-  },
-  "scripts": {
-    "test": "scripts/test.sh",
-    "coverage": "scripts/coverage.sh && cat coverage/lcov.info | coveralls",
-    "lint:js": "eslint .",
-    "lint:js:fix": "eslint . --fix",
-    "lint:sol": "solium -d .",
-    "lint:sol:fix": "solium -d . --fix",
-    "lint": "npm run lint:js && npm run lint:sol",
-    "lint:fix": "npm run lint:js:fix && npm run lint:sol:fix",
-    "dist": "truffle-flattener ./contracts/OneSplit.sol > OneSplit.full.sol && solcjs --bin --abi --optimize OneSplit.full.sol && mv OneSplit_full_sol_OneSplit.bin OneSplit.full.bin && mv OneSplit_full_sol_OneSplit.abi OneSplit.full.abi && rm *_sol_*"
-  }
+    "name": "one-split",
+    "version": "1.0.0",
+    "description": "On-chain DEX aggregator.",
+    "repository": {
+        "type": "git",
+        "url": "git@github.com:CryptoManiacsZone/1split.git"
+    },
+    "license": "MIT",
+    "dependencies": {
+        "@openzeppelin/contracts": "^2.4.0"
+    },
+    "devDependencies": {
+        "@openzeppelin/test-helpers": "^0.5.1",
+        "chai": "^4.2.0",
+        "coveralls": "^3.0.9",
+        "eslint": "^6.7.2",
+        "eslint-config-standard": "^14.1.0",
+        "eslint-plugin-import": "^2.14.0",
+        "eslint-plugin-node": "^10.0.0",
+        "eslint-plugin-promise": "^4.0.1",
+        "eslint-plugin-standard": "^4.0.0",
+        "eth-gas-reporter": "^0.2.14",
+        "ethlint": "^1.2.5",
+        "ganache-cli": "^6.7.0",
+        "husky": "^4.2.1",
+        "prettier": "^1.19.1",
+        "prettier-plugin-solidity": "^1.0.0-alpha.37",
+        "solc": "^0.5.14",
+        "solhint-plugin-prettier": "0.0.4",
+        "solidity-coverage": "^0.6.7",
+        "truffle": "^5.1.4",
+        "truffle-flattener": "^1.3.0"
+    },
+    "husky": {
+        "hooks": {
+            "pre-push": "npm run prettier:solidity"
+        }
+    },
+    "scripts": {
+        "test": "scripts/test.sh",
+        "coverage": "scripts/coverage.sh && cat coverage/lcov.info | coveralls",
+        "lint:js": "eslint .",
+        "lint:js:fix": "eslint . --fix",
+        "lint:sol": "solium -d .",
+        "lint:sol:fix": "solium -d . --fix",
+        "lint": "npm run lint:js && npm run lint:sol",
+        "lint:fix": "npm run lint:js:fix && npm run lint:sol:fix",
+        "prettier:solidity": "./node_modules/.bin/prettier --write contracts/**/*.sol",
+        "dist": "truffle-flattener ./contracts/OneSplit.sol > OneSplit.full.sol && solcjs --bin --abi --optimize OneSplit.full.sol && mv OneSplit_full_sol_OneSplit.bin OneSplit.full.bin && mv OneSplit_full_sol_OneSplit.abi OneSplit.full.abi && rm *_sol_*"
+    }
 }
