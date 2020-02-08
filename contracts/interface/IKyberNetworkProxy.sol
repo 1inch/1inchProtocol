@@ -1,6 +1,6 @@
 pragma solidity ^0.5.0;
 
-import './IKyberNetworkContract.sol';
+import "./IKyberNetworkContract.sol";
 
 
 interface IKyberNetworkProxy {
