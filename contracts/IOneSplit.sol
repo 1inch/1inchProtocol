@@ -19,6 +19,7 @@ contract IOneSplit {
     uint256 constant public FLAG_AAVE = 0x80;
     uint256 constant public FLAG_SMART_TOKEN = 0x100;
     uint256 constant public FLAG_MULTI_PATH_ETH = 0x200; // Turned off by default
+    uint256 constant public FLAG_IDLE = 0x400;
 
     function getExpectedReturn(
         IERC20 fromToken,
