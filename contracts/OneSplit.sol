@@ -8,6 +8,7 @@ import "./OneSplitFulcrum.sol";
 import "./OneSplitChai.sol";
 import "./OneSplitAave.sol";
 import "./OneSplitSmartToken.sol";
+import "./OneSplitIearn.sol";
 
 
 contract OneSplit is
@@ -18,7 +19,8 @@ contract OneSplit is
     OneSplitAave,
     OneSplitFulcrum,
     OneSplitCompound,
-    OneSplitSmartToken
+    OneSplitSmartToken,
+    OneSplitIearn
 {
     function getExpectedReturn(
         IERC20 fromToken,
