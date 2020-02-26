@@ -22,6 +22,29 @@ contract OneSplitAave is OneSplitBase {
             uint256[] memory distribution
         )
     {
+        return _getExpectedReturn(
+            fromToken,
+            toToken,
+            amount,
+            parts,
+            disableFlags
+        );
+    }
+
+    function _getExpectedReturn(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 disableFlags
+    )
+        private
+        view
+        returns(
+            uint256 returnAmount,
+            uint256[] memory distribution
+        )
+    {
         if (fromToken == toToken) {
             return (amount, distribution);
         }
@@ -29,7 +52,7 @@ contract OneSplitAave is OneSplitBase {
         if (disableFlags.enabled(FLAG_AAVE)) {
             IERC20 underlying = _isAaveToken(fromToken);
             if (underlying != IERC20(-1)) {
-                return super.getExpectedReturn(
+                return _getExpectedReturn(
                     underlying,
                     toToken,
                     amount,
@@ -66,6 +89,22 @@ contract OneSplitAave is OneSplitBase {
         uint256[] memory distribution,
         uint256 disableFlags
     ) internal {
+        __swap(
+            fromToken,
+            toToken,
+            amount,
+            distribution,
+            disableFlags
+        );
+    }
+
+    function __swap(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256[] memory distribution,
+        uint256 disableFlags
+    ) private {
         if (fromToken == toToken) {
             return;
         }
@@ -75,7 +114,7 @@ contract OneSplitAave is OneSplitBase {
             if (underlying != IERC20(-1)) {
                 IAaveToken(address(fromToken)).redeem(amount);
 
-                return super._swap(
+                return __swap(
                     underlying,
                     toToken,
                     amount,
