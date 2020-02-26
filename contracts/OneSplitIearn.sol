@@ -60,7 +60,7 @@ contract OneSplitIearnView is OneSplitBaseView, OneSplitIearnBase {
             for (uint i = 0; i < yTokens.length; i++) {
                 if (fromToken == IERC20(yTokens[i])) {
                     return _iearnGetExpectedReturn(
-                        yTokens[i],
+                        yTokens[i].token(),
                         toToken,
                         amount
                             .mul(yTokens[i].calcPoolValueInToken())
@@ -75,7 +75,7 @@ contract OneSplitIearnView is OneSplitBaseView, OneSplitIearnBase {
                 if (toToken == IERC20(yTokens[i])) {
                     (uint256 ret, uint256[] memory dist) = super.getExpectedReturn(
                         fromToken,
-                        yTokens[i],
+                        yTokens[i].token(),
                         amount,
                         parts,
                         disableFlags
@@ -135,8 +135,9 @@ contract OneSplitIearn is OneSplitBase, OneSplitIearnBase {
         if (disableFlags.enabled(FLAG_IEARN)) {
             for (uint i = 0; i < yTokens.length; i++) {
                 if (fromToken == IERC20(yTokens[i])) {
+                    IERC20 underlying = yTokens[i].token();
                     yTokens[i].withdraw(amount);
-                    _iearnSwap(fromToken, toToken, yTokens[i].balanceOf(address(this)), distribution, disableFlags);
+                    _iearnSwap(underlying, toToken, underlying.balanceOf(address(this)), distribution, disableFlags);
                     return;
                 }
             }
@@ -146,7 +147,7 @@ contract OneSplitIearn is OneSplitBase, OneSplitIearnBase {
                     IERC20 underlying = yTokens[i].token();
                     super._swap(fromToken, underlying, amount, distribution, disableFlags);
                     _infiniteApproveIfNeeded(underlying, address(yTokens[i]));
-                    yTokens[i].deposit(amount);
+                    yTokens[i].deposit(underlying.balanceOf(address(this)));
                     return;
                 }
             }
