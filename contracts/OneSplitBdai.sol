@@ -70,21 +70,23 @@ contract OneSplitBdai is OneSplitBase {
                 bdai.exit(amount);
 
                 uint256 btuBalance = btu.balanceOf(address(this));
-                (,uint256[] memory btuDistribution) = super.getExpectedReturn(
-                    btu,
-                    toToken,
-                    btuBalance,
-                    1,
-                    disableFlags
-                );
+                if (btuBalance > 0) {
+                    (,uint256[] memory btuDistribution) = super.getExpectedReturn(
+                        btu,
+                        toToken,
+                        btuBalance,
+                        1,
+                        disableFlags
+                    );
 
-                _swap(
-                    btu,
-                    toToken,
-                    btuBalance,
-                    btuDistribution,
-                    disableFlags
-                );
+                    _swap(
+                        btu,
+                        toToken,
+                        btuBalance,
+                        btuDistribution,
+                        disableFlags
+                    );
+                }
 
                 return super._swap(
                     dai,
