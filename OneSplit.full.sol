@@ -2026,36 +2026,33 @@ contract OneSplitBdai is OneSplitBase {
 
         if (disableFlags.enabled(FLAG_BDAI)) {
             if (fromToken == IERC20(bdai)) {
-                return
-                    super.getExpectedReturn(
-                        dai,
-                        toToken,
-                        amount,
-                        parts,
-                        disableFlags
-                    );
+                return super.getExpectedReturn(
+                    dai,
+                    toToken,
+                    amount,
+                    parts,
+                    disableFlags
+                );
             }
 
             if (toToken == IERC20(bdai)) {
-                return
-                    super.getExpectedReturn(
-                        fromToken,
-                        dai,
-                        amount,
-                        parts,
-                        disableFlags
-                    );
+                return super.getExpectedReturn(
+                    fromToken,
+                    dai,
+                    amount,
+                    parts,
+                    disableFlags
+                );
             }
         }
 
-        return
-            super.getExpectedReturn(
-                fromToken,
-                toToken,
-                amount,
-                parts,
-                disableFlags
-            );
+        return super.getExpectedReturn(
+            fromToken,
+            toToken,
+            amount,
+            parts,
+            disableFlags
+        );
     }
 
     function _swap(
@@ -2072,22 +2069,31 @@ contract OneSplitBdai is OneSplitBase {
         if (disableFlags.enabled(FLAG_BDAI)) {
             if (fromToken == IERC20(bdai)) {
                 bdai.exit(amount);
-                super._swap(
+
+                uint256 btuBalance = btu.balanceOf(address(this));
+                (,uint256[] memory btuDistribution) = super.getExpectedReturn(
                     btu,
                     toToken,
-                    btu.balanceOf(address(this)),
-                    distribution,
+                    btuBalance,
+                    1,
                     disableFlags
                 );
 
-                return
-                    super._swap(
-                        dai,
-                        toToken,
-                        amount,
-                        distribution,
-                        disableFlags
-                    );
+                _swap(
+                    btu,
+                    toToken,
+                    btuBalance,
+                    btuDistribution,
+                    disableFlags
+                );
+
+                return super._swap(
+                    dai,
+                    toToken,
+                    amount,
+                    distribution,
+                    disableFlags
+                );
             }
 
             if (toToken == IERC20(bdai)) {
@@ -2099,8 +2105,7 @@ contract OneSplitBdai is OneSplitBase {
             }
         }
 
-        return
-            super._swap(fromToken, toToken, amount, distribution, disableFlags);
+        return super._swap(fromToken, toToken, amount, distribution, disableFlags);
     }
 }
 

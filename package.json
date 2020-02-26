@@ -1,41 +1,32 @@
 {
-    "name": "one-split",
-    "version": "1.0.0",
-    "description": "On-chain DEX aggregator.",
+    "name": "OneSplit",
+    "version": "0.0.1",
+    "description": "",
     "repository": {
         "type": "git",
         "url": "git@github.com:CryptoManiacsZone/1split.git"
     },
     "license": "MIT",
     "dependencies": {
-        "@openzeppelin/contracts": "^2.4.0"
+        "@openzeppelin/contracts": "^2.5.0"
     },
     "devDependencies": {
-        "@openzeppelin/test-helpers": "^0.5.1",
         "chai": "^4.2.0",
         "coveralls": "^3.0.9",
-        "eslint": "^6.7.2",
+        "eslint": "^6.8.0",
         "eslint-config-standard": "^14.1.0",
-        "eslint-plugin-import": "^2.14.0",
-        "eslint-plugin-node": "^10.0.0",
+        "eslint-plugin-import": "^2.20.1",
+        "eslint-plugin-node": "^11.0.0",
         "eslint-plugin-promise": "^4.0.1",
         "eslint-plugin-standard": "^4.0.0",
-        "eth-gas-reporter": "^0.2.14",
+        "eth-gas-reporter": "^0.2.15",
+        "ganache-cli": "^6.9.1",
+        "@openzeppelin/test-helpers": "^0.5.1",
+        "solc": "^0.5.16",
+        "solidity-coverage": "^0.7.2",
         "ethlint": "^1.2.5",
-        "ganache-cli": "^6.7.0",
-        "husky": "^4.2.1",
-        "prettier": "^1.19.1",
-        "prettier-plugin-solidity": "^1.0.0-alpha.37",
-        "solc": "^0.5.14",
-        "solhint-plugin-prettier": "0.0.4",
-        "solidity-coverage": "^0.6.7",
-        "truffle": "^5.1.4",
+        "truffle": "^5.1.14",
         "truffle-flattener": "^1.3.0"
-    },
-    "husky": {
-        "hooks": {
-            "pre-push": "npm run prettier:solidity"
-        }
     },
     "scripts": {
         "test": "scripts/test.sh",
@@ -46,7 +37,6 @@
         "lint:sol:fix": "solium -d . --fix",
         "lint": "npm run lint:js && npm run lint:sol",
         "lint:fix": "npm run lint:js:fix && npm run lint:sol:fix",
-        "prettier:solidity": "./node_modules/.bin/prettier --write contracts/**/*.sol",
         "dist": "truffle-flattener ./contracts/OneSplit.sol > OneSplit.full.sol && solcjs --bin --abi --optimize OneSplit.full.sol && mv OneSplit_full_sol_OneSplit.bin OneSplit.full.bin && mv OneSplit_full_sol_OneSplit.abi OneSplit.full.abi && rm *_sol_*"
     }
 }
