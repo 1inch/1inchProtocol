@@ -4,11 +4,14 @@ import "./interface/IChai.sol";
 import "./OneSplitBase.sol";
 
 
-contract OneSplitChai is OneSplitBase {
+contract OneSplitChaiBase {
     using ChaiHelper for IChai;
 
     IChai public chai = IChai(0x06AF07097C9Eeb7fD685c692751D5C66dB49c215);
+}
 
+
+contract OneSplitChaiView is OneSplitBaseView, OneSplitChaiBase {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
@@ -58,7 +61,10 @@ contract OneSplitChai is OneSplitBase {
             disableFlags
         );
     }
+}
 
+
+contract OneSplitChai is OneSplitBase, OneSplitChaiBase {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,

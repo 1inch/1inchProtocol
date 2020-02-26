@@ -5,9 +5,51 @@ import "./interface/IAaveToken.sol";
 import "./OneSplitBase.sol";
 
 
-contract OneSplitAave is OneSplitBase {
+contract OneSplitAaveBase {
+    using UniversalERC20 for IERC20;
+
     IAaveLendingPool public aave = IAaveLendingPool(0x398eC7346DcD622eDc5ae82352F02bE94C62d119);
 
+    function _isAaveToken(IERC20 token) public view returns(IERC20) {
+        if (token.isETH()) {
+            return IERC20(-1);
+        }
+
+        (bool success, bytes memory data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
+            ERC20Detailed(address(token)).name.selector
+        ));
+        if (!success) {
+            return IERC20(-1);
+        }
+
+        bool foundAave = false;
+        for (uint i = 0; i < data.length - 4; i++) {
+            if (data[i + 0] == "A" &&
+                data[i + 1] == "a" &&
+                data[i + 2] == "v" &&
+                data[i + 3] == "e")
+            {
+                foundAave = true;
+                break;
+            }
+        }
+        if (!foundAave) {
+            return IERC20(-1);
+        }
+
+        (success, data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
+            IAaveToken(address(token)).underlyingAssetAddress.selector
+        ));
+        if (!success) {
+            return IERC20(-1);
+        }
+
+        return abi.decode(data, (IERC20));
+    }
+}
+
+
+contract OneSplitAaveView is OneSplitBaseView, OneSplitAaveBase {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
@@ -22,7 +64,7 @@ contract OneSplitAave is OneSplitBase {
             uint256[] memory distribution
         )
     {
-        return _getExpectedReturn(
+        return _aaveGetExpectedReturn(
             fromToken,
             toToken,
             amount,
@@ -31,7 +73,7 @@ contract OneSplitAave is OneSplitBase {
         );
     }
 
-    function _getExpectedReturn(
+    function _aaveGetExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
@@ -52,7 +94,7 @@ contract OneSplitAave is OneSplitBase {
         if (disableFlags.enabled(FLAG_AAVE)) {
             IERC20 underlying = _isAaveToken(fromToken);
             if (underlying != IERC20(-1)) {
-                return _getExpectedReturn(
+                return _aaveGetExpectedReturn(
                     underlying,
                     toToken,
                     amount,
@@ -81,7 +123,10 @@ contract OneSplitAave is OneSplitBase {
             disableFlags
         );
     }
+}
 
+
+contract OneSplitAave is OneSplitBase, OneSplitAaveBase {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,
@@ -89,7 +134,7 @@ contract OneSplitAave is OneSplitBase {
         uint256[] memory distribution,
         uint256 disableFlags
     ) internal {
-        __swap(
+        _aaveSwap(
             fromToken,
             toToken,
             amount,
@@ -98,7 +143,7 @@ contract OneSplitAave is OneSplitBase {
         );
     }
 
-    function __swap(
+    function _aaveSwap(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
@@ -114,7 +159,7 @@ contract OneSplitAave is OneSplitBase {
             if (underlying != IERC20(-1)) {
                 IAaveToken(address(fromToken)).redeem(amount);
 
-                return __swap(
+                return _aaveSwap(
                     underlying,
                     toToken,
                     amount,
@@ -152,42 +197,5 @@ contract OneSplitAave is OneSplitBase {
             distribution,
             disableFlags
         );
-    }
-
-    function _isAaveToken(IERC20 token) public view returns(IERC20) {
-        if (token.isETH()) {
-            return IERC20(-1);
-        }
-
-        (bool success, bytes memory data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
-            ERC20Detailed(address(token)).name.selector
-        ));
-        if (!success) {
-            return IERC20(-1);
-        }
-
-        bool foundAave = false;
-        for (uint i = 0; i < data.length - 4; i++) {
-            if (data[i + 0] == "A" &&
-                data[i + 1] == "a" &&
-                data[i + 2] == "v" &&
-                data[i + 3] == "e")
-            {
-                foundAave = true;
-                break;
-            }
-        }
-        if (!foundAave) {
-            return IERC20(-1);
-        }
-
-        (success, data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
-            IAaveToken(address(token)).underlyingAssetAddress.selector
-        ));
-        if (!success) {
-            return IERC20(-1);
-        }
-
-        return abi.decode(data, (IERC20));
     }
 }

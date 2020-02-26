@@ -2,12 +2,14 @@
 // const { expect } = require('chai');
 const assert = require('assert');
 
+const OneSplitViewMock = artifacts.require('OneSplitViewMock');
 const OneSplitMock = artifacts.require('OneSplitMock');
 
 contract('OneSplit', function ([_, addr1]) {
     describe('OneSplit', async function () {
         beforeEach('should be ok', async function () {
-            this.split = await OneSplitMock.new();
+            this.splitView = await OneSplitViewMock.new();
+            this.split = await OneSplitMock.new(this.splitView.address);
         });
 
         it('should work', async function () {

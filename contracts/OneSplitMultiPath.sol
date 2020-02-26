@@ -3,8 +3,7 @@ pragma solidity ^0.5.0;
 import "./OneSplitBase.sol";
 
 
-contract OneSplitMultiPath is OneSplitBase {
-
+contract OneSplitMultiPathView is OneSplitBaseView {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
@@ -54,7 +53,10 @@ contract OneSplitMultiPath is OneSplitBase {
             disableFlags
         );
     }
+}
 
+
+contract OneSplitMultiPath is OneSplitBase {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,

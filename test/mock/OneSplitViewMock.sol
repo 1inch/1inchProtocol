@@ -3,10 +3,7 @@ pragma solidity ^0.5.0;
 import "../../contracts/OneSplit.sol";
 
 
-contract OneSplitMock is OneSplit {
-
-    constructor(OneSplitView v) public OneSplit(v) {
-    }
+contract OneSplitViewMock is OneSplitView {
 
     function getExpectedReturnMock(
         IERC20 fromToken,

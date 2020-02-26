@@ -4,10 +4,13 @@ import "./interface/IBdai.sol";
 import "./OneSplitBase.sol";
 
 
-contract OneSplitBdai is OneSplitBase {
+contract OneSplitBdaiBase {
     IBdai public bdai = IBdai(0x6a4FFAafa8DD400676Df8076AD6c724867b0e2e8);
     IERC20 public btu = IERC20(0xb683D83a532e2Cb7DFa5275eED3698436371cc9f);
+}
 
+
+contract OneSplitBdaiView is OneSplitBaseView, OneSplitBdaiBase {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
@@ -53,7 +56,10 @@ contract OneSplitBdai is OneSplitBase {
             disableFlags
         );
     }
+}
 
+
+contract OneSplitBdai is OneSplitBase, OneSplitBdaiBase {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,
@@ -71,7 +77,7 @@ contract OneSplitBdai is OneSplitBase {
 
                 uint256 btuBalance = btu.balanceOf(address(this));
                 if (btuBalance > 0) {
-                    (,uint256[] memory btuDistribution) = super.getExpectedReturn(
+                    (,uint256[] memory btuDistribution) = getExpectedReturn(
                         btu,
                         toToken,
                         btuBalance,

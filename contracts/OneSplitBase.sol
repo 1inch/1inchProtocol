@@ -33,7 +33,7 @@ library DisableFlags {
 }
 
 
-contract OneSplitBase is IOneSplit {
+contract OneSplitBaseBase {
     using SafeMath for uint256;
     using DisableFlags for uint256;
 
@@ -52,12 +52,10 @@ contract OneSplitBase is IOneSplit {
     IBancorContractRegistry public bancorContractRegistry = IBancorContractRegistry(0x52Ae12ABe5D8BD778BD5397F99cA900624CfADD4);
     IBancorNetworkPathFinder bancorNetworkPathFinder = IBancorNetworkPathFinder(0x6F0cD8C4f6F06eAB664C7E3031909452b4B72861);
     IOasisExchange public oasisExchange = IOasisExchange(0x794e6e91555438aFc3ccF1c5076A74F42133d08D);
+}
 
-    function() external payable {
-        // solium-disable-next-line security/no-tx-origin
-        require(msg.sender != tx.origin);
-    }
 
+contract OneSplitBaseView is IOneSplitView, OneSplitBaseBase {
     function log(uint256) external view {
     }
 
@@ -128,50 +126,6 @@ contract OneSplitBase is IOneSplit {
                 this.log(rates[bestIndex]);
                 fullRates[bestIndex] = newRate;
             }
-        }
-    }
-
-    function _swap(
-        IERC20 fromToken,
-        IERC20 toToken,
-        uint256 amount,
-        uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
-        uint256 /*disableFlags*/ // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken
-    ) internal {
-        if (fromToken == toToken) {
-            return;
-        }
-
-        function(IERC20,IERC20,uint256) returns(uint256)[4] memory reserves = [
-            _swapOnUniswap,
-            _swapOnKyber,
-            _swapOnBancor,
-            _swapOnOasis
-        ];
-
-        uint256 parts = 0;
-        uint256 lastNonZeroIndex = 0;
-        for (uint i = 0; i < reserves.length; i++) {
-            if (distribution[i] > 0) {
-                parts = parts.add(distribution[i]);
-                lastNonZeroIndex = i;
-            }
-        }
-
-        require(parts > 0, "OneSplit: distribution should contain non-zeros");
-
-        uint256 remainingAmount = amount;
-        for (uint i = 0; i < reserves.length; i++) {
-            if (distribution[i] == 0) {
-                continue;
-            }
-
-            uint256 swapAmount = amount.mul(distribution[i]).div(parts);
-            if (i == lastNonZeroIndex) {
-                swapAmount = remainingAmount;
-            }
-            remainingAmount -= swapAmount;
-            reserves[i](fromToken, toToken, swapAmount);
         }
     }
 
@@ -370,6 +324,58 @@ contract OneSplitBase is IOneSplit {
         uint256 /*disableFlags*/
     ) internal view returns(uint256) {
         this;
+    }
+}
+
+
+contract OneSplitBase is IOneSplit, OneSplitBaseBase {
+    function() external payable {
+        // solium-disable-next-line security/no-tx-origin
+        require(msg.sender != tx.origin);
+    }
+
+    function _swap(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
+        uint256 /*disableFlags*/ // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken
+    ) internal {
+        if (fromToken == toToken) {
+            return;
+        }
+
+        function(IERC20,IERC20,uint256) returns(uint256)[4] memory reserves = [
+            _swapOnUniswap,
+            _swapOnKyber,
+            _swapOnBancor,
+            _swapOnOasis
+        ];
+
+        uint256 parts = 0;
+        uint256 lastNonZeroIndex = 0;
+        for (uint i = 0; i < reserves.length; i++) {
+            if (distribution[i] > 0) {
+                parts = parts.add(distribution[i]);
+                lastNonZeroIndex = i;
+            }
+        }
+
+        require(parts > 0, "OneSplit: distribution should contain non-zeros");
+
+        uint256 remainingAmount = amount;
+        for (uint i = 0; i < reserves.length; i++) {
+            if (distribution[i] == 0) {
+                continue;
+            }
+
+            uint256 swapAmount = amount.mul(distribution[i]).div(parts);
+            if (i == lastNonZeroIndex) {
+                swapAmount = remainingAmount;
+            }
+            remainingAmount -= swapAmount;
+            reserves[i](fromToken, toToken, swapAmount);
+        }
     }
 
     // Swap helpers

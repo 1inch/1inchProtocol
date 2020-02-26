@@ -3,7 +3,7 @@ pragma solidity ^0.5.0;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 
-contract IOneSplit {
+contract IOneSplitView {
     // disableFlags = FLAG_UNISWAP + FLAG_KYBER + ...
     uint256 public constant FLAG_UNISWAP = 0x01;
     uint256 public constant FLAG_KYBER = 0x02;
@@ -19,6 +19,7 @@ contract IOneSplit {
     uint256 public constant FLAG_SMART_TOKEN = 0x100;
     uint256 public constant FLAG_MULTI_PATH_ETH = 0x200; // Turned off by default
     uint256 public constant FLAG_BDAI = 0x400;
+    uint256 public constant FLAG_IEARN = 0x800;
 
     function getExpectedReturn(
         IERC20 fromToken,
@@ -33,7 +34,10 @@ contract IOneSplit {
             uint256 returnAmount,
             uint256[] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
         );
+}
 
+
+contract IOneSplit is IOneSplitView {
     function swap(
         IERC20 fromToken,
         IERC20 toToken,

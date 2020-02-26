@@ -7,20 +7,22 @@ import "./OneSplitCompound.sol";
 import "./OneSplitFulcrum.sol";
 import "./OneSplitChai.sol";
 import "./OneSplitBdai.sol";
+import "./OneSplitIearn.sol";
 import "./OneSplitAave.sol";
-import "./OneSplitSmartToken.sol";
+//import "./OneSplitSmartToken.sol";
 
 
-contract OneSplit is
-    IOneSplit,
-    OneSplitBase,
-    OneSplitMultiPath,
-    OneSplitChai,
-    OneSplitBdai,
-    OneSplitAave,
-    OneSplitFulcrum,
-    OneSplitCompound,
-    OneSplitSmartToken
+contract OneSplitView is
+    IOneSplitView,
+    OneSplitBaseView,
+    OneSplitMultiPathView,
+    OneSplitChaiView,
+    OneSplitBdaiView,
+    OneSplitAaveView,
+    OneSplitFulcrumView,
+    OneSplitCompoundView,
+    OneSplitIearnView
+    //OneSplitSmartTokenView
 {
     function getExpectedReturn(
         IERC20 fromToken,
@@ -41,6 +43,49 @@ contract OneSplit is
         }
 
         return super.getExpectedReturn(
+            fromToken,
+            toToken,
+            amount,
+            parts,
+            disableFlags
+        );
+    }
+}
+
+
+contract OneSplit is
+    IOneSplit,
+    OneSplitBase,
+    OneSplitMultiPath,
+    OneSplitChai,
+    OneSplitBdai,
+    OneSplitAave,
+    OneSplitFulcrum,
+    OneSplitCompound,
+    OneSplitIearn
+    //OneSplitSmartToken
+{
+    IOneSplitView public oneSplitView;
+
+    constructor(IOneSplitView _oneSplitView) public {
+        oneSplitView = _oneSplitView;
+    }
+
+    function getExpectedReturn(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
+    )
+        public
+        view
+        returns(
+            uint256 returnAmount,
+            uint256[] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
+        )
+    {
+        return oneSplitView.getExpectedReturn(
             fromToken,
             toToken,
             amount,

@@ -7,10 +7,37 @@ import "./interface/ISmartTokenFormula.sol";
 import "./OneSplitBase.sol";
 
 
-contract OneSplitSmartToken is OneSplitBase {
+contract OneSplitSmartTokenBase {
+    using SafeMath for uint256;
+
     ISmartTokenRegistry smartTokenRegistry = ISmartTokenRegistry(0xf6E2D7F616B67E46D708e4410746E9AAb3a4C518);
     ISmartTokenFormula smartTokenFormula = ISmartTokenFormula(0x524619EB9b4cdFFa7DA13029b33f24635478AFc0);
 
+    struct TokensWithRatio {
+        IERC20[] tokens;
+        uint256[] ratios;
+        uint256 totalRatio;
+    }
+
+    function _getTokens(
+        ISmartTokenConverter converter
+    )
+        internal
+        view
+        returns(TokensWithRatio memory tokens)
+    {
+        tokens.tokens = new IERC20[](converter.connectorTokenCount());
+        tokens.ratios = new uint256[](tokens.tokens.length);
+        for (uint256 i = 0; i < tokens.tokens.length; i++) {
+            tokens.tokens[i] = converter.connectorTokens(i);
+            tokens.ratios[i] = converter.getReserveRatio(tokens.tokens[i]);
+            tokens.totalRatio = tokens.totalRatio.add(tokens.ratios[i]);
+        }
+    }
+}
+
+
+contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
@@ -118,7 +145,10 @@ contract OneSplitSmartToken is OneSplitBase {
             disableFlags
         );
     }
+}
 
+
+contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,
@@ -139,27 +169,5 @@ contract OneSplitSmartToken is OneSplitBase {
             distribution,
             disableFlags
         );
-    }
-
-    struct TokensWithRatio {
-        IERC20[] tokens;
-        uint256[] ratios;
-        uint256 totalRatio;
-    }
-
-    function _getTokens(
-        ISmartTokenConverter converter
-    )
-        private
-        view
-        returns(TokensWithRatio memory tokens)
-    {
-        tokens.tokens = new IERC20[](converter.connectorTokenCount());
-        tokens.ratios = new uint256[](tokens.tokens.length);
-        for (uint256 i = 0; i < tokens.tokens.length; i++) {
-            tokens.tokens[i] = converter.connectorTokens(i);
-            tokens.ratios[i] = converter.getReserveRatio(tokens.tokens[i]);
-            tokens.totalRatio = tokens.totalRatio.add(tokens.ratios[i]);
-        }
     }
 }
