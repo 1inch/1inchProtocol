@@ -85,28 +85,28 @@ pragma solidity ^0.5.0;
 
 
 contract IOneSplit {
-
     // disableFlags = FLAG_UNISWAP + FLAG_KYBER + ...
-    uint256 constant public FLAG_UNISWAP = 0x01;
-    uint256 constant public FLAG_KYBER = 0x02;
-    uint256 constant public FLAG_KYBER_UNISWAP_RESERVE = 0x100000000; // Turned off by default
-    uint256 constant public FLAG_KYBER_OASIS_RESERVE = 0x200000000; // Turned off by default
-    uint256 constant public FLAG_KYBER_BANCOR_RESERVE = 0x400000000; // Turned off by default
-    uint256 constant public FLAG_BANCOR = 0x04;
-    uint256 constant public FLAG_OASIS = 0x08;
-    uint256 constant public FLAG_COMPOUND = 0x10;
-    uint256 constant public FLAG_FULCRUM = 0x20;
-    uint256 constant public FLAG_CHAI = 0x40;
-    uint256 constant public FLAG_AAVE = 0x80;
-    uint256 constant public FLAG_SMART_TOKEN = 0x100;
-    uint256 constant public FLAG_MULTI_PATH_ETH = 0x200; // Turned off by default
+    uint256 public constant FLAG_UNISWAP = 0x01;
+    uint256 public constant FLAG_KYBER = 0x02;
+    uint256 public constant FLAG_KYBER_UNISWAP_RESERVE = 0x100000000; // Turned off by default
+    uint256 public constant FLAG_KYBER_OASIS_RESERVE = 0x200000000; // Turned off by default
+    uint256 public constant FLAG_KYBER_BANCOR_RESERVE = 0x400000000; // Turned off by default
+    uint256 public constant FLAG_BANCOR = 0x04;
+    uint256 public constant FLAG_OASIS = 0x08;
+    uint256 public constant FLAG_COMPOUND = 0x10;
+    uint256 public constant FLAG_FULCRUM = 0x20;
+    uint256 public constant FLAG_CHAI = 0x40;
+    uint256 public constant FLAG_AAVE = 0x80;
+    uint256 public constant FLAG_SMART_TOKEN = 0x100;
+    uint256 public constant FLAG_MULTI_PATH_ETH = 0x200; // Turned off by default
+    uint256 public constant FLAG_BDAI = 0x400;
 
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken
+        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
     )
         public
         view
@@ -121,10 +121,8 @@ contract IOneSplit {
         uint256 amount,
         uint256 minReturn,
         uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
-        uint256 disableFlags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken
-    )
-        public
-        payable;
+        uint256 disableFlags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
+    ) public payable;
 
     function goodSwap(
         IERC20 fromToken,
@@ -132,10 +130,8 @@ contract IOneSplit {
         uint256 amount,
         uint256 minReturn,
         uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken
-    )
-        public
-        payable;
+        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
+    ) public payable;
 }
 
 // File: @openzeppelin/contracts/math/SafeMath.sol
@@ -504,19 +500,21 @@ library Address {
     /**
      * @dev Returns true if `account` is a contract.
      *
-     * This test is non-exhaustive, and there may be false-negatives: during the
-     * execution of a contract's constructor, its address will be reported as
-     * not containing a contract.
+     * [IMPORTANT]
+     * ====
+     * It is unsafe to assume that an address for which this function returns
+     * false is an externally-owned account (EOA) and not a contract.
      *
-     * IMPORTANT: It is unsafe to assume that an address for which this
-     * function returns false is an externally-owned account (EOA) and not a
-     * contract.
+     * Among others, `isContract` will return false for the following 
+     * types of addresses:
+     *
+     *  - an externally-owned account
+     *  - a contract in construction
+     *  - an address where a contract will be created
+     *  - an address where a contract lived, but was destroyed
+     * ====
      */
     function isContract(address account) internal view returns (bool) {
-        // This method relies in extcodesize, which returns 0 for contracts in
-        // construction, since the code is only stored at the end of the
-        // constructor execution.
-
         // According to EIP-1052, 0x0 is the value returned for not-yet created accounts
         // and 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470 is returned
         // for accounts without code, i.e. `keccak256('')`
@@ -524,7 +522,7 @@ library Address {
         bytes32 accountHash = 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470;
         // solhint-disable-next-line no-inline-assembly
         assembly { codehash := extcodehash(account) }
-        return (codehash != 0x0 && codehash != accountHash);
+        return (codehash != accountHash && codehash != 0x0);
     }
 
     /**
@@ -1988,6 +1986,124 @@ contract OneSplitChai is OneSplitBase {
     }
 }
 
+// File: contracts/interface/IBdai.sol
+
+pragma solidity ^0.5.0;
+
+
+
+contract IBdai is IERC20 {
+    function join(uint256) external;
+
+    function exit(uint256) external;
+}
+
+// File: contracts/OneSplitBdai.sol
+
+pragma solidity ^0.5.0;
+
+
+
+
+contract OneSplitBdai is OneSplitBase {
+    IBdai public bdai = IBdai(0x6a4FFAafa8DD400676Df8076AD6c724867b0e2e8);
+    IERC20 public btu = IERC20(0xb683D83a532e2Cb7DFa5275eED3698436371cc9f);
+
+    function getExpectedReturn(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 disableFlags
+    )
+        public
+        view
+        returns (uint256 returnAmount, uint256[] memory distribution)
+    {
+        if (fromToken == toToken) {
+            return (amount, new uint256[](4));
+        }
+
+        if (disableFlags.enabled(FLAG_BDAI)) {
+            if (fromToken == IERC20(bdai)) {
+                return
+                    super.getExpectedReturn(
+                        dai,
+                        toToken,
+                        amount,
+                        parts,
+                        disableFlags
+                    );
+            }
+
+            if (toToken == IERC20(bdai)) {
+                return
+                    super.getExpectedReturn(
+                        fromToken,
+                        dai,
+                        amount,
+                        parts,
+                        disableFlags
+                    );
+            }
+        }
+
+        return
+            super.getExpectedReturn(
+                fromToken,
+                toToken,
+                amount,
+                parts,
+                disableFlags
+            );
+    }
+
+    function _swap(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256[] memory distribution,
+        uint256 disableFlags
+    ) internal {
+        if (fromToken == toToken) {
+            return;
+        }
+
+        if (disableFlags.enabled(FLAG_BDAI)) {
+            if (fromToken == IERC20(bdai)) {
+                bdai.exit(amount);
+                super._swap(
+                    btu,
+                    toToken,
+                    btu.balanceOf(address(this)),
+                    distribution,
+                    disableFlags
+                );
+
+                return
+                    super._swap(
+                        dai,
+                        toToken,
+                        amount,
+                        distribution,
+                        disableFlags
+                    );
+            }
+
+            if (toToken == IERC20(bdai)) {
+                super._swap(fromToken, dai, amount, distribution, disableFlags);
+
+                _infiniteApproveIfNeeded(dai, address(bdai));
+                bdai.join(dai.balanceOf(address(this)));
+                return;
+            }
+        }
+
+        return
+            super._swap(fromToken, toToken, amount, distribution, disableFlags);
+    }
+}
+
 // File: contracts/interface/IAaveToken.sol
 
 pragma solidity ^0.5.0;
@@ -2400,11 +2516,13 @@ pragma solidity ^0.5.0;
 
 
 
+
 contract OneSplit is
     IOneSplit,
     OneSplitBase,
     OneSplitMultiPath,
     OneSplitChai,
+    OneSplitBdai,
     OneSplitAave,
     OneSplitFulcrum,
     OneSplitCompound,
@@ -2415,7 +2533,7 @@ contract OneSplit is
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken
+        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
     )
         public
         view
@@ -2443,7 +2561,7 @@ contract OneSplit is
         uint256 amount,
         uint256 minReturn,
         uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
-        uint256 disableFlags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken
+        uint256 disableFlags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
     ) public payable {
         fromToken.universalTransferFrom(msg.sender, address(this), amount);
 
@@ -2460,7 +2578,7 @@ contract OneSplit is
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
-        uint256 disableFlags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken
+        uint256 disableFlags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
     ) internal {
         if (fromToken == toToken) {
             return;
@@ -2481,9 +2599,15 @@ contract OneSplit is
         uint256 amount,
         uint256 minReturn,
         uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken
+        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
     ) public payable {
-        (, uint256[] memory distribution) = getExpectedReturn(fromToken, toToken, amount, parts, disableFlags);
+        (, uint256[] memory distribution) = getExpectedReturn(
+            fromToken,
+            toToken,
+            amount,
+            parts,
+            disableFlags
+        );
         swap(
             fromToken,
             toToken,
