@@ -31,7 +31,7 @@ contract OneSplit is
     )
         public
         view
-        returns (
+        returns(
             uint256 returnAmount,
             uint256[] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
         )
@@ -40,14 +40,13 @@ contract OneSplit is
             return (amount, new uint256[](4));
         }
 
-        return
-            super.getExpectedReturn(
-                fromToken,
-                toToken,
-                amount,
-                parts,
-                disableFlags
-            );
+        return super.getExpectedReturn(
+            fromToken,
+            toToken,
+            amount,
+            parts,
+            disableFlags
+        );
     }
 
     function swap(
@@ -63,15 +62,9 @@ contract OneSplit is
         _swap(fromToken, toToken, amount, distribution, disableFlags);
 
         uint256 returnAmount = toToken.universalBalanceOf(address(this));
-        require(
-            returnAmount >= minReturn,
-            "OneSplit: actual return amount is less than minReturn"
-        );
+        require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
         toToken.universalTransfer(msg.sender, returnAmount);
-        fromToken.universalTransfer(
-            msg.sender,
-            fromToken.universalBalanceOf(address(this))
-        );
+        fromToken.universalTransfer(msg.sender, fromToken.universalBalanceOf(address(this)));
     }
 
     function _swap(
@@ -85,8 +78,13 @@ contract OneSplit is
             return;
         }
 
-        return
-            super._swap(fromToken, toToken, amount, distribution, disableFlags);
+        return super._swap(
+            fromToken,
+            toToken,
+            amount,
+            distribution,
+            disableFlags
+        );
     }
 
     function goodSwap(
@@ -122,10 +120,10 @@ contract OneSplit is
         uint256 amount,
         uint256 parts,
         uint256 disableFlags
-    ) public view returns (uint256[] memory results) {
+    ) public view returns(uint256[] memory results) {
         results = new uint256[](parts);
-        for (uint256 i = 0; i < parts; i++) {
-            (results[i], ) = getExpectedReturn(
+        for (uint i = 0; i < parts; i++) {
+            (results[i],) = getExpectedReturn(
                 fromToken,
                 toToken,
                 amount.mul(i + 1).div(parts),

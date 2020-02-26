@@ -29,7 +29,7 @@ contract IOneSplit {
     )
         public
         view
-        returns (
+        returns(
             uint256 returnAmount,
             uint256[] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
         );
