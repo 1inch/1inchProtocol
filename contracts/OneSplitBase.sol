@@ -51,7 +51,7 @@ contract OneSplitBase is IOneSplit {
     IUniswapFactory public uniswapFactory = IUniswapFactory(0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95);
     IBancorContractRegistry public bancorContractRegistry = IBancorContractRegistry(0x52Ae12ABe5D8BD778BD5397F99cA900624CfADD4);
     IBancorNetworkPathFinder bancorNetworkPathFinder = IBancorNetworkPathFinder(0x6F0cD8C4f6F06eAB664C7E3031909452b4B72861);
-    IOasisExchange public oasisExchange = IOasisExchange(0x39755357759cE0d7f32dC8dC45414CCa409AE24e);
+    IOasisExchange public oasisExchange = IOasisExchange(0x794e6e91555438aFc3ccF1c5076A74F42133d08D);
 
     function() external payable {
         // solium-disable-next-line security/no-tx-origin
@@ -276,7 +276,7 @@ contract OneSplitBase is IOneSplit {
         (address reserve, uint256 rate) = abi.decode(data, (address,uint256));
 
         if ((reserve == 0x31E085Afd48a1d6e51Cc193153d625e8f0514C7F && disableFlags.disabledReserve(FLAG_KYBER_UNISWAP_RESERVE)) ||
-            (reserve == 0xCf1394C5e2e879969fdB1f464cE1487147863dCb && disableFlags.disabledReserve(FLAG_KYBER_OASIS_RESERVE)) ||
+            (reserve == 0x1E158c0e93c30d24e918Ef83d1e0bE23595C3c0f && disableFlags.disabledReserve(FLAG_KYBER_OASIS_RESERVE)) ||
             (reserve == 0x053AA84FCC676113a57e0EbB0bD1913839874bE4 && disableFlags.disabledReserve(FLAG_KYBER_BANCOR_RESERVE)))
         {
             return 0;

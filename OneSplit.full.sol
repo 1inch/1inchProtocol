@@ -300,22 +300,26 @@ pragma solidity ^0.5.0;
 
 
 interface IUniswapExchange {
+    function getEthToTokenInputPrice(uint256 ethSold) external view returns (uint256 tokensBought);
 
-    function getEthToTokenInputPrice(uint256 ethSold)
-        external view returns(uint256 tokensBought);
-
-    function getTokenToEthInputPrice(uint256 tokensSold)
-        external view returns (uint256 ethBought);
+    function getTokenToEthInputPrice(uint256 tokensSold) external view returns (uint256 ethBought);
 
     function ethToTokenSwapInput(uint256 minTokens, uint256 deadline)
-        external payable returns (uint256 tokensBought);
+        external
+        payable
+        returns (uint256 tokensBought);
 
     function tokenToEthSwapInput(uint256 tokensSold, uint256 minEth, uint256 deadline)
-        external returns (uint256 ethBought);
+        external
+        returns (uint256 ethBought);
 
-    function tokenToTokenSwapInput(uint256 tokensSold, uint256 minTokensBought, uint256 minEthBought, uint256 deadline, address tokenAddr)
-        external returns (uint256 tokensBought);
-
+    function tokenToTokenSwapInput(
+        uint256 tokensSold,
+        uint256 minTokensBought,
+        uint256 minEthBought,
+        uint256 deadline,
+        address tokenAddr
+    ) external returns (uint256 tokensBought);
 }
 
 // File: contracts/interface/IUniswapFactory.sol
@@ -325,9 +329,7 @@ pragma solidity ^0.5.0;
 
 
 interface IUniswapFactory {
-
-    function getExchange(IERC20 token)
-        external view returns(IUniswapExchange exchange);
+    function getExchange(IERC20 token) external view returns (IUniswapExchange exchange);
 }
 
 // File: contracts/interface/IKyberNetworkContract.sol
@@ -337,13 +339,10 @@ pragma solidity ^0.5.0;
 
 
 interface IKyberNetworkContract {
-
-    function searchBestRate(
-        IERC20 src,
-        IERC20 dest,
-        uint256 srcAmount,
-        bool usePermissionless
-    ) external view returns(address reserve, uint256 rate);
+    function searchBestRate(IERC20 src, IERC20 dest, uint256 srcAmount, bool usePermissionless)
+        external
+        view
+        returns (address reserve, uint256 rate);
 }
 
 // File: contracts/interface/IKyberNetworkProxy.sol
@@ -353,12 +352,10 @@ pragma solidity ^0.5.0;
 
 
 interface IKyberNetworkProxy {
-
-    function getExpectedRate(
-        IERC20 src,
-        IERC20 dest,
-        uint256 srcQty
-    ) external view returns(uint256 expectedRate, uint256 slippageRate);
+    function getExpectedRate(IERC20 src, IERC20 dest, uint256 srcQty)
+        external
+        view
+        returns (uint256 expectedRate, uint256 slippageRate);
 
     function tradeWithHint(
         IERC20 src,
@@ -369,7 +366,7 @@ interface IKyberNetworkProxy {
         uint256 minConversionRate,
         address walletId,
         bytes calldata hint
-    ) external payable returns(uint256);
+    ) external payable returns (uint256);
 
     function kyberNetworkContract() external view returns (IKyberNetworkContract);
 
@@ -387,7 +384,7 @@ pragma solidity ^0.5.0;
 
 
 interface IKyberUniswapReserve {
-    function uniswapFactory() external view returns(address);
+    function uniswapFactory() external view returns (address);
 }
 
 // File: contracts/interface/IKyberOasisReserve.sol
@@ -396,7 +393,7 @@ pragma solidity ^0.5.0;
 
 
 interface IKyberOasisReserve {
-    function otc() external view returns(address);
+    function otc() external view returns (address);
 }
 
 // File: contracts/interface/IKyberBancorReserve.sol
@@ -405,7 +402,7 @@ pragma solidity ^0.5.0;
 
 
 contract IKyberBancorReserve {
-    function bancorEth() public view returns(address);
+    function bancorEth() public view returns (address);
 }
 
 // File: contracts/interface/IBancorNetwork.sol
@@ -414,26 +411,19 @@ pragma solidity ^0.5.0;
 
 
 interface IBancorNetwork {
+    function getReturnByPath(address[] calldata path, uint256 amount)
+        external
+        view
+        returns (uint256 returnAmount, uint256 conversionFee);
 
-    function getReturnByPath(
-        address[] calldata path,
-        uint256 amount
-    ) external view returns(
-        uint256 returnAmount,
-        uint256 conversionFee
-    );
+    function claimAndConvert(address[] calldata path, uint256 amount, uint256 minReturn)
+        external
+        returns (uint256);
 
-    function claimAndConvert(
-        address[] calldata path,
-        uint256 amount,
-        uint256 minReturn
-    ) external returns(uint256);
-
-    function convert(
-        address[] calldata path,
-        uint256 amount,
-        uint256 minReturn
-    ) external payable returns(uint256);
+    function convert(address[] calldata path, uint256 amount, uint256 minReturn)
+        external
+        payable
+        returns (uint256);
 }
 
 // File: contracts/interface/IBancorContractRegistry.sol
@@ -442,9 +432,7 @@ pragma solidity ^0.5.0;
 
 
 contract IBancorContractRegistry {
-
-    function addressOf(bytes32 contractName)
-        external view returns (address);
+    function addressOf(bytes32 contractName) external view returns (address);
 }
 
 // File: contracts/interface/IBancorNetworkPathFinder.sol
@@ -454,9 +442,10 @@ pragma solidity ^0.5.0;
 
 
 interface IBancorNetworkPathFinder {
-
     function generatePath(IERC20 sourceToken, IERC20 targetToken)
-        external view returns(address[] memory);
+        external
+        view
+        returns (address[] memory);
 }
 
 // File: contracts/interface/IBancorEtherToken.sol
@@ -466,12 +455,9 @@ pragma solidity ^0.5.0;
 
 
 contract IBancorEtherToken is IERC20 {
+    function deposit() external payable;
 
-    function deposit()
-        external payable;
-
-    function withdraw(uint256 amount)
-        external;
+    function withdraw(uint256 amount) external;
 }
 
 // File: contracts/interface/IOasisExchange.sol
@@ -481,12 +467,14 @@ pragma solidity ^0.5.0;
 
 
 interface IOasisExchange {
-
     function getBuyAmount(IERC20 buyGem, IERC20 payGem, uint256 payAmt)
-        external view returns(uint256 fillAmt);
+        external
+        view
+        returns (uint256 fillAmt);
 
-    function sellAllAmount(IERC20 payGem, uint payAmt, IERC20 buyGem, uint256 minFillAmount)
-        external returns(uint256 fillAmt);
+    function sellAllAmount(IERC20 payGem, uint256 payAmt, IERC20 buyGem, uint256 minFillAmount)
+        external
+        returns (uint256 fillAmt);
 }
 
 // File: contracts/interface/IWETH.sol
@@ -496,12 +484,9 @@ pragma solidity ^0.5.0;
 
 
 contract IWETH is IERC20 {
+    function deposit() external payable;
 
-    function deposit()
-        external payable;
-
-    function withdraw(uint256 amount)
-        external;
+    function withdraw(uint256 amount) external;
 }
 
 // File: @openzeppelin/contracts/utils/Address.sol
@@ -795,7 +780,7 @@ contract OneSplitBase is IOneSplit {
     IUniswapFactory public uniswapFactory = IUniswapFactory(0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95);
     IBancorContractRegistry public bancorContractRegistry = IBancorContractRegistry(0x52Ae12ABe5D8BD778BD5397F99cA900624CfADD4);
     IBancorNetworkPathFinder bancorNetworkPathFinder = IBancorNetworkPathFinder(0x6F0cD8C4f6F06eAB664C7E3031909452b4B72861);
-    IOasisExchange public oasisExchange = IOasisExchange(0x39755357759cE0d7f32dC8dC45414CCa409AE24e);
+    IOasisExchange public oasisExchange = IOasisExchange(0x794e6e91555438aFc3ccF1c5076A74F42133d08D);
 
     function() external payable {
         // solium-disable-next-line security/no-tx-origin
@@ -1020,7 +1005,7 @@ contract OneSplitBase is IOneSplit {
         (address reserve, uint256 rate) = abi.decode(data, (address,uint256));
 
         if ((reserve == 0x31E085Afd48a1d6e51Cc193153d625e8f0514C7F && disableFlags.disabledReserve(FLAG_KYBER_UNISWAP_RESERVE)) ||
-            (reserve == 0xCf1394C5e2e879969fdB1f464cE1487147863dCb && disableFlags.disabledReserve(FLAG_KYBER_OASIS_RESERVE)) ||
+            (reserve == 0x1E158c0e93c30d24e918Ef83d1e0bE23595C3c0f && disableFlags.disabledReserve(FLAG_KYBER_OASIS_RESERVE)) ||
             (reserve == 0x053AA84FCC676113a57e0EbB0bD1913839874bE4 && disableFlags.disabledReserve(FLAG_KYBER_BANCOR_RESERVE)))
         {
             return 0;
@@ -1227,6 +1212,7 @@ contract OneSplitBase is IOneSplit {
 pragma solidity ^0.5.0;
 
 
+
 contract OneSplitMultiPath is OneSplitBase {
 
     function getExpectedReturn(
@@ -1332,22 +1318,25 @@ contract ICompound {
     function markets(address cToken)
         external
         view
-        returns(bool isListed, uint256 collateralFactorMantissa);
+        returns (bool isListed, uint256 collateralFactorMantissa);
 }
 
 
 contract ICompoundToken is IERC20 {
-    function underlying() external view returns(address);
-    function exchangeRateStored() external view returns(uint256);
+    function underlying() external view returns (address);
 
-    function mint(uint256 mintAmount) external returns(uint256);
-    function redeem(uint256 redeemTokens) external returns(uint256);
+    function exchangeRateStored() external view returns (uint256);
+
+    function mint(uint256 mintAmount) external returns (uint256);
+
+    function redeem(uint256 redeemTokens) external returns (uint256);
 }
 
 
 contract ICompoundEther is IERC20 {
     function mint() external payable;
-    function redeem(uint256 redeemTokens) external returns(uint256);
+
+    function redeem(uint256 redeemTokens) external returns (uint256);
 }
 
 // File: contracts/OneSplitCompound.sol
@@ -1578,21 +1567,19 @@ pragma solidity ^0.5.0;
 
 
 contract IFulcrumToken is IERC20 {
+    function tokenPrice() external view returns (uint256);
 
-    function tokenPrice() external view returns(uint256);
-    function loanTokenAddress() external view returns(address);
+    function loanTokenAddress() external view returns (address);
 
-    function mintWithEther(address receiver)
-        external payable returns (uint256 mintAmount);
+    function mintWithEther(address receiver) external payable returns (uint256 mintAmount);
 
-    function mint(address receiver, uint256 depositAmount)
-        external returns (uint256 mintAmount);
+    function mint(address receiver, uint256 depositAmount) external returns (uint256 mintAmount);
 
     function burnToEther(address receiver, uint256 burnAmount)
-        external returns (uint256 loanAmountPaid);
+        external
+        returns (uint256 loanAmountPaid);
 
-    function burn(address receiver, uint256 burnAmount)
-        external returns (uint256 loanAmountPaid);
+    function burn(address receiver, uint256 burnAmount) external returns (uint256 loanAmountPaid);
 }
 
 // File: contracts/OneSplitFulcrum.sol
@@ -1775,79 +1762,115 @@ pragma solidity ^0.5.0;
 
 interface IPot {
     function dsr() external view returns (uint256);
+
     function chi() external view returns (uint256);
+
     function rho() external view returns (uint256);
+
     function drip() external returns (uint256);
+
     function join(uint256) external;
+
     function exit(uint256) external;
 }
 
 
 contract IChai is IERC20 {
+    function POT() public view returns (IPot);
 
-    function POT() public view returns(IPot);
+    function join(address dst, uint256 wad) external;
 
-    function join(address dst, uint wad) external;
-
-    function exit(address src, uint wad) external;
+    function exit(address src, uint256 wad) external;
 }
 
 
 library ChaiHelper {
-
     IPot private constant POT = IPot(0x197E90f9FAD81970bA7976f33CbD77088E5D7cf7);
-    uint256 private constant RAY = 10 ** 27;
+    uint256 private constant RAY = 10**27;
 
-    function _mul(uint x, uint y) private pure returns (uint z) {
+    function _mul(uint256 x, uint256 y) private pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x);
     }
 
-    function _rmul(uint x, uint y) private pure returns (uint z) {
+    function _rmul(uint256 x, uint256 y) private pure returns (uint256 z) {
         // always rounds down
         z = _mul(x, y) / RAY;
     }
 
-    function _rdiv(uint x, uint y) private pure returns (uint z) {
+    function _rdiv(uint256 x, uint256 y) private pure returns (uint256 z) {
         // always rounds down
         z = _mul(x, RAY) / y;
     }
 
-    function rpow(uint x, uint n, uint base) private pure returns (uint z) {
+    function rpow(uint256 x, uint256 n, uint256 base) private pure returns (uint256 z) {
         // solium-disable-next-line security/no-inline-assembly
         assembly {
-            switch x case 0 {switch n case 0 {z := base} default {z := 0}}
-            default {
-                switch mod(n, 2) case 0 { z := base } default { z := x }
-                let half := div(base, 2)  // for rounding.
-                for { n := div(n, 2) } n { n := div(n,2) } {
-                    let xx := mul(x, x)
-                    if iszero(eq(div(xx, x), x)) { revert(0,0) }
-                    let xxRound := add(xx, half)
-                    if lt(xxRound, xx) { revert(0,0) }
-                    x := div(xxRound, base)
-                    if mod(n,2) {
-                        let zx := mul(z, x)
-                        if and(iszero(iszero(x)), iszero(eq(div(zx, x), z))) { revert(0,0) }
-                        let zxRound := add(zx, half)
-                        if lt(zxRound, zx) { revert(0,0) }
-                        z := div(zxRound, base)
+            switch x
+                case 0 {
+                    switch n
+                        case 0 {
+                            z := base
+                        }
+                        default {
+                            z := 0
+                        }
+                }
+                default {
+                    switch mod(n, 2)
+                        case 0 {
+                            z := base
+                        }
+                        default {
+                            z := x
+                        }
+                    let half := div(base, 2) // for rounding.
+                    for {
+                        n := div(n, 2)
+                    } n {
+                        n := div(n, 2)
+                    } {
+                        let xx := mul(x, x)
+                        if iszero(eq(div(xx, x), x)) {
+                            revert(0, 0)
+                        }
+                        let xxRound := add(xx, half)
+                        if lt(xxRound, xx) {
+                            revert(0, 0)
+                        }
+                        x := div(xxRound, base)
+                        if mod(n, 2) {
+                            let zx := mul(z, x)
+                            if and(iszero(iszero(x)), iszero(eq(div(zx, x), z))) {
+                                revert(0, 0)
+                            }
+                            let zxRound := add(zx, half)
+                            if lt(zxRound, zx) {
+                                revert(0, 0)
+                            }
+                            z := div(zxRound, base)
+                        }
                     }
                 }
-            }
         }
     }
 
-    function potDrip() private view returns(uint256) {
+    function potDrip() private view returns (uint256) {
         return _rmul(rpow(POT.dsr(), now - POT.rho(), RAY), POT.chi());
     }
 
-    function daiToChai(IChai /*chai*/, uint256 amount) internal view returns(uint256) {
-        uint chi = (now > POT.rho()) ? potDrip() : POT.chi();
+    function daiToChai(
+        IChai, /*chai*/
+        uint256 amount
+    ) internal view returns (uint256) {
+        uint256 chi = (now > POT.rho()) ? potDrip() : POT.chi();
         return _rdiv(amount, chi);
     }
 
-    function chaiToDai(IChai /*chai*/, uint256 amount) internal view returns(uint256) {
-        uint chi = (now > POT.rho()) ? potDrip() : POT.chi();
+    function chaiToDai(
+        IChai, /*chai*/
+        uint256 amount
+    ) internal view returns (uint256) {
+        uint256 chi = (now > POT.rho()) ? potDrip() : POT.chi();
         return _rmul(chi, amount);
     }
 }
@@ -2088,15 +2111,14 @@ pragma solidity ^0.5.0;
 
 
 interface IAaveToken {
-
-    function underlyingAssetAddress() external view returns(IERC20);
+    function underlyingAssetAddress() external view returns (IERC20);
 
     function redeem(uint256 amount) external;
 }
 
-interface IAaveLendingPool {
 
-    function core() external view returns(address);
+interface IAaveLendingPool {
+    function core() external view returns (address);
 
     function deposit(IERC20 token, uint256 amount, uint16 refCode) external payable;
 }
@@ -2264,15 +2286,11 @@ pragma solidity ^0.5.0;
 
 
 interface ISmartTokenConverter {
+    function getReserveRatio(IERC20 token) external view returns (uint32);
 
-    function getReserveRatio(IERC20 token)
-        external view returns(uint32);
+    function connectorTokenCount() external view returns (uint256);
 
-    function connectorTokenCount()
-        external view returns(uint256);
-
-    function connectorTokens(uint256 i)
-        external view returns(IERC20);
+    function connectorTokens(uint256 i) external view returns (IERC20);
 }
 
 // File: contracts/interface/ISmartToken.sol
@@ -2283,8 +2301,7 @@ pragma solidity ^0.5.0;
 
 
 interface ISmartToken {
-
-    function owner() external view returns(ISmartTokenConverter);
+    function owner() external view returns (ISmartTokenConverter);
 }
 
 // File: contracts/interface/ISmartTokenRegistry.sol
@@ -2294,9 +2311,7 @@ pragma solidity ^0.5.0;
 
 
 interface ISmartTokenRegistry {
-
-    function isSmartToken(IERC20 token)
-        external view returns(bool);
+    function isSmartToken(IERC20 token) external view returns (bool);
 }
 
 // File: contracts/interface/ISmartTokenFormula.sol
@@ -2306,7 +2321,6 @@ pragma solidity ^0.5.0;
 
 
 interface ISmartTokenFormula {
-
     function calculateLiquidateReturn(
         uint256 supply,
         uint256 reserveBalance,

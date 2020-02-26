@@ -5,6 +5,5 @@ import "./ISmartTokenConverter.sol";
 
 
 interface ISmartToken {
-
-    function owner() external view returns(ISmartTokenConverter);
+    function owner() external view returns (ISmartTokenConverter);
 }
