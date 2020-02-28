@@ -1,2 +1,3 @@
 node_modules
 OneSplit.full.sol
+contracts/interface/IChai.sol
