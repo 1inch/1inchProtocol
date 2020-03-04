@@ -101,7 +101,7 @@ contract OneSplit is
         uint256 minReturn,
         uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
         uint256 disableFlags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
-    ) public payable {
+    ) public payable returns (uint256) {
         fromToken.universalTransferFrom(msg.sender, address(this), amount);
 
         _swap(fromToken, toToken, amount, distribution, disableFlags);
@@ -110,6 +110,7 @@ contract OneSplit is
         require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
         toToken.universalTransfer(msg.sender, returnAmount);
         fromToken.universalTransfer(msg.sender, fromToken.universalBalanceOf(address(this)));
+        return returnAmount;
     }
 
     function _swap(
@@ -139,7 +140,7 @@ contract OneSplit is
         uint256 minReturn,
         uint256 parts,
         uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
-    ) public payable {
+    ) public payable returns (uint256) {
         (, uint256[] memory distribution) = getExpectedReturn(
             fromToken,
             toToken,
@@ -147,7 +148,7 @@ contract OneSplit is
             parts,
             disableFlags
         );
-        swap(
+        return swap(
             fromToken,
             toToken,
             amount,

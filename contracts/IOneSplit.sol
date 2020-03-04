@@ -45,7 +45,12 @@ contract IOneSplit is IOneSplitView {
         uint256 minReturn,
         uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
         uint256 disableFlags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
-    ) public payable;
+    )
+        public
+        payable
+        returns(
+            uint256 returnAmount
+        );
 
     function goodSwap(
         IERC20 fromToken,
@@ -54,5 +59,10 @@ contract IOneSplit is IOneSplitView {
         uint256 minReturn,
         uint256 parts,
         uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
-    ) public payable;
+    )
+        public
+        payable
+        returns(
+            uint256 returnAmount
+        );
 }
