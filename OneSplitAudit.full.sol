@@ -194,22 +194,26 @@ pragma solidity ^0.5.0;
 
 
 contract IOneSplitView {
-    // disableFlags = FLAG_UNISWAP + FLAG_KYBER + ...
-    uint256 public constant FLAG_UNISWAP = 0x01;
-    uint256 public constant FLAG_KYBER = 0x02;
-    uint256 public constant FLAG_KYBER_UNISWAP_RESERVE = 0x100000000; // Turned off by default
-    uint256 public constant FLAG_KYBER_OASIS_RESERVE = 0x200000000; // Turned off by default
-    uint256 public constant FLAG_KYBER_BANCOR_RESERVE = 0x400000000; // Turned off by default
-    uint256 public constant FLAG_BANCOR = 0x04;
-    uint256 public constant FLAG_OASIS = 0x08;
-    uint256 public constant FLAG_COMPOUND = 0x10;
-    uint256 public constant FLAG_FULCRUM = 0x20;
-    uint256 public constant FLAG_CHAI = 0x40;
-    uint256 public constant FLAG_AAVE = 0x80;
-    uint256 public constant FLAG_SMART_TOKEN = 0x100;
-    uint256 public constant FLAG_MULTI_PATH_ETH = 0x200; // Turned off by default
-    uint256 public constant FLAG_BDAI = 0x400;
-    uint256 public constant FLAG_IEARN = 0x800;
+    // disableFlags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_KYBER + ...
+    uint256 public constant FLAG_DISABLE_UNISWAP = 0x01;
+    uint256 public constant FLAG_DISABLE_KYBER = 0x02;
+    uint256 public constant FLAG_ENABLE_KYBER_UNISWAP_RESERVE = 0x100000000; // Turned off by default
+    uint256 public constant FLAG_ENABLE_KYBER_OASIS_RESERVE = 0x200000000; // Turned off by default
+    uint256 public constant FLAG_ENABLE_KYBER_BANCOR_RESERVE = 0x400000000; // Turned off by default
+    uint256 public constant FLAG_DISABLE_BANCOR = 0x04;
+    uint256 public constant FLAG_DISABLE_OASIS = 0x08;
+    uint256 public constant FLAG_DISABLE_COMPOUND = 0x10;
+    uint256 public constant FLAG_DISABLE_FULCRUM = 0x20;
+    uint256 public constant FLAG_DISABLE_CHAI = 0x40;
+    uint256 public constant FLAG_DISABLE_AAVE = 0x80;
+    uint256 public constant FLAG_DISABLE_SMART_TOKEN = 0x100;
+    uint256 public constant FLAG_ENABLE_MULTI_PATH_ETH = 0x200; // Turned off by default
+    uint256 public constant FLAG_DISABLE_BDAI = 0x400;
+    uint256 public constant FLAG_DISABLE_IEARN = 0x800;
+    uint256 public constant FLAG_DISABLE_CURVE_COMPOUND = 0x1000;
+    uint256 public constant FLAG_DISABLE_CURVE_USDT = 0x2000;
+    uint256 public constant FLAG_DISABLE_CURVE_Y = 0x4000;
+    uint256 public constant FLAG_DISABLE_CURVE_BINANCE = 0x8000;
 
     function getExpectedReturn(
         IERC20 fromToken,
@@ -650,7 +654,13 @@ pragma solidity ^0.5.0;
 
 
 
-
+//
+// Security assumptions:
+// 1. It is safe to have infinite approves of any tokens to this smart contract,
+//    since it could only call `transferFrom()` with first argument equal to msg.sender
+// 2. It is safe to call `swap()` and `goodSwap()` with reliable `minReturn` argument,
+//    if returning amount will not reach `minReturn` value whole swap will be reverted.
+//
 contract OneSplitAudit is IOneSplit, Ownable {
 
     using UniversalERC20 for IERC20;

@@ -53,11 +53,11 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](4));
+            return (amount, new uint256[](9));
         }
 
-        if (disableFlags.enabled(FLAG_SMART_TOKEN)) {
-            distribution = new uint256[](4);
+        if (disableFlags.enabled(FLAG_DISABLE_SMART_TOKEN)) {
+            distribution = new uint256[](9);
             if (smartTokenRegistry.isSmartToken(fromToken)) {
                 this;
                 // ISmartTokenConverter converter = ISmartToken(address(fromToken)).owner();
@@ -102,7 +102,7 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
                 //         tokens.tokens[i],
                 //         amount.mul(tokens.ratios[i]).div(tokens.totalRatio),
                 //         parts,
-                //         disableFlags | FLAG_BANCOR
+                //         disableFlags | FLAG_DISABLE_BANCOR
                 //     );
                 //     for (uint j = 0; j < distribution.length; j++) {
                 //         distribution[j] = distribution[j].add(dist[j] << (i * 8));

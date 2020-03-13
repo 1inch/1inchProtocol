@@ -81,10 +81,10 @@ contract OneSplitCompoundView is OneSplitBaseView, OneSplitCompoundBase {
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](4));
+            return (amount, new uint256[](9));
         }
 
-        if (disableFlags.enabled(FLAG_COMPOUND)) {
+        if (disableFlags.enabled(FLAG_DISABLE_COMPOUND)) {
             if (_isCompoundToken(fromToken)) {
                 IERC20 underlying = _compoundUnderlyingAsset(fromToken);
                 if (underlying != IERC20(-1)) {
@@ -158,7 +158,7 @@ contract OneSplitCompound is OneSplitBase, OneSplitCompoundBase {
             return;
         }
 
-        if (disableFlags.enabled(FLAG_COMPOUND)) {
+        if (disableFlags.enabled(FLAG_DISABLE_COMPOUND)) {
             if (_isCompoundToken(fromToken)) {
                 IERC20 underlying = _compoundUnderlyingAsset(fromToken);
 

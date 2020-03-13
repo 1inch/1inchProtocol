@@ -5,6 +5,13 @@ import "./IOneSplit.sol";
 import "./UniversalERC20.sol";
 
 
+//
+// Security assumptions:
+// 1. It is safe to have infinite approves of any tokens to this smart contract,
+//    since it could only call `transferFrom()` with first argument equal to msg.sender
+// 2. It is safe to call `swap()` and `goodSwap()` with reliable `minReturn` argument,
+//    if returning amount will not reach `minReturn` value whole swap will be reverted.
+//
 contract OneSplitAudit is IOneSplit, Ownable {
 
     using UniversalERC20 for IERC20;

@@ -91,7 +91,7 @@ contract OneSplitAaveView is OneSplitBaseView, OneSplitAaveBase {
             return (amount, distribution);
         }
 
-        if (disableFlags.enabled(FLAG_AAVE)) {
+        if (disableFlags.enabled(FLAG_DISABLE_AAVE)) {
             IERC20 underlying = _isAaveToken(fromToken);
             if (underlying != IERC20(-1)) {
                 return _aaveGetExpectedReturn(
@@ -154,7 +154,7 @@ contract OneSplitAave is OneSplitBase, OneSplitAaveBase {
             return;
         }
 
-        if (disableFlags.enabled(FLAG_AAVE)) {
+        if (disableFlags.enabled(FLAG_DISABLE_AAVE)) {
             IERC20 underlying = _isAaveToken(fromToken);
             if (underlying != IERC20(-1)) {
                 IAaveToken(address(fromToken)).redeem(amount);

@@ -27,10 +27,10 @@ contract OneSplitChaiView is OneSplitBaseView, OneSplitChaiBase {
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](4));
+            return (amount, new uint256[](9));
         }
 
-        if (disableFlags.enabled(FLAG_CHAI)) {
+        if (disableFlags.enabled(FLAG_DISABLE_CHAI)) {
             if (fromToken == IERC20(chai)) {
                 return super.getExpectedReturn(
                     dai,
@@ -76,7 +76,7 @@ contract OneSplitChai is OneSplitBase, OneSplitChaiBase {
             return;
         }
 
-        if (disableFlags.enabled(FLAG_CHAI)) {
+        if (disableFlags.enabled(FLAG_DISABLE_CHAI)) {
             if (fromToken == IERC20(chai)) {
                 chai.exit(address(this), amount);
 
