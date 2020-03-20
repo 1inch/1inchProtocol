@@ -92,7 +92,7 @@ contract OneSplitFulcrumView is OneSplitBaseView, OneSplitFulcrumBase {
             return (amount, new uint256[](9));
         }
 
-        if (disableFlags.enabled(FLAG_DISABLE_FULCRUM)) {
+        if (!disableFlags.check(FLAG_DISABLE_FULCRUM)) {
             IERC20 underlying = _isFulcrumToken(fromToken);
             if (underlying != IERC20(-1)) {
                 uint256 fulcrumRate = IFulcrumToken(address(fromToken)).tokenPrice();
@@ -162,7 +162,7 @@ contract OneSplitFulcrum is OneSplitBase, OneSplitFulcrumBase {
             return;
         }
 
-        if (disableFlags.enabled(FLAG_DISABLE_FULCRUM)) {
+        if (!disableFlags.check(FLAG_DISABLE_FULCRUM)) {
             IERC20 underlying = _isFulcrumToken(fromToken);
             if (underlying != IERC20(-1)) {
                 if (underlying.isETH()) {

@@ -60,7 +60,7 @@ contract OneSplitIearnView is OneSplitBaseView, OneSplitIearnBase {
 
         IIearn[10] memory yTokens = _yTokens();
 
-        if (disableFlags.enabled(FLAG_DISABLE_IEARN)) {
+        if (!disableFlags.check(FLAG_DISABLE_IEARN)) {
             for (uint i = 0; i < yTokens.length; i++) {
                 if (fromToken == IERC20(yTokens[i])) {
                     return _iearnGetExpectedReturn(
@@ -136,7 +136,7 @@ contract OneSplitIearn is OneSplitBase, OneSplitIearnBase {
 
         IIearn[10] memory yTokens = _yTokens();
 
-        if (disableFlags.enabled(FLAG_DISABLE_IEARN)) {
+        if (!disableFlags.check(FLAG_DISABLE_IEARN)) {
             for (uint i = 0; i < yTokens.length; i++) {
                 if (fromToken == IERC20(yTokens[i])) {
                     IERC20 underlying = yTokens[i].token();

@@ -26,7 +26,7 @@ contract OneSplitBdaiView is OneSplitBaseView, OneSplitBdaiBase {
             return (amount, new uint256[](9));
         }
 
-        if (disableFlags.enabled(FLAG_DISABLE_BDAI)) {
+        if (!disableFlags.check(FLAG_DISABLE_BDAI)) {
             if (fromToken == IERC20(bdai)) {
                 return super.getExpectedReturn(
                     dai,
@@ -71,7 +71,7 @@ contract OneSplitBdai is OneSplitBase, OneSplitBdaiBase {
             return;
         }
 
-        if (disableFlags.enabled(FLAG_DISABLE_BDAI)) {
+        if (!disableFlags.check(FLAG_DISABLE_BDAI)) {
             if (fromToken == IERC20(bdai)) {
                 bdai.exit(amount);
 
