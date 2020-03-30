@@ -1,11 +1,33 @@
-// const { expectRevert } = require('openzeppelin-test-helpers');
-// const { expect } = require('chai');
+const { expectRevert } = require('openzeppelin-test-helpers');
+const { expect } = require('chai');
 const assert = require('assert');
 
 const OneSplitViewMock = artifacts.require('OneSplitViewMock');
 const OneSplitMock = artifacts.require('OneSplitMock');
+const OneSplitSmartTokenView = artifacts.require('OneSplitSmartTokenView');
 
 contract('OneSplit', function ([_, addr1]) {
+
+    describe('OneSplitSmartContract', async function () {
+        beforeEach('should be ok', async function () {
+            this.smartTokenView = await OneSplitSmartTokenView.new();
+        });
+
+        it('should work', async function () {
+            const res = await this.smartTokenView.getExpectedReturn(
+                '0x0000000000000000000000000000000000000000', // ETH
+                '0x482c31355F4f7966fFcD38eC5c9635ACAe5F4D4F', // Ether Token Smart Relay Token (ETHUSDB)
+                '0x' + (10).toString(16),
+                '0x0',
+                '0x' + Number(web3.utils.toWei('20')).toString(16)
+            );
+            
+            console.log(res['0'].toString());
+            console.log(res['1'].map(x => x.toString()));
+        });
+
+    });
+
     describe('OneSplit', async function () {
         beforeEach('should be ok', async function () {
             this.splitView = await OneSplitViewMock.new();
