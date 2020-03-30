@@ -9,6 +9,7 @@ import "./OneSplitChai.sol";
 import "./OneSplitBdai.sol";
 import "./OneSplitIearn.sol";
 import "./OneSplitAave.sol";
+import "./OneSplitWeth.sol";
 //import "./OneSplitSmartToken.sol";
 
 
@@ -21,7 +22,8 @@ contract OneSplitView is
     OneSplitAaveView,
     OneSplitFulcrumView,
     OneSplitCompoundView,
-    OneSplitIearnView
+    OneSplitIearnView,
+    OneSplitWethView
     //OneSplitSmartTokenView
 {
     function getExpectedReturn(
@@ -62,7 +64,8 @@ contract OneSplit is
     OneSplitAave,
     OneSplitFulcrum,
     OneSplitCompound,
-    OneSplitIearn
+    OneSplitIearn,
+    OneSplitWeth
     //OneSplitSmartToken
 {
     IOneSplitView public oneSplitView;
