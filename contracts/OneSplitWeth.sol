@@ -47,12 +47,12 @@ contract OneSplitWethView is OneSplitBaseView {
         }
 
         if (!disableFlags.check(FLAG_DISABLE_WETH)) {
-            if (fromToken == wethToken) {
-                return getExpectedReturn(ETH_ADDRESS, toToken, amount, parts, disableFlags);
+            if (fromToken == wethToken || fromToken == bancorEtherToken) {
+                return super.getExpectedReturn(ETH_ADDRESS, toToken, amount, parts, disableFlags);
             }
 
-            if (toToken == wethToken) {
-                return getExpectedReturn(fromToken, ETH_ADDRESS, amount, parts, disableFlags);
+            if (toToken == wethToken || toToken == bancorEtherToken) {
+                return super.getExpectedReturn(fromToken, ETH_ADDRESS, amount, parts, disableFlags);
             }
         }
 
@@ -98,7 +98,19 @@ contract OneSplitWeth is OneSplitBase {
         if (!disableFlags.check(FLAG_DISABLE_WETH)) {
             if (fromToken == wethToken) {
                 wethToken.withdraw(wethToken.balanceOf(address(this)));
-                _wethSwap(
+                super._swap(
+                    ETH_ADDRESS,
+                    toToken,
+                    amount,
+                    distribution,
+                    disableFlags
+                );
+                return;
+            }
+
+            if (fromToken == bancorEtherToken) {
+                bancorEtherToken.withdraw(bancorEtherToken.balanceOf(address(this)));
+                super._swap(
                     ETH_ADDRESS,
                     toToken,
                     amount,
@@ -117,6 +129,18 @@ contract OneSplitWeth is OneSplitBase {
                     disableFlags
                 );
                 wethToken.deposit.value(address(this).balance)();
+                return;
+            }
+
+            if (toToken == bancorEtherToken) {
+                _wethSwap(
+                    fromToken,
+                    ETH_ADDRESS,
+                    amount,
+                    distribution,
+                    disableFlags
+                );
+                bancorEtherToken.deposit.value(address(this).balance)();
                 return;
             }
         }
