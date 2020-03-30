@@ -27,6 +27,7 @@ contract IOneSplitView {
     uint256 public constant FLAG_ENABLE_MULTI_PATH_DAI = 0x10000; // Turned off by default
     uint256 public constant FLAG_ENABLE_MULTI_PATH_USDC = 0x20000; // Turned off by default
     uint256 public constant FLAG_DISABLE_CURVE_SYNTHETIX = 0x40000;
+    uint256 public constant FLAG_DISABLE_WETH = 0x80000;
 
     function getExpectedReturn(
         IERC20 fromToken,
