@@ -41,7 +41,7 @@ contract OneSplitView is
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](9));
+            return (amount, new uint256[](10));
         }
 
         return super.getExpectedReturn(

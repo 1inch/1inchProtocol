@@ -27,7 +27,7 @@ contract OneSplitChaiView is OneSplitBaseView, OneSplitChaiBase {
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](9));
+            return (amount, new uint256[](10));
         }
 
         if (!disableFlags.check(FLAG_DISABLE_CHAI)) {

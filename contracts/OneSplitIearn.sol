@@ -55,7 +55,7 @@ contract OneSplitIearnView is OneSplitBaseView, OneSplitIearnBase {
         returns (uint256 returnAmount, uint256[] memory distribution)
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](9));
+            return (amount, new uint256[](10));
         }
 
         IIearn[10] memory yTokens = _yTokens();

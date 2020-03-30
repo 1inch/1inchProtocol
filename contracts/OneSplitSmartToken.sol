@@ -53,11 +53,11 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](9));
+            return (amount, new uint256[](10));
         }
 
         if (!disableFlags.check(FLAG_DISABLE_SMART_TOKEN)) {
-            distribution = new uint256[](9);
+            distribution = new uint256[](10);
             if (smartTokenRegistry.isSmartToken(fromToken)) {
                 this;
                 // ISmartTokenConverter converter = ISmartToken(address(fromToken)).owner();

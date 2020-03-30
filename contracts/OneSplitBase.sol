@@ -14,6 +14,7 @@ import "./interface/IBancorEtherToken.sol";
 import "./interface/IOasisExchange.sol";
 import "./interface/IWETH.sol";
 import "./interface/ICurve.sol";
+import "./interface/ICompound.sol";
 import "./IOneSplit.sol";
 import "./UniversalERC20.sol";
 
@@ -54,6 +55,32 @@ contract OneSplitBaseBase {
     ICurve public curveY = ICurve(0x45F783CCE6B7FF23B2ab2D70e416cdb7D6055f51);
     ICurve public curveBinance = ICurve(0x79a8C46DeA5aDa233ABaFFD40F3A0A2B1e5A4F27);
     ICurve public curveSynthetix = ICurve(0x3b12e1fBb468BEa80B492d635976809Bf950186C);
+
+    function _getCompoundToken(IERC20 token) internal pure returns(ICompoundToken) {
+        if (token.isETH()) {                                               // ETH
+            return ICompoundToken(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
+        }
+        if (token == IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F)) { // DAI
+            return ICompoundToken(0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643);
+        }
+        if (token == IERC20(0x0D8775F648430679A709E98d2b0Cb6250d2887EF)) { // BAT
+            return ICompoundToken(0x6C8c6b02E7b2BE14d4fA6022Dfd6d75921D90E4E);
+        }
+        if (token == IERC20(0x1985365e9f78359a9B6AD760e32412f4a445E862)) { // REP
+            return ICompoundToken(0x158079Ee67Fce2f58472A96584A73C7Ab9AC95c1);
+        }
+        if (token == IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48)) { // USDC
+            return ICompoundToken(0x39AA39c021dfbaE8faC545936693aC917d5E7563);
+        }
+        if (token == IERC20(0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599)) { // WBTC
+            return ICompoundToken(0xC11b1268C1A384e55C48c2391d8d480264A3A7F4);
+        }
+        if (token == IERC20(0xE41d2489571d322189246DaFA5ebDe1F4699F498)) { // ZRX
+            return ICompoundToken(0xB3319f5D18Bc0D84dD1b4825Dcde5d5f7266d407);
+        }
+
+        return ICompoundToken(0);
+    }
 }
 
 
@@ -66,35 +93,36 @@ contract OneSplitBaseView is IOneSplitView, OneSplitBaseBase {
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken
+        uint256 disableFlags // See constants in IOneSplit.sol
     )
         public
         view
         returns(
             uint256 returnAmount,
-            uint256[] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
+            uint256[] memory distribution
         )
     {
-        distribution = new uint256[](9);
+        distribution = new uint256[](10);
 
         if (fromToken == toToken) {
             return (amount, distribution);
         }
 
-        function(IERC20,IERC20,uint256,uint256) view returns(uint256)[9] memory reserves = [
-            disableFlags.check(FLAG_DISABLE_UNISWAP)         ? _calculateNoReturn : calculateUniswapReturn,
-            disableFlags.check(FLAG_DISABLE_KYBER)           ? _calculateNoReturn : calculateKyberReturn,
-            disableFlags.check(FLAG_DISABLE_BANCOR)          ? _calculateNoReturn : calculateBancorReturn,
-            disableFlags.check(FLAG_DISABLE_OASIS)           ? _calculateNoReturn : calculateOasisReturn,
-            disableFlags.check(FLAG_DISABLE_CURVE_COMPOUND)  ? _calculateNoReturn : calculateCurveCompound,
-            disableFlags.check(FLAG_DISABLE_CURVE_USDT)      ? _calculateNoReturn : calculateCurveUsdt,
-            disableFlags.check(FLAG_DISABLE_CURVE_Y)         ? _calculateNoReturn : calculateCurveY,
-            disableFlags.check(FLAG_DISABLE_CURVE_BINANCE)   ? _calculateNoReturn : calculateCurveBinance,
-            disableFlags.check(FLAG_DISABLE_CURVE_SYNTHETIX) ? _calculateNoReturn : calculateCurveSynthetix
+        function(IERC20,IERC20,uint256,uint256) view returns(uint256)[10] memory reserves = [
+            disableFlags.check(FLAG_DISABLE_UNISWAP)          ? _calculateNoReturn : calculateUniswapReturn,
+            disableFlags.check(FLAG_DISABLE_KYBER)            ? _calculateNoReturn : calculateKyberReturn,
+            disableFlags.check(FLAG_DISABLE_BANCOR)           ? _calculateNoReturn : calculateBancorReturn,
+            disableFlags.check(FLAG_DISABLE_OASIS)            ? _calculateNoReturn : calculateOasisReturn,
+            disableFlags.check(FLAG_DISABLE_CURVE_COMPOUND)   ? _calculateNoReturn : calculateCurveCompound,
+            disableFlags.check(FLAG_DISABLE_CURVE_USDT)       ? _calculateNoReturn : calculateCurveUsdt,
+            disableFlags.check(FLAG_DISABLE_CURVE_Y)          ? _calculateNoReturn : calculateCurveY,
+            disableFlags.check(FLAG_DISABLE_CURVE_BINANCE)    ? _calculateNoReturn : calculateCurveBinance,
+            disableFlags.check(FLAG_DISABLE_CURVE_SYNTHETIX)  ? _calculateNoReturn : calculateCurveSynthetix,
+            !disableFlags.check(FLAG_ENABLE_UNISWAP_COMPOUND) ? _calculateNoReturn : calculateUniswapCompound
         ];
 
-        uint256[9] memory rates;
-        uint256[9] memory fullRates;
+        uint256[10] memory rates;
+        uint256[10] memory fullRates;
         for (uint i = 0; i < rates.length; i++) {
             rates[i] = reserves[i](fromToken, toToken, amount.div(parts), disableFlags);
             this.log(rates[i]);
@@ -266,6 +294,43 @@ contract OneSplitBaseView is IOneSplitView, OneSplitBaseBase {
         return returnAmount;
     }
 
+    function calculateUniswapCompound(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 disableFlags
+    ) public view returns(uint256) {
+        if (!disableFlags.check(FLAG_ENABLE_MULTI_PATH_ETH) ||
+            !disableFlags.check(FLAG_ENABLE_UNISWAP_COMPOUND))
+        {
+            return 0;
+        }
+
+        if (!fromToken.isETH()) {
+            ICompoundToken fromCompound = _getCompoundToken(fromToken);
+            if (fromCompound != ICompoundToken(0)) {
+                return calculateUniswapReturn(
+                    fromCompound,
+                    toToken,
+                    amount.mul(1e18).div(fromCompound.exchangeRateStored()),
+                    disableFlags
+                );
+            }
+        } else {
+            ICompoundToken toCompound = _getCompoundToken(toToken);
+            if (toCompound != ICompoundToken(0)) {
+                return calculateUniswapReturn(
+                    fromToken,
+                    toCompound,
+                    amount,
+                    disableFlags
+                ).mul(toCompound.exchangeRateStored()).div(1e18);
+            }
+        }
+
+        return 0;
+    }
+
     function calculateKyberReturn(
         IERC20 fromToken,
         IERC20 toToken,
@@ -424,14 +489,14 @@ contract OneSplitBase is IOneSplit, OneSplitBaseBase {
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
-        uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
-        uint256 /*disableFlags*/ // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken
+        uint256[] memory distribution,
+        uint256 /*disableFlags*/ // See constants in IOneSplit.sol
     ) internal {
         if (fromToken == toToken) {
             return;
         }
 
-        function(IERC20,IERC20,uint256) returns(uint256)[9] memory reserves = [
+        function(IERC20,IERC20,uint256) returns(uint256)[10] memory reserves = [
             _swapOnUniswap,
             _swapOnKyber,
             _swapOnBancor,
@@ -440,7 +505,8 @@ contract OneSplitBase is IOneSplit, OneSplitBaseBase {
             _swapOnCurveUsdt,
             _swapOnCurveY,
             _swapOnCurveBinance,
-            _swapOnCurveSynthetix
+            _swapOnCurveSynthetix,
+            _swapOnUniswapCompound
         ];
 
         uint256 parts = 0;
@@ -574,6 +640,28 @@ contract OneSplitBase is IOneSplit, OneSplitBaseBase {
         }
 
         return returnAmount;
+    }
+
+    function _swapOnUniswapCompound(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    ) internal returns(uint256) {
+        if (!fromToken.isETH()) {
+            ICompoundToken fromCompound = _getCompoundToken(fromToken);
+            _infiniteApproveIfNeeded(fromToken, address(fromCompound));
+            fromCompound.mint(amount);
+            return _swapOnUniswap(IERC20(fromCompound), toToken, IERC20(fromCompound).universalBalanceOf(address(this)));
+        }
+
+        if (!toToken.isETH()) {
+            ICompoundToken toCompound = _getCompoundToken(toToken);
+            uint256 compoundAmount = _swapOnUniswap(fromToken, IERC20(toCompound), amount);
+            toCompound.redeem(compoundAmount);
+            return toToken.universalBalanceOf(address(this));
+        }
+
+        return 0;
     }
 
     function _swapOnKyber(
