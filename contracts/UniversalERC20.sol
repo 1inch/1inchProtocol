@@ -32,7 +32,7 @@ library UniversalERC20 {
         }
 
         if (isETH(token)) {
-            require(from == msg.sender && msg.value >= amount, "msg.value is zero");
+            require(from == msg.sender && msg.value >= amount, "Wrong useage of ETH.universalTransferFrom()");
             if (to != address(this)) {
                 address(uint160(to)).transfer(amount);
             }
@@ -41,6 +41,21 @@ library UniversalERC20 {
             }
         } else {
             token.safeTransferFrom(from, to, amount);
+        }
+    }
+
+    function universalTransferFromSenderToThis(IERC20 token, uint256 amount) internal {
+        if (amount == 0) {
+            return;
+        }
+
+        if (isETH(token)) {
+            if (msg.value > amount) {
+                // Return remainder if exist
+                msg.sender.transfer(msg.value.sub(amount));
+            }
+        } else {
+            token.safeTransferFrom(msg.sender, address(this), amount);
         }
     }
 
