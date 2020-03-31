@@ -23,7 +23,7 @@ contract OneSplitBdaiView is OneSplitBaseView, OneSplitBdaiBase {
         returns (uint256 returnAmount, uint256[] memory distribution)
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](10));
+            return (amount, new uint256[](11));
         }
 
         if (!disableFlags.check(FLAG_DISABLE_BDAI)) {

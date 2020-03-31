@@ -218,7 +218,8 @@ contract IOneSplitView {
     uint256 public constant FLAG_ENABLE_MULTI_PATH_USDC = 0x20000; // Turned off by default
     uint256 public constant FLAG_DISABLE_CURVE_SYNTHETIX = 0x40000;
     uint256 public constant FLAG_DISABLE_WETH = 0x80000;
-    uint256 public constant FLAG_ENABLE_UNISWAP_COMPOUND = 0x100000; // Works only with FLAG_ENABLE_MULTI_PATH_ETH
+    uint256 public constant FLAG_ENABLE_UNISWAP_COMPOUND = 0x100000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
+    uint256 public constant FLAG_ENABLE_UNISWAP_CHAI = 0x200000; // Works only when ETH<>DAI or FLAG_ENABLE_MULTI_PATH_ETH
 
     function getExpectedReturn(
         IERC20 fromToken,
@@ -644,13 +645,13 @@ library UniversalERC20 {
         (bool success, bytes memory data) = address(token).staticcall.gas(10000)(
             abi.encodeWithSignature("decimals()")
         );
-        if (!success) {
+        if (!success || data.length == 0) {
             (success, data) = address(token).staticcall.gas(10000)(
                 abi.encodeWithSignature("DECIMALS()")
             );
         }
 
-        return success ? abi.decode(data, (uint256)) : 18;
+        return (success && data.length > 0) ? abi.decode(data, (uint256)) : 18;
     }
 
     function isETH(IERC20 token) internal pure returns(bool) {
@@ -744,7 +745,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
         require(fromToken != toToken && amount > 0, "OneSplit: swap makes no sense");
         require((msg.value != 0) == fromToken.isETH(), "OneSplit: msg.value shoule be used only for ETH swap");
 
-        uint256 fromTokenBalanceBefore = fromToken.universalBalanceOf(address(this));
+        uint256 fromTokenBalanceBefore = fromToken.universalBalanceOf(address(this)).sub(msg.value);
         uint256 toTokenBalanceBefore = toToken.universalBalanceOf(address(this));
 
         fromToken.universalTransferFromSenderToThis(amount);
@@ -765,7 +766,14 @@ contract OneSplitAudit is IOneSplit, Ownable {
         uint256 returnAmount = toTokenBalanceAfter.sub(toTokenBalanceBefore);
         require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
         toToken.universalTransfer(msg.sender, returnAmount);
-        fromToken.universalTransfer(msg.sender, fromTokenBalanceAfter.sub(fromTokenBalanceBefore));
+
+        if (fromTokenBalanceAfter > fromTokenBalanceBefore) {
+            fromToken.universalTransfer(msg.sender, fromTokenBalanceAfter.sub(fromTokenBalanceBefore));
+        }
+    }
+
+    function claimAsset(IERC20 asset, uint256 amount) public onlyOwner {
+        asset.universalTransfer(msg.sender, amount);
     }
 
     //

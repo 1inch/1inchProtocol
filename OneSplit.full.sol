@@ -109,7 +109,8 @@ contract IOneSplitView {
     uint256 public constant FLAG_ENABLE_MULTI_PATH_USDC = 0x20000; // Turned off by default
     uint256 public constant FLAG_DISABLE_CURVE_SYNTHETIX = 0x40000;
     uint256 public constant FLAG_DISABLE_WETH = 0x80000;
-    uint256 public constant FLAG_ENABLE_UNISWAP_COMPOUND = 0x100000; // Works only with FLAG_ENABLE_MULTI_PATH_ETH
+    uint256 public constant FLAG_ENABLE_UNISWAP_COMPOUND = 0x100000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
+    uint256 public constant FLAG_ENABLE_UNISWAP_CHAI = 0x200000; // Works only when ETH<>DAI or FLAG_ENABLE_MULTI_PATH_ETH
 
     function getExpectedReturn(
         IERC20 fromToken,
@@ -504,6 +505,127 @@ interface ICurve {
     function exchange_underlying(int128 i, int128 j, uint256 dx, uint256 minDy) external;
 }
 
+// File: contracts/interface/IChai.sol
+
+pragma solidity ^0.5.0;
+
+
+
+interface IPot {
+    function dsr() external view returns (uint256);
+
+    function chi() external view returns (uint256);
+
+    function rho() external view returns (uint256);
+
+    function drip() external returns (uint256);
+
+    function join(uint256) external;
+
+    function exit(uint256) external;
+}
+
+
+contract IChai is IERC20 {
+    function POT() public view returns (IPot);
+
+    function join(address dst, uint256 wad) external;
+
+    function exit(address src, uint256 wad) external;
+}
+
+
+library ChaiHelper {
+    IPot private constant POT = IPot(0x197E90f9FAD81970bA7976f33CbD77088E5D7cf7);
+    uint256 private constant RAY = 10**27;
+
+    function _mul(uint256 x, uint256 y) private pure returns (uint256 z) {
+        require(y == 0 || (z = x * y) / y == x);
+    }
+
+    function _rmul(uint256 x, uint256 y) private pure returns (uint256 z) {
+        // always rounds down
+        z = _mul(x, y) / RAY;
+    }
+
+    function _rdiv(uint256 x, uint256 y) private pure returns (uint256 z) {
+        // always rounds down
+        z = _mul(x, RAY) / y;
+    }
+
+    function rpow(uint256 x, uint256 n, uint256 base) private pure returns (uint256 z) {
+        // solium-disable-next-line security/no-inline-assembly
+        assembly {
+            switch x
+                case 0 {
+                    switch n
+                        case 0 {
+                            z := base
+                        }
+                        default {
+                            z := 0
+                        }
+                }
+                default {
+                    switch mod(n, 2)
+                        case 0 {
+                            z := base
+                        }
+                        default {
+                            z := x
+                        }
+                    let half := div(base, 2) // for rounding.
+                    for {
+                        n := div(n, 2)
+                    } n {
+                        n := div(n, 2)
+                    } {
+                        let xx := mul(x, x)
+                        if iszero(eq(div(xx, x), x)) {
+                            revert(0, 0)
+                        }
+                        let xxRound := add(xx, half)
+                        if lt(xxRound, xx) {
+                            revert(0, 0)
+                        }
+                        x := div(xxRound, base)
+                        if mod(n, 2) {
+                            let zx := mul(z, x)
+                            if and(iszero(iszero(x)), iszero(eq(div(zx, x), z))) {
+                                revert(0, 0)
+                            }
+                            let zxRound := add(zx, half)
+                            if lt(zxRound, zx) {
+                                revert(0, 0)
+                            }
+                            z := div(zxRound, base)
+                        }
+                    }
+                }
+        }
+    }
+
+    function potDrip() private view returns (uint256) {
+        return _rmul(rpow(POT.dsr(), now - POT.rho(), RAY), POT.chi());
+    }
+
+    function daiToChai(
+        IChai, /*chai*/
+        uint256 amount
+    ) internal view returns (uint256) {
+        uint256 chi = (now > POT.rho()) ? potDrip() : POT.chi();
+        return _rdiv(amount, chi);
+    }
+
+    function chaiToDai(
+        IChai, /*chai*/
+        uint256 amount
+    ) internal view returns (uint256) {
+        uint256 chi = (now > POT.rho()) ? potDrip() : POT.chi();
+        return _rmul(chi, amount);
+    }
+}
+
 // File: contracts/interface/ICompound.sol
 
 pragma solidity ^0.5.0;
@@ -773,13 +895,13 @@ library UniversalERC20 {
         (bool success, bytes memory data) = address(token).staticcall.gas(10000)(
             abi.encodeWithSignature("decimals()")
         );
-        if (!success) {
+        if (!success || data.length == 0) {
             (success, data) = address(token).staticcall.gas(10000)(
                 abi.encodeWithSignature("DECIMALS()")
             );
         }
 
-        return success ? abi.decode(data, (uint256)) : 18;
+        return (success && data.length > 0) ? abi.decode(data, (uint256)) : 18;
     }
 
     function isETH(IERC20 token) internal pure returns(bool) {
@@ -790,6 +912,7 @@ library UniversalERC20 {
 // File: contracts/OneSplitBase.sol
 
 pragma solidity ^0.5.0;
+
 
 
 
@@ -823,6 +946,7 @@ contract OneSplitBaseBase {
     using UniversalERC20 for IERC20;
     using UniversalERC20 for IWETH;
     using UniversalERC20 for IBancorEtherToken;
+    using ChaiHelper for IChai;
 
     IERC20 constant public ETH_ADDRESS = IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
@@ -834,6 +958,7 @@ contract OneSplitBaseBase {
     IERC20 public susd = IERC20(0x57Ab1ec28D129707052df4dF418D58a2D46d5f51);
     IWETH public wethToken = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IBancorEtherToken public bancorEtherToken = IBancorEtherToken(0xc0829421C1d260BD3cB3E0F06cfE2D52db2cE315);
+    IChai public chai = IChai(0x06AF07097C9Eeb7fD685c692751D5C66dB49c215);
 
     IKyberNetworkProxy public kyberNetworkProxy = IKyberNetworkProxy(0x818E6FECD516Ecc3849DAf6845e3EC868087B755);
     IUniswapFactory public uniswapFactory = IUniswapFactory(0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95);
@@ -892,13 +1017,13 @@ contract OneSplitBaseView is IOneSplitView, OneSplitBaseBase {
             uint256[] memory distribution
         )
     {
-        distribution = new uint256[](10);
+        distribution = new uint256[](11);
 
         if (fromToken == toToken) {
             return (amount, distribution);
         }
 
-        function(IERC20,IERC20,uint256,uint256) view returns(uint256)[10] memory reserves = [
+        function(IERC20,IERC20,uint256,uint256) view returns(uint256)[11] memory reserves = [
             disableFlags.check(FLAG_DISABLE_UNISWAP)          ? _calculateNoReturn : calculateUniswapReturn,
             disableFlags.check(FLAG_DISABLE_KYBER)            ? _calculateNoReturn : calculateKyberReturn,
             disableFlags.check(FLAG_DISABLE_BANCOR)           ? _calculateNoReturn : calculateBancorReturn,
@@ -908,11 +1033,12 @@ contract OneSplitBaseView is IOneSplitView, OneSplitBaseBase {
             disableFlags.check(FLAG_DISABLE_CURVE_Y)          ? _calculateNoReturn : calculateCurveY,
             disableFlags.check(FLAG_DISABLE_CURVE_BINANCE)    ? _calculateNoReturn : calculateCurveBinance,
             disableFlags.check(FLAG_DISABLE_CURVE_SYNTHETIX)  ? _calculateNoReturn : calculateCurveSynthetix,
-            !disableFlags.check(FLAG_ENABLE_UNISWAP_COMPOUND) ? _calculateNoReturn : calculateUniswapCompound
+            !disableFlags.check(FLAG_ENABLE_UNISWAP_COMPOUND) ? _calculateNoReturn : calculateUniswapCompound,
+            !disableFlags.check(FLAG_ENABLE_UNISWAP_CHAI)     ? _calculateNoReturn : calculateUniswapChai
         ];
 
-        uint256[10] memory rates;
-        uint256[10] memory fullRates;
+        uint256[11] memory rates;
+        uint256[11] memory fullRates;
         for (uint i = 0; i < rates.length; i++) {
             rates[i] = reserves[i](fromToken, toToken, amount.div(parts), disableFlags);
             this.log(rates[i]);
@@ -1090,9 +1216,10 @@ contract OneSplitBaseView is IOneSplitView, OneSplitBaseBase {
         uint256 amount,
         uint256 disableFlags
     ) public view returns(uint256) {
-        if (!disableFlags.check(FLAG_ENABLE_MULTI_PATH_ETH) ||
-            !disableFlags.check(FLAG_ENABLE_UNISWAP_COMPOUND))
-        {
+        if (!disableFlags.check(FLAG_ENABLE_UNISWAP_COMPOUND)) {
+            return 0;
+        }
+        if (!fromToken.isETH() && !toToken.isETH()) {
             return 0;
         }
 
@@ -1116,6 +1243,37 @@ contract OneSplitBaseView is IOneSplitView, OneSplitBaseBase {
                     disableFlags
                 ).mul(toCompound.exchangeRateStored()).div(1e18);
             }
+        }
+
+        return 0;
+    }
+
+    function calculateUniswapChai(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 disableFlags
+    ) public view returns(uint256) {
+        if (!disableFlags.check(FLAG_ENABLE_UNISWAP_CHAI)) {
+            return 0;
+        }
+
+        if (fromToken == dai && toToken.isETH()) {
+            return calculateUniswapReturn(
+                chai,
+                toToken,
+                chai.daiToChai(amount),
+                disableFlags
+            );
+        }
+
+        if (fromToken.isETH() && toToken == dai) {
+            return chai.chaiToDai(calculateUniswapReturn(
+                fromToken,
+                chai,
+                amount,
+                disableFlags
+            ));
         }
 
         return 0;
@@ -1169,6 +1327,10 @@ contract OneSplitBaseView is IOneSplitView, OneSplitBaseBase {
         }
 
         (address reserve, uint256 rate) = abi.decode(data, (address,uint256));
+
+        if (rate == 0) {
+            return 0;
+        }
 
         if ((reserve == 0x31E085Afd48a1d6e51Cc193153d625e8f0514C7F && !disableFlags.check(FLAG_ENABLE_KYBER_UNISWAP_RESERVE)) ||
             (reserve == 0x1E158c0e93c30d24e918Ef83d1e0bE23595C3c0f && !disableFlags.check(FLAG_ENABLE_KYBER_OASIS_RESERVE)) ||
@@ -1286,7 +1448,7 @@ contract OneSplitBase is IOneSplit, OneSplitBaseBase {
             return;
         }
 
-        function(IERC20,IERC20,uint256) returns(uint256)[10] memory reserves = [
+        function(IERC20,IERC20,uint256) returns(uint256)[11] memory reserves = [
             _swapOnUniswap,
             _swapOnKyber,
             _swapOnBancor,
@@ -1296,12 +1458,15 @@ contract OneSplitBase is IOneSplit, OneSplitBaseBase {
             _swapOnCurveY,
             _swapOnCurveBinance,
             _swapOnCurveSynthetix,
-            _swapOnUniswapCompound
+            _swapOnUniswapCompound,
+            _swapOnUniswapChai
         ];
+
+        require(distribution.length <= reserves.length, "OneSplit: Distribution array should not exceed reserves array size");
 
         uint256 parts = 0;
         uint256 lastNonZeroIndex = 0;
-        for (uint i = 0; i < reserves.length; i++) {
+        for (uint i = 0; i < distribution.length; i++) {
             if (distribution[i] > 0) {
                 parts = parts.add(distribution[i]);
                 lastNonZeroIndex = i;
@@ -1311,7 +1476,7 @@ contract OneSplitBase is IOneSplit, OneSplitBaseBase {
         require(parts > 0, "OneSplit: distribution should contain non-zeros");
 
         uint256 remainingAmount = amount;
-        for (uint i = 0; i < reserves.length; i++) {
+        for (uint i = 0; i < distribution.length; i++) {
             if (distribution[i] == 0) {
                 continue;
             }
@@ -1454,6 +1619,26 @@ contract OneSplitBase is IOneSplit, OneSplitBaseBase {
         return 0;
     }
 
+    function _swapOnUniswapChai(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    ) internal returns(uint256) {
+        if (fromToken == dai) {
+            _infiniteApproveIfNeeded(fromToken, address(chai));
+            chai.join(address(this), amount);
+            return _swapOnUniswap(IERC20(chai), toToken, IERC20(chai).universalBalanceOf(address(this)));
+        }
+
+        if (toToken == dai) {
+            uint256 chaiAmount = _swapOnUniswap(fromToken, IERC20(chai), amount);
+            chai.exit(address(this), chaiAmount);
+            return toToken.universalBalanceOf(address(this));
+        }
+
+        return 0;
+    }
+
     function _swapOnKyber(
         IERC20 fromToken,
         IERC20 toToken,
@@ -1554,7 +1739,7 @@ contract OneSplitMultiPathView is OneSplitBaseView {
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](10));
+            return (amount, new uint256[](11));
         }
 
         if (!fromToken.isETH() && !toToken.isETH() && disableFlags.check(FLAG_ENABLE_MULTI_PATH_ETH)) {
@@ -1817,7 +2002,7 @@ contract OneSplitCompoundView is OneSplitBaseView, OneSplitCompoundBase {
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](10));
+            return (amount, new uint256[](11));
         }
 
         if (!disableFlags.check(FLAG_DISABLE_COMPOUND)) {
@@ -2045,7 +2230,7 @@ contract OneSplitFulcrumBase {
         }
 
         bool foundBZX = false;
-        for (uint i = 0; i < data.length - 7; i++) {
+        for (uint i = 0; i + 6 < data.length; i++) {
             if (data[i + 0] == "F" &&
                 data[i + 1] == "u" &&
                 data[i + 2] == "l" &&
@@ -2113,7 +2298,7 @@ contract OneSplitFulcrumView is OneSplitBaseView, OneSplitFulcrumBase {
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](10));
+            return (amount, new uint256[](11));
         }
 
         if (!disableFlags.check(FLAG_DISABLE_FULCRUM)) {
@@ -2238,127 +2423,6 @@ contract OneSplitFulcrum is OneSplitBase, OneSplitFulcrumBase {
     }
 }
 
-// File: contracts/interface/IChai.sol
-
-pragma solidity ^0.5.0;
-
-
-
-interface IPot {
-    function dsr() external view returns (uint256);
-
-    function chi() external view returns (uint256);
-
-    function rho() external view returns (uint256);
-
-    function drip() external returns (uint256);
-
-    function join(uint256) external;
-
-    function exit(uint256) external;
-}
-
-
-contract IChai is IERC20 {
-    function POT() public view returns (IPot);
-
-    function join(address dst, uint256 wad) external;
-
-    function exit(address src, uint256 wad) external;
-}
-
-
-library ChaiHelper {
-    IPot private constant POT = IPot(0x197E90f9FAD81970bA7976f33CbD77088E5D7cf7);
-    uint256 private constant RAY = 10**27;
-
-    function _mul(uint256 x, uint256 y) private pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x);
-    }
-
-    function _rmul(uint256 x, uint256 y) private pure returns (uint256 z) {
-        // always rounds down
-        z = _mul(x, y) / RAY;
-    }
-
-    function _rdiv(uint256 x, uint256 y) private pure returns (uint256 z) {
-        // always rounds down
-        z = _mul(x, RAY) / y;
-    }
-
-    function rpow(uint256 x, uint256 n, uint256 base) private pure returns (uint256 z) {
-        // solium-disable-next-line security/no-inline-assembly
-        assembly {
-            switch x
-                case 0 {
-                    switch n
-                        case 0 {
-                            z := base
-                        }
-                        default {
-                            z := 0
-                        }
-                }
-                default {
-                    switch mod(n, 2)
-                        case 0 {
-                            z := base
-                        }
-                        default {
-                            z := x
-                        }
-                    let half := div(base, 2) // for rounding.
-                    for {
-                        n := div(n, 2)
-                    } n {
-                        n := div(n, 2)
-                    } {
-                        let xx := mul(x, x)
-                        if iszero(eq(div(xx, x), x)) {
-                            revert(0, 0)
-                        }
-                        let xxRound := add(xx, half)
-                        if lt(xxRound, xx) {
-                            revert(0, 0)
-                        }
-                        x := div(xxRound, base)
-                        if mod(n, 2) {
-                            let zx := mul(z, x)
-                            if and(iszero(iszero(x)), iszero(eq(div(zx, x), z))) {
-                                revert(0, 0)
-                            }
-                            let zxRound := add(zx, half)
-                            if lt(zxRound, zx) {
-                                revert(0, 0)
-                            }
-                            z := div(zxRound, base)
-                        }
-                    }
-                }
-        }
-    }
-
-    function potDrip() private view returns (uint256) {
-        return _rmul(rpow(POT.dsr(), now - POT.rho(), RAY), POT.chi());
-    }
-
-    function daiToChai(
-        IChai, /*chai*/
-        uint256 amount
-    ) internal view returns (uint256) {
-        uint256 chi = (now > POT.rho()) ? potDrip() : POT.chi();
-        return _rdiv(amount, chi);
-    }
-
-    function chaiToDai(
-        IChai, /*chai*/
-        uint256 amount
-    ) internal view returns (uint256) {
-        uint256 chi = (now > POT.rho()) ? potDrip() : POT.chi();
-        return _rmul(chi, amount);
-    }
-}
-
 // File: contracts/OneSplitChai.sol
 
 pragma solidity ^0.5.0;
@@ -2366,14 +2430,7 @@ pragma solidity ^0.5.0;
 
 
 
-contract OneSplitChaiBase {
-    using ChaiHelper for IChai;
-
-    IChai public chai = IChai(0x06AF07097C9Eeb7fD685c692751D5C66dB49c215);
-}
-
-
-contract OneSplitChaiView is OneSplitBaseView, OneSplitChaiBase {
+contract OneSplitChaiView is OneSplitBaseView {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
@@ -2389,7 +2446,7 @@ contract OneSplitChaiView is OneSplitBaseView, OneSplitChaiBase {
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](10));
+            return (amount, new uint256[](11));
         }
 
         if (!disableFlags.check(FLAG_DISABLE_CHAI)) {
@@ -2426,7 +2483,7 @@ contract OneSplitChaiView is OneSplitBaseView, OneSplitChaiBase {
 }
 
 
-contract OneSplitChai is OneSplitBase, OneSplitChaiBase {
+contract OneSplitChai is OneSplitBase {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,
@@ -2514,7 +2571,7 @@ contract OneSplitBdaiView is OneSplitBaseView, OneSplitBdaiBase {
         returns (uint256 returnAmount, uint256[] memory distribution)
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](10));
+            return (amount, new uint256[](11));
         }
 
         if (!disableFlags.check(FLAG_DISABLE_BDAI)) {
@@ -2681,7 +2738,7 @@ contract OneSplitIearnView is OneSplitBaseView, OneSplitIearnBase {
         returns (uint256 returnAmount, uint256[] memory distribution)
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](10));
+            return (amount, new uint256[](11));
         }
 
         IIearn[10] memory yTokens = _yTokens();
@@ -2832,7 +2889,7 @@ contract OneSplitAaveBase {
         }
 
         bool foundAave = false;
-        for (uint i = 0; i < data.length - 4; i++) {
+        for (uint i = 0; i + 3 < data.length; i++) {
             if (data[i + 0] == "A" &&
                 data[i + 1] == "a" &&
                 data[i + 2] == "v" &&
@@ -3055,7 +3112,7 @@ contract OneSplitWethView is OneSplitBaseView {
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](10));
+            return (amount, new uint256[](11));
         }
 
         if (!disableFlags.check(FLAG_DISABLE_WETH)) {
@@ -3211,7 +3268,7 @@ contract OneSplitView is
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](10));
+            return (amount, new uint256[](11));
         }
 
         return super.getExpectedReturn(
@@ -3300,31 +3357,6 @@ contract OneSplit is
             fromToken,
             toToken,
             amount,
-            distribution,
-            disableFlags
-        );
-    }
-
-    function goodSwap(
-        IERC20 fromToken,
-        IERC20 toToken,
-        uint256 amount,
-        uint256 minReturn,
-        uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
-    ) public payable {
-        (, uint256[] memory distribution) = getExpectedReturn(
-            fromToken,
-            toToken,
-            amount,
-            parts,
-            disableFlags
-        );
-        swap(
-            fromToken,
-            toToken,
-            amount,
-            minReturn,
             distribution,
             disableFlags
         );

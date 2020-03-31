@@ -41,7 +41,7 @@ contract OneSplitView is
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](10));
+            return (amount, new uint256[](11));
         }
 
         return super.getExpectedReturn(
@@ -130,31 +130,6 @@ contract OneSplit is
             fromToken,
             toToken,
             amount,
-            distribution,
-            disableFlags
-        );
-    }
-
-    function goodSwap(
-        IERC20 fromToken,
-        IERC20 toToken,
-        uint256 amount,
-        uint256 minReturn,
-        uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
-    ) public payable {
-        (, uint256[] memory distribution) = getExpectedReturn(
-            fromToken,
-            toToken,
-            amount,
-            parts,
-            disableFlags
-        );
-        swap(
-            fromToken,
-            toToken,
-            amount,
-            minReturn,
             distribution,
             disableFlags
         );

@@ -21,7 +21,7 @@ contract OneSplitFulcrumBase {
         }
 
         bool foundBZX = false;
-        for (uint i = 0; i < data.length - 7; i++) {
+        for (uint i = 0; i + 6 < data.length; i++) {
             if (data[i + 0] == "F" &&
                 data[i + 1] == "u" &&
                 data[i + 2] == "l" &&
@@ -89,7 +89,7 @@ contract OneSplitFulcrumView is OneSplitBaseView, OneSplitFulcrumBase {
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](10));
+            return (amount, new uint256[](11));
         }
 
         if (!disableFlags.check(FLAG_DISABLE_FULCRUM)) {

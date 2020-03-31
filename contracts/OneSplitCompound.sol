@@ -81,7 +81,7 @@ contract OneSplitCompoundView is OneSplitBaseView, OneSplitCompoundBase {
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](10));
+            return (amount, new uint256[](11));
         }
 
         if (!disableFlags.check(FLAG_DISABLE_COMPOUND)) {

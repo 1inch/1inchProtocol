@@ -23,7 +23,7 @@ contract OneSplitAaveBase {
         }
 
         bool foundAave = false;
-        for (uint i = 0; i < data.length - 4; i++) {
+        for (uint i = 0; i + 3 < data.length; i++) {
             if (data[i + 0] == "A" &&
                 data[i + 1] == "a" &&
                 data[i + 2] == "v" &&
