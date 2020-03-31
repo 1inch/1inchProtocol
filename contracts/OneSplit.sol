@@ -1,4 +1,5 @@
 pragma solidity ^0.5.0;
+pragma experimental ABIEncoderV2;
 
 import "./IOneSplit.sol";
 import "./OneSplitBase.sol";
@@ -10,7 +11,7 @@ import "./OneSplitBdai.sol";
 import "./OneSplitIearn.sol";
 import "./OneSplitAave.sol";
 import "./OneSplitWeth.sol";
-//import "./OneSplitSmartToken.sol";
+import "./OneSplitSmartToken.sol";
 
 
 contract OneSplitView is
@@ -23,8 +24,8 @@ contract OneSplitView is
     OneSplitFulcrumView,
     OneSplitCompoundView,
     OneSplitIearnView,
-    OneSplitWethView
-    //OneSplitSmartTokenView
+    OneSplitWethView,
+    OneSplitSmartTokenView
 {
     function getExpectedReturn(
         IERC20 fromToken,

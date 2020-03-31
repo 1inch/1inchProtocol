@@ -3087,20 +3087,365 @@ contract OneSplitWeth is OneSplitBase {
     }
 }
 
-// File: contracts/OneSplit.sol
+// File: contracts/interface/ISmartTokenConverter.sol
+
+pragma solidity ^0.5.0;pragma experimental ABIEncoderV2;
+
+
+interface ISmartTokenConverter {
+
+    struct Reserve {
+        uint256 virtualBalance;         // reserve virtual balance
+        uint32 ratio;                   // reserve ratio, represented in ppm, 1-1000000
+        bool isVirtualBalanceEnabled;   // true if virtual balance is enabled, false if not
+        bool isSaleEnabled;             // is sale of the reserve token enabled, can be set by the owner
+        bool isSet;                     // used to tell if the mapping element is defined
+    }
+
+    function version() external view returns (uint16);
+
+    function reserves(address) external view returns (Reserve memory);
+
+    function getReserveRatio(IERC20 token) external view returns (uint256);
+
+    function connectorTokenCount() external view returns (uint256);
+
+    function connectorTokens(uint256 i) external view returns (IERC20);
+}
+
+// File: contracts/interface/ISmartToken.sol
 
 pragma solidity ^0.5.0;
 
 
 
 
+interface ISmartToken {
+    function owner() external view returns (ISmartTokenConverter);
+}
+
+// File: contracts/interface/ISmartTokenRegistry.sol
+
+pragma solidity ^0.5.0;
+
+
+
+interface ISmartTokenRegistry {
+    function isSmartToken(IERC20 token) external view returns (bool);
+}
+
+// File: contracts/interface/ISmartTokenFormula.sol
+
+pragma solidity ^0.5.0;
+
+
+
+interface ISmartTokenFormula {
+    function calculateLiquidateReturn(
+        uint256 supply,
+        uint256 reserveBalance,
+        uint32 totalRatio,
+        uint256 amount
+    ) external view returns (uint256);
+
+    function calculatePurchaseReturn(
+        uint256 supply,
+        uint256 reserveBalance,
+        uint32 totalRatio,
+        uint256 amount
+    ) external view returns (uint256);
+}
+
+// File: contracts/OneSplitSmartToken.sol
+
+pragma solidity ^0.5.0;
+pragma experimental ABIEncoderV2;
 
 
 
 
 
 
-//import "./OneSplitSmartToken.sol";
+
+contract OneSplitSmartTokenBase {
+    using SafeMath for uint256;
+
+    ISmartTokenRegistry smartTokenRegistry = ISmartTokenRegistry(0xf6E2D7F616B67E46D708e4410746E9AAb3a4C518);
+    ISmartTokenFormula smartTokenFormula = ISmartTokenFormula(0x524619EB9b4cdFFa7DA13029b33f24635478AFc0);
+
+    struct TokenWithRatio {
+        IERC20 token;
+        uint256 ratio;
+    }
+
+    struct SmartTokenDetails {
+        TokenWithRatio[] reserveTokenList;
+        address converter;
+        uint256 totalReserveTokensRatio;
+    }
+
+    function _getSmartTokenDetails(ISmartToken smartToken) internal view returns (SmartTokenDetails memory details) {
+        ISmartTokenConverter converter = smartToken.owner();
+        (TokenWithRatio[] memory reserveTokenList, uint256 totalReserveTokensRatio) = _getTokens(converter);
+
+        details.reserveTokenList = reserveTokenList;
+        details.converter = address(converter);
+        details.totalReserveTokensRatio = totalReserveTokensRatio;
+
+        return details;
+    }
+
+    function _getTokens(
+        ISmartTokenConverter converter
+    )
+        internal
+        view
+        returns(TokenWithRatio[] memory reserveTokenList, uint256 totalRatio)
+    {
+        reserveTokenList = new TokenWithRatio[](converter.connectorTokenCount());
+        for (uint256 i = 0; i < reserveTokenList.length; i++) {
+            reserveTokenList[i].token = converter.connectorTokens(i);
+            reserveTokenList[i].ratio = _getReserveRatio(converter, reserveTokenList[i].token);
+            totalRatio = totalRatio.add(reserveTokenList[i].ratio);
+        }
+        return (reserveTokenList, totalRatio);
+    }
+
+    function _getReserveRatio(
+        ISmartTokenConverter converter,
+        IERC20 token
+    )
+        internal
+        view
+        returns (uint256)
+    {
+        if (converter.version() >= 22) {
+            return converter.getReserveRatio(token);
+        }
+
+        return uint256(converter.reserves(address(token)).ratio);
+    }
+
+}
+
+
+contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
+
+    function getExpectedReturn(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 disableFlags
+    )
+        public
+        view
+        returns(
+            uint256,
+            uint256[] memory
+        )
+    {
+
+        if (fromToken == toToken) {
+            return (amount, new uint256[](9));
+        }
+
+        if (!disableFlags.check(FLAG_DISABLE_SMART_TOKEN)) {
+
+            if (smartTokenRegistry.isSmartToken(fromToken)) {
+
+                return _getExpectedReturnFromSmartToken(
+                    fromToken,
+                    toToken,
+                    amount,
+                    parts,
+                    disableFlags
+                );
+
+            }
+
+            if (smartTokenRegistry.isSmartToken(toToken)) {
+
+                return _getExpectedReturnToSmartToken(
+                    fromToken,
+                    toToken,
+                    amount,
+                    parts,
+                    disableFlags
+                );
+
+            }
+        }
+
+        return super.getExpectedReturn(
+            fromToken,
+            toToken,
+            amount,
+            parts,
+            disableFlags
+        );
+    }
+
+    function _getExpectedReturnFromSmartToken(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 disableFlags
+    )
+        internal
+        view
+        returns(
+            uint256 returnAmount,
+            uint256[] memory distribution
+        )
+    {
+        distribution = new uint256[](9);
+
+        SmartTokenDetails memory smartTokenDetails = _getSmartTokenDetails(ISmartToken(address(fromToken)));
+
+        for (uint256 i = 0; i < smartTokenDetails.reserveTokenList.length; i++) {
+            uint256 srcAmount = smartTokenFormula.calculateLiquidateReturn(
+                fromToken.totalSupply(),
+                smartTokenDetails.reserveTokenList[i].token.balanceOf(smartTokenDetails.converter),
+                uint32(smartTokenDetails.totalReserveTokensRatio),
+                amount
+            );
+
+            (uint256 ret, uint256[] memory dist) = super.getExpectedReturn(
+                smartTokenDetails.reserveTokenList[i].token,
+                toToken,
+                srcAmount,
+                parts,
+                disableFlags
+            );
+
+            returnAmount = returnAmount.add(ret);
+            for (uint j = 0; j < distribution.length; j++) {
+                distribution[j] = distribution[j].add(dist[j] << (i * 8));
+            }
+        }
+        return (returnAmount, distribution);
+    }
+
+    function _getExpectedReturnToSmartToken(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 disableFlags
+    )
+        internal
+        view
+        returns(
+            uint256 minFundAmount,
+            uint256[] memory distribution
+        )
+    {
+        distribution = new uint256[](9);
+        minFundAmount = uint256(-1);
+
+        SmartTokenDetails memory smartTokenDetails = _getSmartTokenDetails(ISmartToken(address(toToken)));
+
+        uint256[] memory fundAmounts = new uint256[](smartTokenDetails.reserveTokenList.length);
+        for (uint i = 0; i < smartTokenDetails.reserveTokenList.length; i++) {
+
+            uint256 exchangeAmount = _calcExchangeAmount(
+                amount,
+                smartTokenDetails.reserveTokenList[i].ratio,
+                smartTokenDetails.totalReserveTokensRatio
+            );
+
+            (uint256 tokenAmount, uint256[] memory dist) = super.getExpectedReturn(
+                fromToken,
+                smartTokenDetails.reserveTokenList[i].token,
+                exchangeAmount,
+                parts,
+                disableFlags | FLAG_DISABLE_BANCOR
+            );
+
+            for (uint j = 0; j < distribution.length; j++) {
+                distribution[j] = distribution[j].add(dist[j] << (i * 8));
+            }
+
+            fundAmounts[i] = toToken.totalSupply()
+                .mul(tokenAmount)
+                .div(smartTokenDetails.reserveTokenList[i].token.balanceOf(smartTokenDetails.converter));
+
+            if (fundAmounts[i] < minFundAmount) {
+                minFundAmount = fundAmounts[i];
+            }
+        }
+
+        // Swap leftovers for SmartToken
+        for (uint i = 0; i < smartTokenDetails.reserveTokenList.length; i++) {
+            uint256 reserveBalance = smartTokenDetails.reserveTokenList[i].token.balanceOf(smartTokenDetails.converter);
+
+            uint256 leftover = fundAmounts[i].sub(minFundAmount)
+                .mul(reserveBalance)
+                .div(toToken.totalSupply());
+
+            if (leftover > 0) {
+                minFundAmount = minFundAmount.add(
+                    smartTokenFormula.calculatePurchaseReturn(
+                        toToken.totalSupply(),
+                        reserveBalance,
+                        uint32(smartTokenDetails.totalReserveTokensRatio),
+                        leftover
+                    )
+                );
+            }
+        }
+
+        return (minFundAmount, distribution);
+    }
+
+    function _calcExchangeAmount(uint256 amount, uint256 ratio, uint256 totalRatio) internal pure returns (uint256) {
+        return amount.mul(ratio).div(totalRatio);
+    }
+
+}
+
+
+contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
+    function _swap(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256[] memory distribution,
+        uint256 disableFlags
+    ) internal {
+        if (fromToken == toToken) {
+            return;
+        }
+
+        // TODO:
+
+        return super._swap(
+            fromToken,
+            toToken,
+            amount,
+            distribution,
+            disableFlags
+        );
+    }
+}
+
+// File: contracts/OneSplit.sol
+
+pragma solidity ^0.5.0;
+pragma experimental ABIEncoderV2;
+
+
+
+
+
+
+
+
+
+
+
 
 
 contract OneSplitView is
@@ -3113,8 +3458,8 @@ contract OneSplitView is
     OneSplitFulcrumView,
     OneSplitCompoundView,
     OneSplitIearnView,
-    OneSplitWethView
-    //OneSplitSmartTokenView
+    OneSplitWethView,
+    OneSplitSmartTokenView
 {
     function getExpectedReturn(
         IERC20 fromToken,
