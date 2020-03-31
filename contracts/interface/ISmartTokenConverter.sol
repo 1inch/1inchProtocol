@@ -21,4 +21,9 @@ interface ISmartTokenConverter {
     function connectorTokenCount() external view returns (uint256);
 
     function connectorTokens(uint256 i) external view returns (IERC20);
+
+    function liquidate(uint256 _amount) external;
+
+    function fund(uint256 _amount) external;
+
 }
