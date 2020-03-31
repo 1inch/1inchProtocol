@@ -7,7 +7,6 @@ import "./interface/ISmartTokenConverter.sol";
 import "./interface/ISmartTokenFormula.sol";
 import "./OneSplitBase.sol";
 
-
 contract OneSplitSmartTokenBase {
     using SafeMath for uint256;
 
@@ -65,6 +64,10 @@ contract OneSplitSmartTokenBase {
         }
 
         return uint256(converter.reserves(address(token)).ratio);
+    }
+
+    function _calcExchangeAmount(uint256 amount, uint256 ratio, uint256 totalRatio) internal pure returns (uint256) {
+        return amount.mul(ratio).div(totalRatio);
     }
 
 }
@@ -241,17 +244,15 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
         return (minFundAmount, distribution);
     }
 
-    function _calcExchangeAmount(uint256 amount, uint256 ratio, uint256 totalRatio) private pure returns (uint256) {
-        return amount.mul(ratio).div(totalRatio);
-    }
-
 }
 
 
 contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
 
     // todo: think about smart tokens with one token in reserve
-    // todo: think about the case when toToken === reserveToken
+    // todo: think about the case when toToken == reserveToken
+    // todo: think about the case when fromToken == reserveToken
+    // todo: think about the case when fromToken == smartToken1, toToken == smartToken2
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,
@@ -345,8 +346,85 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
         uint256 disableFlags
     ) private {
 
-//    _infiniteApproveIfNeeded(smartTokenDetails.reserveTokenList[i].token, smartTokenDetails.converter);
+        uint256 minFundAmount = uint256(-1);
 
+        SmartTokenDetails memory smartTokenDetails = _getSmartTokenDetails(ISmartToken(address(toToken)));
+
+        uint256[] memory fundAmounts = new uint256[](smartTokenDetails.reserveTokenList.length);
+        for (uint16 i = 0; i < smartTokenDetails.reserveTokenList.length; i++) {
+
+            uint256 exchangeAmount = _calcExchangeAmount(
+                amount,
+                smartTokenDetails.reserveTokenList[i].ratio,
+                smartTokenDetails.totalReserveTokensRatio
+            );
+
+            uint256 tokenBalanceBefore = smartTokenDetails.reserveTokenList[i].token.balanceOf(msg.sender);
+
+            for (uint j = 0; j < distribution.length; j++) {
+                distribution[j] = (distribution[j] >> (i * 8)) & 0xFF;
+            }
+
+            super._swap(
+                fromToken,
+                smartTokenDetails.reserveTokenList[i].token,
+                exchangeAmount,
+                distribution,
+                disableFlags
+            );
+
+            uint256 tokenBalanceAfter = smartTokenDetails.reserveTokenList[i].token.balanceOf(msg.sender);
+
+            fundAmounts[i] = toToken.totalSupply()
+                .mul(tokenBalanceAfter.sub(tokenBalanceBefore))
+                .div(smartTokenDetails.reserveTokenList[i].token.balanceOf(smartTokenDetails.converter));
+
+            if (fundAmounts[i] < minFundAmount) {
+                minFundAmount = fundAmounts[i];
+            }
+
+            _infiniteApproveIfNeeded(smartTokenDetails.reserveTokenList[i].token, smartTokenDetails.converter);
+        }
+
+        ISmartTokenConverter(smartTokenDetails.converter).fund(minFundAmount);
+
+        // Swap leftovers for SmartToken
+        for (uint16 i = 0; i < smartTokenDetails.reserveTokenList.length; i++) {
+            uint256 reserveBalance = smartTokenDetails.reserveTokenList[i].token.balanceOf(smartTokenDetails.converter);
+
+            uint256 leftover = fundAmounts[i].sub(minFundAmount)
+                .mul(reserveBalance)
+                .div(toToken.totalSupply());
+
+            if (leftover > 0) {
+
+                convert(
+                    ISmartTokenConverter(smartTokenDetails.converter),
+                    smartTokenDetails.reserveTokenList[i].token,
+                    toToken,
+                    leftover
+                );
+
+            }
+        }
+
+    }
+
+    function convert(
+        ISmartTokenConverter converter,
+        IERC20 _fromToken,
+        IERC20 _toToken,
+        uint256 _amount
+    )
+        private
+        returns (uint256)
+    {
+        // todo: think about minReturn, affiliateAccount, affiliateFee
+        if (converter.version() >= 16) {
+            return converter.convert2(_fromToken, _toToken, _amount, 0, address(0), 0);
+        }
+
+        return converter.convert(_fromToken, _toToken, _amount, 0);
     }
 
 }
