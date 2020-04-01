@@ -422,10 +422,10 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
     {
         // todo: think about minReturn, affiliateAccount, affiliateFee
         if (converter.version() >= 16) {
-            return converter.convert2(_fromToken, _toToken, _amount, 0, address(0), 0);
+            return converter.convert2(_fromToken, _toToken, _amount, 1, address(0), 0);
         }
 
-        return converter.convert(_fromToken, _toToken, _amount, 0);
+        return converter.convert(_fromToken, _toToken, _amount, 1);
     }
 
 }
