@@ -89,7 +89,7 @@ contract OneSplitFulcrumView is OneSplitBaseView, OneSplitFulcrumBase {
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](11));
+            return (amount, new uint256[](DEXES_COUNT));
         }
 
         if (!disableFlags.check(FLAG_DISABLE_FULCRUM)) {

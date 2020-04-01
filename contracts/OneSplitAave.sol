@@ -8,8 +8,6 @@ import "./OneSplitBase.sol";
 contract OneSplitAaveBase {
     using UniversalERC20 for IERC20;
 
-    IAaveLendingPool public aave = IAaveLendingPool(0x398eC7346DcD622eDc5ae82352F02bE94C62d119);
-
     function _isAaveToken(IERC20 token) public view returns(IERC20) {
         if (token.isETH()) {
             return IERC20(-1);

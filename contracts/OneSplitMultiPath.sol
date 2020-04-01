@@ -19,7 +19,7 @@ contract OneSplitMultiPathView is OneSplitBaseView {
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](11));
+            return (amount, new uint256[](DEXES_COUNT));
         }
 
         if (!fromToken.isETH() && !toToken.isETH() && disableFlags.check(FLAG_ENABLE_MULTI_PATH_ETH)) {

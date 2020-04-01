@@ -26,6 +26,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
     }
 
     function() external payable {
+        // solium-disable-next-line security/no-tx-origin
         require(msg.sender != tx.origin, "OneSplit: do not send ETH directly");
     }
 

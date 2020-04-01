@@ -3,7 +3,7 @@ pragma solidity ^0.5.0;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 
-interface IAaveToken {
+contract IAaveToken is IERC20 {
     function underlyingAssetAddress() external view returns (IERC20);
 
     function redeem(uint256 amount) external;
