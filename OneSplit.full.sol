@@ -3089,7 +3089,8 @@ contract OneSplitWeth is OneSplitBase {
 
 // File: contracts/interface/ISmartTokenConverter.sol
 
-pragma solidity ^0.5.0;pragma experimental ABIEncoderV2;
+pragma solidity ^0.5.0;
+//pragma experimental ABIEncoderV2;
 
 
 interface ISmartTokenConverter {
@@ -3168,7 +3169,7 @@ interface ISmartTokenFormula {
 // File: contracts/OneSplitSmartToken.sol
 
 pragma solidity ^0.5.0;
-pragma experimental ABIEncoderV2;
+//pragma experimental ABIEncoderV2;
 
 
 
@@ -3498,7 +3499,7 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
             return super._swap(
                 smartTokenDetails.reserveTokenList[i].token,
                 toToken,
-                tokenBalanceAfter.sub(tokenBalanceBefore[i]),
+                tokenBalanceAfter.sub(tokenBalanceBefore[i]), 
                 dist[i],
                 disableFlags
             );
@@ -3666,8 +3667,8 @@ contract OneSplit is
     OneSplitFulcrum,
     OneSplitCompound,
     OneSplitIearn,
-    OneSplitWeth
-    //OneSplitSmartToken
+    OneSplitWeth,
+    OneSplitSmartToken
 {
     IOneSplitView public oneSplitView;
 

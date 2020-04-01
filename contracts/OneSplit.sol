@@ -66,8 +66,8 @@ contract OneSplit is
     OneSplitFulcrum,
     OneSplitCompound,
     OneSplitIearn,
-    OneSplitWeth
-    //OneSplitSmartToken
+    OneSplitWeth,
+    OneSplitSmartToken
 {
     IOneSplitView public oneSplitView;
 
