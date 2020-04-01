@@ -315,7 +315,7 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
         for (uint16 i = 0; i < smartTokenDetails.reserveTokenList.length; i++) {
             dist[i] = new uint256[](distribution.length);
 
-            tokenBalanceBefore[i] = smartTokenDetails.reserveTokenList[i].token.balanceOf(msg.sender);
+            tokenBalanceBefore[i] = smartTokenDetails.reserveTokenList[i].token.balanceOf(address(this));
 
             for (uint j = 0; j < distribution.length; j++) {
                 dist[i][j] = (distribution[j] >> (i * 8)) & 0xFF;
@@ -325,7 +325,7 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
         ISmartTokenConverter(smartTokenDetails.converter).liquidate(amount);
 
         for (uint16 i = 0; i < smartTokenDetails.reserveTokenList.length; i++) {
-            uint256 tokenBalanceAfter = smartTokenDetails.reserveTokenList[i].token.balanceOf(msg.sender);
+            uint256 tokenBalanceAfter = smartTokenDetails.reserveTokenList[i].token.balanceOf(address(this));
 
             return super._swap(
                 smartTokenDetails.reserveTokenList[i].token,
@@ -350,6 +350,7 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
 
         SmartTokenDetails memory smartTokenDetails = _getSmartTokenDetails(ISmartToken(address(toToken)));
 
+        uint256[] memory dist = new uint256[](distribution.length);
         uint256[] memory fundAmounts = new uint256[](smartTokenDetails.reserveTokenList.length);
         for (uint16 i = 0; i < smartTokenDetails.reserveTokenList.length; i++) {
 
@@ -359,21 +360,21 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
                 smartTokenDetails.totalReserveTokensRatio
             );
 
-            uint256 tokenBalanceBefore = smartTokenDetails.reserveTokenList[i].token.balanceOf(msg.sender);
+            uint256 tokenBalanceBefore = smartTokenDetails.reserveTokenList[i].token.balanceOf(address(this));
 
             for (uint j = 0; j < distribution.length; j++) {
-                distribution[j] = (distribution[j] >> (i * 8)) & 0xFF;
+                dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
             }
 
             super._swap(
                 fromToken,
                 smartTokenDetails.reserveTokenList[i].token,
                 exchangeAmount,
-                distribution,
+                dist,
                 disableFlags
             );
 
-            uint256 tokenBalanceAfter = smartTokenDetails.reserveTokenList[i].token.balanceOf(msg.sender);
+            uint256 tokenBalanceAfter = smartTokenDetails.reserveTokenList[i].token.balanceOf(address(this));
 
             fundAmounts[i] = toToken.totalSupply()
                 .mul(tokenBalanceAfter.sub(tokenBalanceBefore))
