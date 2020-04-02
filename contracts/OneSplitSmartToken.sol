@@ -1,5 +1,4 @@
 pragma solidity ^0.5.0;
-pragma experimental ABIEncoderV2;
 
 import "./interface/ISmartToken.sol";
 import "./interface/ISmartTokenRegistry.sol";
@@ -60,11 +59,15 @@ contract OneSplitSmartTokenBase {
         view
         returns (uint256)
     {
-        if (converter.version() >= 22) {
+
+        uint16 version = converter.version();
+        if (version >= 22) {
             return converter.getReserveRatio(token);
         }
 
-        return uint256(converter.reserves(address(token)).ratio);
+        (, uint32 ratio, , ,) = converter.connectors(address(token));
+
+        return uint256(ratio);
     }
 
     function _calcExchangeAmount(uint256 amount, uint256 ratio, uint256 totalRatio) internal pure returns (uint256) {
@@ -100,7 +103,6 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
             bool isSmartTokenFrom = smartTokenRegistry.isSmartToken(fromToken);
             bool isSmartTokenTo = smartTokenRegistry.isSmartToken(toToken);
 
-            // todo: figure out with the correct calc of distribution
             if (isSmartTokenFrom && isSmartTokenTo) {
 
                 (
@@ -324,7 +326,6 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
             bool isSmartTokenFrom = smartTokenRegistry.isSmartToken(fromToken);
             bool isSmartTokenTo = smartTokenRegistry.isSmartToken(toToken);
 
-            // todo: figure out with the correct calc of distribution
             if (isSmartTokenFrom && isSmartTokenTo) {
 
                 uint256[] memory dist = new uint256[](distribution.length);
@@ -499,6 +500,7 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
             }
 
             _infiniteApproveIfNeeded(smartTokenDetails.reserveTokenList[i].token, smartTokenDetails.converter);
+
         }
 
         ISmartTokenConverter(smartTokenDetails.converter).fund(minFundAmount);

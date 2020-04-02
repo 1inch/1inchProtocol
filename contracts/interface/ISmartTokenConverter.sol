@@ -1,20 +1,12 @@
-pragma solidity ^0.5.0;pragma experimental ABIEncoderV2;
+pragma solidity ^0.5.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface ISmartTokenConverter {
 
-    struct Reserve {
-        uint256 virtualBalance;         // reserve virtual balance
-        uint32 ratio;                   // reserve ratio, represented in ppm, 1-1000000
-        bool isVirtualBalanceEnabled;   // true if virtual balance is enabled, false if not
-        bool isSaleEnabled;             // is sale of the reserve token enabled, can be set by the owner
-        bool isSet;                     // used to tell if the mapping element is defined
-    }
-
     function version() external view returns (uint16);
 
-    function reserves(address) external view returns (Reserve memory);
+    function connectors(address) external view returns (uint256, uint32, bool, bool, bool);
 
     function getReserveRatio(IERC20 token) external view returns (uint256);
 
