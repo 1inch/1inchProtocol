@@ -243,6 +243,8 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
 
         SmartTokenDetails memory smartTokenDetails = _getSmartTokenDetails(ISmartToken(address(toToken)));
 
+        uint256 tokenAmount;
+        uint256[] memory dist;
         uint256[] memory fundAmounts = new uint256[](smartTokenDetails.reserveTokenList.length);
         for (uint16 i = 0; i < smartTokenDetails.reserveTokenList.length; i++) {
 
@@ -252,16 +254,14 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
                 smartTokenDetails.totalReserveTokensRatio
             );
 
-            uint256 tokenAmount;
-            uint256[] memory dist;
             if (smartTokenDetails.reserveTokenList[i].token != fromToken) {
 
-                (tokenAmount, dist) = super.getExpectedReturn(
+                (tokenAmount, dist) = _findBestSwapPrice(
                     fromToken,
                     smartTokenDetails.reserveTokenList[i].token,
                     exchangeAmount,
                     parts,
-                    disableFlags | FLAG_DISABLE_BANCOR
+                    disableFlags
                 );
 
                 for (uint j = 0; j < distribution.length; j++) {
@@ -284,20 +284,23 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
 
         }
 
+        uint256 _minFundAmount = minFundAmount;
+
         // Swap leftovers for SmartToken
         for (uint16 i = 0; i < smartTokenDetails.reserveTokenList.length; i++) {
 
             uint256 reserveBalance = smartTokenDetails.reserveTokenList[i].token.balanceOf(smartTokenDetails.converter);
+            uint256 totalSupply = toToken.totalSupply();
 
-            uint256 leftover = fundAmounts[i].sub(minFundAmount)
+            uint256 leftover = fundAmounts[i].sub(_minFundAmount)
                 .mul(reserveBalance)
-                .div(toToken.totalSupply());
+                .div(totalSupply);
 
             if (leftover > 0) {
 
                 minFundAmount = minFundAmount.add(
                     smartTokenFormula.calculatePurchaseReturn(
-                        toToken.totalSupply(),
+                        totalSupply,
                         reserveBalance,
                         uint32(smartTokenDetails.totalReserveTokensRatio),
                         leftover
@@ -309,6 +312,42 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
         }
 
         return (minFundAmount, distribution);
+    }
+
+    function _findBestSwapPrice(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 disableFlags
+    )
+        private
+        view
+        returns (uint256, uint256[] memory)
+    {
+
+        (uint256 tokenAmountWithBancor, uint256[] memory distWithBancor) = super.getExpectedReturn(
+            fromToken,
+            toToken,
+            amount,
+            parts,
+            disableFlags
+        );
+
+        (uint256 tokenAmount, uint256[] memory dist) = super.getExpectedReturn(
+            fromToken,
+            toToken,
+            amount,
+            parts,
+            disableFlags | FLAG_DISABLE_BANCOR
+        );
+
+        if (tokenAmountWithBancor > tokenAmount) {
+            return (tokenAmountWithBancor, distWithBancor);
+        }
+
+        return (tokenAmount, dist);
+
     }
 
 }
@@ -485,7 +524,7 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
                     smartTokenDetails.reserveTokenList[i].token,
                     exchangeAmount,
                     dist,
-                    disableFlags | FLAG_DISABLE_BANCOR
+                    disableFlags
                 );
 
                 uint256 tokenBalanceAfter = smartTokenDetails.reserveTokenList[i].token.balanceOf(address(this));
