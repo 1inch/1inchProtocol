@@ -554,7 +554,7 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
 
         }
 
-        smartTokenDetails.converter.call.gas(600000)(
+        smartTokenDetails.converter.call.gas(1000000)(
             abi.encodeWithSelector(
                 ISmartTokenConverter(smartTokenDetails.converter).fund.selector,
                 minFundAmount
@@ -569,18 +569,22 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
 
             uint256 tokenBalance =  smartTokenDetails.reserveTokenList[i].token.balanceOf(address(this));
 
-            if (tokenBalance > 0) {
+            if (tokenBalance == 0) {
+                continue;
+            }
 
-                super._swap(
+            address(this).staticcall.gas(1000000)(
+                abi.encodeWithSelector(
+                    this.swap.selector,
                     smartTokenDetails.reserveTokenList[i].token == originalSUSD
-                        ? susd : smartTokenDetails.reserveTokenList[i].token,
+                    ? susd : smartTokenDetails.reserveTokenList[i].token,
                     toToken,
                     tokenBalance,
+                    0,
                     dist,
                     FLAG_DISABLE_ALL_DEXES - FLAG_DISABLE_BANCOR
-                );
-
-            }
+                )
+            );
 
         }
 
