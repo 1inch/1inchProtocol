@@ -60,9 +60,15 @@ contract OneSplitSmartTokenBase {
         returns (uint256)
     {
 
-        uint16 version = converter.version();
-        if (version >= 22) {
-            return converter.getReserveRatio(token);
+        (bool ok, bytes memory data) = address(converter).staticcall.gas(10000)(
+            abi.encodeWithSelector(
+                converter.getReserveRatio.selector,
+                token
+            )
+        );
+
+        if (ok) {
+            return abi.decode(data, (uint256));
         }
 
         (, uint32 ratio, , ,) = converter.connectors(address(token));
@@ -275,6 +281,7 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
             if (fundAmounts[i] < minFundAmount) {
                 minFundAmount = fundAmounts[i];
             }
+
         }
 
         // Swap leftovers for SmartToken
@@ -478,7 +485,7 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
                     smartTokenDetails.reserveTokenList[i].token,
                     exchangeAmount,
                     dist,
-                    disableFlags
+                    disableFlags | FLAG_DISABLE_BANCOR
                 );
 
                 uint256 tokenBalanceAfter = smartTokenDetails.reserveTokenList[i].token.balanceOf(address(this));
@@ -538,8 +545,15 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
         private
         returns (uint256)
     {
-        if (converter.version() >= 16) {
-            return converter.convert2(_fromToken, _toToken, _amount, 1, address(0), 0);
+        (bool ok, bytes memory data) = address(converter).call.gas(300000)(
+            abi.encodeWithSelector(
+                converter.convert2.selector,
+                _fromToken, _toToken, _amount, 1, address(0), 0
+            )
+        );
+
+        if (ok) {
+            return abi.decode(data, (uint256));
         }
 
         return converter.convert(_fromToken, _toToken, _amount, 1);
