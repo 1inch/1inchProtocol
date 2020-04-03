@@ -355,6 +355,11 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
 
 contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
 
+    struct Amounts {
+        uint256[] fund;
+        uint256[] reserveTokenAmounts;
+    }
+
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,
@@ -450,38 +455,37 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
         SmartTokenDetails memory smartTokenDetails = _getSmartTokenDetails(ISmartToken(address(fromToken)));
 
         uint256[] memory tokenBalanceBefore = new uint256[](smartTokenDetails.reserveTokenList.length);
-        uint256[][] memory dist = new uint256[][](smartTokenDetails.reserveTokenList.length);
         for (uint16 i = 0; i < smartTokenDetails.reserveTokenList.length; i++) {
 
             if (smartTokenDetails.reserveTokenList[i].token == toToken) {
                 continue;
             }
 
-            dist[i] = new uint256[](distribution.length);
-
             tokenBalanceBefore[i] = smartTokenDetails.reserveTokenList[i].token.balanceOf(address(this));
-
-            for (uint j = 0; j < distribution.length; j++) {
-                dist[i][j] = (distribution[j] >> (i * 8)) & 0xFF;
-            }
 
         }
 
         ISmartTokenConverter(smartTokenDetails.converter).liquidate(amount);
 
+        uint256[] memory dist = new uint256[](distribution.length);
         for (uint16 i = 0; i < smartTokenDetails.reserveTokenList.length; i++) {
 
             if (smartTokenDetails.reserveTokenList[i].token == toToken) {
                 continue;
             }
 
+            for (uint j = 0; j < distribution.length; j++) {
+                dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
+            }
+
             uint256 tokenBalanceAfter = smartTokenDetails.reserveTokenList[i].token.balanceOf(address(this));
 
             super._swap(
-                smartTokenDetails.reserveTokenList[i].token,
+                smartTokenDetails.reserveTokenList[i].token == originalSUSD
+                    ? susd : smartTokenDetails.reserveTokenList[i].token,
                 toToken,
                 tokenBalanceAfter.sub(tokenBalanceBefore[i]),
-                dist[i],
+                dist,
                 disableFlags
             );
 
@@ -497,12 +501,12 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
         uint256 disableFlags
     ) private {
 
+        uint256[] memory dist = new uint256[](distribution.length);
         uint256 minFundAmount = uint256(-1);
 
         SmartTokenDetails memory smartTokenDetails = _getSmartTokenDetails(ISmartToken(address(toToken)));
 
-        uint256[] memory dist = new uint256[](distribution.length);
-        uint256[] memory fundAmounts = new uint256[](smartTokenDetails.reserveTokenList.length);
+        uint256 curFundAmount;
         for (uint16 i = 0; i < smartTokenDetails.reserveTokenList.length; i++) {
 
             uint256 exchangeAmount = _calcExchangeAmount(
@@ -521,7 +525,8 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
 
                 super._swap(
                     fromToken,
-                    smartTokenDetails.reserveTokenList[i].token,
+                    smartTokenDetails.reserveTokenList[i].token == originalSUSD
+                        ? susd : smartTokenDetails.reserveTokenList[i].token,
                     exchangeAmount,
                     dist,
                     disableFlags
@@ -529,44 +534,50 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
 
                 uint256 tokenBalanceAfter = smartTokenDetails.reserveTokenList[i].token.balanceOf(address(this));
 
-                fundAmounts[i] = toToken.totalSupply()
+                curFundAmount = toToken.totalSupply()
                     .mul(tokenBalanceAfter.sub(tokenBalanceBefore))
                     .div(smartTokenDetails.reserveTokenList[i].token.balanceOf(smartTokenDetails.converter));
 
             } else {
 
-                fundAmounts[i] = toToken.totalSupply()
+                curFundAmount = toToken.totalSupply()
                     .mul(exchangeAmount)
                     .div(smartTokenDetails.reserveTokenList[i].token.balanceOf(smartTokenDetails.converter));
 
             }
 
-            if (fundAmounts[i] < minFundAmount) {
-                minFundAmount = fundAmounts[i];
+            if (curFundAmount < minFundAmount) {
+                minFundAmount = curFundAmount;
             }
 
             _infiniteApproveIfNeeded(smartTokenDetails.reserveTokenList[i].token, smartTokenDetails.converter);
 
         }
 
-        ISmartTokenConverter(smartTokenDetails.converter).fund(minFundAmount);
+        smartTokenDetails.converter.call.gas(600000)(
+            abi.encodeWithSelector(
+                ISmartTokenConverter(smartTokenDetails.converter).fund.selector,
+                minFundAmount
+            )
+        );
+
+        dist = new uint256[](distribution.length);
+        dist[2] = 1;
 
         // Swap leftovers for SmartToken
         for (uint16 i = 0; i < smartTokenDetails.reserveTokenList.length; i++) {
 
-            uint256 reserveBalance = smartTokenDetails.reserveTokenList[i].token.balanceOf(smartTokenDetails.converter);
+            uint256 tokenBalance =  smartTokenDetails.reserveTokenList[i].token.balanceOf(address(this));
 
-            uint256 leftover = fundAmounts[i].sub(minFundAmount)
-                .mul(reserveBalance)
-                .div(toToken.totalSupply());
+            if (tokenBalance > 0) {
 
-            if (leftover > 0) {
-
-                convert(
-                    ISmartTokenConverter(smartTokenDetails.converter),
-                    smartTokenDetails.reserveTokenList[i].token,
+                super._swap(
+                    smartTokenDetails.reserveTokenList[i].token == originalSUSD
+                        ? susd : smartTokenDetails.reserveTokenList[i].token,
                     toToken,
-                    leftover
+                    tokenBalance,
+                    dist,
+                    FLAG_DISABLE_ALL_DEXES - FLAG_DISABLE_BANCOR
                 );
 
             }
