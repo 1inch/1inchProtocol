@@ -573,11 +573,11 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
                 continue;
             }
 
-            address(this).staticcall.gas(1000000)(
+            (bool successExchange, ) = address(this).call.gas(1000000)(
                 abi.encodeWithSelector(
                     this.swap.selector,
                     smartTokenDetails.reserveTokenList[i].token == originalSUSD
-                    ? susd : smartTokenDetails.reserveTokenList[i].token,
+                        ? susd : smartTokenDetails.reserveTokenList[i].token,
                     toToken,
                     tokenBalance,
                     0,
@@ -585,6 +585,12 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
                     FLAG_DISABLE_ALL_DEXES - FLAG_DISABLE_BANCOR
                 )
             );
+
+            if (successExchange) {
+                continue;
+            }
+
+            smartTokenDetails.reserveTokenList[i].token.transfer(msg.sender, tokenBalance);
 
         }
 
