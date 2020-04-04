@@ -353,11 +353,6 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
 
 contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
 
-    struct Amounts {
-        uint256[] fund;
-        uint256[] reserveTokenAmounts;
-    }
-
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,
