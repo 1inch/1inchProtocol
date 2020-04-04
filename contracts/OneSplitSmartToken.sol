@@ -274,8 +274,8 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
 
             uint256 leftover = tokenAmounts[i].sub(
                 smartTokenFormula.calculateLiquidateReturn(
-                    _smartToken.totalSupply(),
-                    details.tokens[i].token.balanceOf(details.converter),
+                    _smartToken.totalSupply().add(_minFundAmount),
+                    details.tokens[i].token.balanceOf(details.converter).add(tokenAmounts[i]),
                     uint32(details.totalRatio),
                     _minFundAmount
                 )

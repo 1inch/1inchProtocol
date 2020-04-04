@@ -4,20 +4,19 @@ const assert = require('assert');
 
 const OneSplitViewMock = artifacts.require('OneSplitViewMock');
 const OneSplitMock = artifacts.require('OneSplitMock');
-const OneSplitSmartTokenView = artifacts.require('OneSplitSmartTokenView');
 
 contract('OneSplit', function ([_, addr1]) {
 
     describe('OneSplitSmartContract', async function () {
         beforeEach('should be ok', async function () {
-            this.smartTokenView = await OneSplitSmartTokenView.new();
+            this.smartTokenView = await OneSplitViewMock.new();
         });
 
         it('should view buying price', async function () {
             const res = await this.smartTokenView.getExpectedReturn(
                 '0x0000000000000000000000000000000000000000', // ETH
                 '0x482c31355F4f7966fFcD38eC5c9635ACAe5F4D4F', // Ether Token Smart Relay Token (ETHUSDB)
-                '0x' + Number(web3.utils.toWei('20')).toString(16),
+                '0x' + Number(web3.utils.toWei('0.5')).toString(16),
                 '0x' + (10).toString(16),
                 '0x0',
             );
