@@ -209,7 +209,8 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
             }
 
             (uint256 ret, uint256[] memory dist) = super.getExpectedReturn(
-                smartTokenDetails.reserveTokenList[i].token,
+                smartTokenDetails.reserveTokenList[i].token == originalSUSD
+                    ? susd : smartTokenDetails.reserveTokenList[i].token,
                 toToken,
                 srcAmount,
                 parts,
@@ -256,9 +257,10 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
 
             if (smartTokenDetails.reserveTokenList[i].token != fromToken) {
 
-                (tokenAmount, dist) = _findBestSwapPrice(
+                (tokenAmount, dist) = super.getExpectedReturn(
                     fromToken,
-                    smartTokenDetails.reserveTokenList[i].token,
+                    smartTokenDetails.reserveTokenList[i].token == originalSUSD
+                    ? susd : smartTokenDetails.reserveTokenList[i].token,
                     exchangeAmount,
                     parts,
                     disableFlags
@@ -285,36 +287,39 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
         }
 
         uint256 _minFundAmount = minFundAmount;
+        IERC20 _toToken = toToken;
 
         // Swap leftovers for SmartToken
         for (uint16 i = 0; i < smartTokenDetails.reserveTokenList.length; i++) {
 
+            if (_minFundAmount == fundAmounts[i]) {
+                continue;
+            }
+
             uint256 reserveBalance = smartTokenDetails.reserveTokenList[i].token.balanceOf(smartTokenDetails.converter);
-            uint256 totalSupply = toToken.totalSupply();
+            uint256 totalSmartTokenSupply = _toToken.totalSupply();
 
             uint256 leftover = fundAmounts[i].sub(_minFundAmount)
                 .mul(reserveBalance)
-                .div(totalSupply);
+                .div(totalSmartTokenSupply);
 
-            if (leftover > 0) {
+            (tokenAmount, dist) = super.getExpectedReturn(
+                smartTokenDetails.reserveTokenList[i].token == originalSUSD
+                    ? susd : smartTokenDetails.reserveTokenList[i].token,
+                _toToken,
+                leftover,
+                1,
+                FLAG_DISABLE_ALL - FLAG_DISABLE_BANCOR
+            );
 
-                minFundAmount = minFundAmount.add(
-                    smartTokenFormula.calculatePurchaseReturn(
-                        totalSupply,
-                        reserveBalance,
-                        uint32(smartTokenDetails.totalReserveTokensRatio),
-                        leftover
-                    )
-                );
-
-            }
+            minFundAmount = minFundAmount.add(tokenAmount);
 
         }
 
         return (minFundAmount, distribution);
     }
 
-    function _findBestSwapPrice(
+    function _safeGetExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
@@ -323,31 +328,24 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
     )
         private
         view
-        returns (uint256, uint256[] memory)
+        returns (uint256 returnAmount, uint256[] memory distribution)
     {
-
-        (uint256 tokenAmountWithBancor, uint256[] memory distWithBancor) = super.getExpectedReturn(
-            fromToken,
-            toToken,
-            amount,
-            parts,
-            disableFlags
+        (bool successExchange, bytes memory data) = address(this).staticcall.gas(600000)(
+            abi.encodeWithSelector(
+                this.getExpectedReturn.selector,
+                fromToken,
+                toToken,
+                amount,
+                parts,
+                disableFlags
+            )
         );
 
-        (uint256 tokenAmount, uint256[] memory dist) = super.getExpectedReturn(
-            fromToken,
-            toToken,
-            amount,
-            parts,
-            disableFlags | FLAG_DISABLE_BANCOR
-        );
-
-        if (tokenAmountWithBancor > tokenAmount) {
-            return (tokenAmountWithBancor, distWithBancor);
+        if (!successExchange) {
+            return (returnAmount, new uint256[](9));
         }
 
-        return (tokenAmount, dist);
-
+        return abi.decode(data, (uint256, uint256[]));
     }
 
 }
@@ -554,7 +552,7 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
 
         }
 
-        smartTokenDetails.converter.call.gas(1000000)(
+        smartTokenDetails.converter.call.gas(2000000)(
             abi.encodeWithSelector(
                 ISmartTokenConverter(smartTokenDetails.converter).fund.selector,
                 minFundAmount
@@ -573,16 +571,16 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
                 continue;
             }
 
-            (bool successExchange, ) = address(this).call.gas(1000000)(
+            (bool successExchange, ) = address(this).call.gas(2000000)(
                 abi.encodeWithSelector(
                     this.swap.selector,
                     smartTokenDetails.reserveTokenList[i].token == originalSUSD
                         ? susd : smartTokenDetails.reserveTokenList[i].token,
                     toToken,
                     tokenBalance,
-                    0,
+                    1,
                     dist,
-                    FLAG_DISABLE_ALL_DEXES - FLAG_DISABLE_BANCOR
+                    0
                 )
             );
 
@@ -596,27 +594,27 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
 
     }
 
-    function convert(
-        ISmartTokenConverter converter,
-        IERC20 _fromToken,
-        IERC20 _toToken,
-        uint256 _amount
-    )
-        private
-        returns (uint256)
-    {
-        (bool ok, bytes memory data) = address(converter).call.gas(300000)(
-            abi.encodeWithSelector(
-                converter.convert2.selector,
-                _fromToken, _toToken, _amount, 1, address(0), 0
-            )
-        );
-
-        if (ok) {
-            return abi.decode(data, (uint256));
-        }
-
-        return converter.convert(_fromToken, _toToken, _amount, 1);
-    }
+//    function convert(
+//        ISmartTokenConverter converter,
+//        IERC20 _fromToken,
+//        IERC20 _toToken,
+//        uint256 _amount
+//    )
+//        private
+//        returns (uint256)
+//    {
+//        (bool ok, bytes memory data) = address(converter).call.gas(300000)(
+//            abi.encodeWithSelector(
+//                converter.convert2.selector,
+//                _fromToken, _toToken, _amount, 1, address(0), 0
+//            )
+//        );
+//
+//        if (ok) {
+//            return abi.decode(data, (uint256));
+//        }
+//
+//        return converter.convert(_fromToken, _toToken, _amount, 1);
+//    }
 
 }

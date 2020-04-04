@@ -29,7 +29,7 @@ contract IOneSplitView {
     uint256 public constant FLAG_DISABLE_CURVE_SYNTHETIX = 0x40000;
     uint256 public constant FLAG_DISABLE_WETH = 0x80000;
 
-    uint256 public constant FLAG_DISABLE_ALL_DEXES =
+    uint256 public constant FLAG_DISABLE_ALL =
         FLAG_DISABLE_UNISWAP |
         FLAG_DISABLE_KYBER |
         FLAG_DISABLE_BANCOR |
