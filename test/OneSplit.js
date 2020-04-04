@@ -1,4 +1,4 @@
-const { expectRevert } = require('openzeppelin-test-helpers');
+const { expectRevert } = require('@openzeppelin/test-helpers');
 const { expect } = require('chai');
 const assert = require('assert');
 
@@ -21,7 +21,7 @@ contract('OneSplit', function ([_, addr1]) {
                 '0x' + (10).toString(16),
                 '0x0',
             );
-            
+
             console.log(res['0'].toString());
             console.log(res['1'].map(x => x.toString()));
         });
@@ -34,7 +34,7 @@ contract('OneSplit', function ([_, addr1]) {
                 '0x' + (10).toString(16),
                 '0x0'
             );
-            
+
             console.log(res['0'].toString());
             console.log(res['1'].map(x => x.toString()));
         });
@@ -132,7 +132,7 @@ contract('OneSplit', function ([_, addr1]) {
             );
 
             const returnAmount = web3.utils.fromWei(res.returnAmount.toString(), 'ether');
-            
+
             console.log(`input: ${inputAmount} ETH`);
             console.log(`returnAmount: ${returnAmount} bDAI`);
             console.log('distributionBdai:', res.distribution.map(a => a.toString()));
