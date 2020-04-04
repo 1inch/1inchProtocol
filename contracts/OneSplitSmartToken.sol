@@ -398,7 +398,7 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
                 dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
             }
 
-            _safeTokenSwap(
+            this.swap(
                 _canonicalSUSD(details.tokens[i].token),
                 toToken,
                 details.tokens[i].token.balanceOf(address(this)),
@@ -470,48 +470,13 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
 
         ISmartTokenConverter(details.converter).fund(minFundAmount);
 
-        dist = new uint256[](distribution.length);
-        dist[2] = 1;
-
         // Swap leftovers for SmartToken
         for (uint i = 0; i < details.tokens.length; i++) {
-            _safeTokenSwap(
+            _swapOnBancorSafe(
                 _canonicalSUSD(details.tokens[i].token),
                 smartToken,
-                details.tokens[i].token.balanceOf(address(this)),
-                0,
-                dist,
-                FLAG_DISABLE_SMART_TOKEN | FLAG_DISABLE_ALL_WRAPPERS
+                details.tokens[i].token.balanceOf(address(this))
             );
-        }
-    }
-
-    function _safeTokenSwap(
-        IERC20 fromToken,
-        IERC20 toToken,
-        uint256 amount,
-        uint256 minReturnAmount,
-        uint256[] memory distribution,
-        uint256 disableFlags
-    ) private {
-        if (amount == 0) {
-            return;
-        }
-
-        (bool successExchange, ) = address(this).call.gas(600000)(
-            abi.encodeWithSelector(
-                this.swap.selector,
-                fromToken,
-                toToken,
-                amount,
-                minReturnAmount,
-                distribution,
-                disableFlags
-            )
-        );
-
-        if (!successExchange) {
-            fromToken.universalTransfer(msg.sender, amount);
         }
     }
 }

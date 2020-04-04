@@ -599,6 +599,20 @@ contract OneSplitBase is IOneSplit, OneSplitBaseBase {
         IERC20 toToken,
         uint256 amount
     ) internal returns(uint256) {
+        uint256 ret = _swapOnBancorSafe(
+            fromToken,
+            toToken,
+            amount
+        );
+        require(ret > 0);
+        return ret;
+    }
+
+    function _swapOnBancorSafe(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    ) internal returns(uint256) {
         if (fromToken.isETH()) {
             bancorEtherToken.deposit.value(amount)();
         }
@@ -610,9 +624,18 @@ contract OneSplitBase is IOneSplit, OneSplitBaseBase {
         );
 
         _infiniteApproveIfNeeded(fromToken.isETH() ? bancorEtherToken : fromToken, address(bancorNetwork));
-        uint256 returnAmount = bancorNetwork.claimAndConvert(path, amount, 1);
+        (bool success, bytes memory data) = address(bancorNetwork).call.gas(1500000)(
+            abi.encodeWithSelector(
+                bancorNetwork.claimAndConvert.selector,
+                path,
+                amount,
+                1
+            )
+        );
 
-        if (toToken.isETH()) {
+        uint256 returnAmount = success ? abi.decode(data, (uint256)) : 0;
+
+        if (toToken.isETH() && returnAmount > 0) {
             bancorEtherToken.withdraw(bancorEtherToken.balanceOf(address(this)));
         }
 
