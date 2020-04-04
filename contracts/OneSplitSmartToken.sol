@@ -277,7 +277,7 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
                     _smartToken.totalSupply(),
                     details.tokens[i].token.balanceOf(details.converter),
                     uint32(details.totalRatio),
-                    fundAmounts[i]
+                    _minFundAmount
                 )
             );
 
