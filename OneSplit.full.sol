@@ -1805,7 +1805,7 @@ contract OneSplitBase is IOneSplit, OneSplitBaseBase {
     ) internal returns(uint256) {
         if (!fromToken.isETH()) {
             IAaveToken fromAave = _getAaveToken(fromToken);
-            _infiniteApproveIfNeeded(fromToken, address(fromAave));
+            _infiniteApproveIfNeeded(fromToken, aave.core());
             aave.deposit(fromToken, amount, 1101);
             return _swapOnUniswap(IERC20(fromAave), toToken, IERC20(fromAave).universalBalanceOf(address(this)));
         }
