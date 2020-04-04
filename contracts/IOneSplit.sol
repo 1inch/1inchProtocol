@@ -29,11 +29,18 @@ contract IOneSplitView {
     uint256 public constant FLAG_DISABLE_CURVE_SYNTHETIX = 0x40000;
     uint256 public constant FLAG_DISABLE_WETH = 0x80000;
 
-    uint256 public constant FLAG_DISABLE_ALL =
+    uint256 public constant FLAG_DISABLE_ALL_SOURCES =
         FLAG_DISABLE_UNISWAP |
         FLAG_DISABLE_KYBER |
         FLAG_DISABLE_BANCOR |
         FLAG_DISABLE_OASIS |
+        FLAG_DISABLE_CURVE_COMPOUND |
+        FLAG_DISABLE_CURVE_USDT |
+        FLAG_DISABLE_CURVE_Y |
+        FLAG_DISABLE_CURVE_BINANCE |
+        FLAG_DISABLE_CURVE_SYNTHETIX;
+
+    uint256 public constant FLAG_DISABLE_ALL_WRAPPERS =
         FLAG_DISABLE_COMPOUND |
         FLAG_DISABLE_FULCRUM |
         FLAG_DISABLE_CHAI |
@@ -41,12 +48,9 @@ contract IOneSplitView {
         FLAG_DISABLE_SMART_TOKEN |
         FLAG_DISABLE_BDAI |
         FLAG_DISABLE_IEARN |
-        FLAG_DISABLE_CURVE_COMPOUND |
-        FLAG_DISABLE_CURVE_USDT |
-        FLAG_DISABLE_CURVE_Y |
-        FLAG_DISABLE_CURVE_BINANCE |
-        FLAG_DISABLE_CURVE_SYNTHETIX |
         FLAG_DISABLE_WETH;
+
+    uint256 public constant FLAG_DISABLE_ALL = FLAG_DISABLE_ALL_SOURCES | FLAG_DISABLE_ALL_WRAPPERS;
 
     function getExpectedReturn(
         IERC20 fromToken,

@@ -12,6 +12,7 @@ contract OneSplitSmartTokenBase {
     ISmartTokenRegistry smartTokenRegistry = ISmartTokenRegistry(0xf6E2D7F616B67E46D708e4410746E9AAb3a4C518);
     ISmartTokenFormula smartTokenFormula = ISmartTokenFormula(0x524619EB9b4cdFFa7DA13029b33f24635478AFc0);
     IERC20 bntToken = IERC20(0x1F573D6Fb3F13d689FF844B4cE37794d79a7FF1C);
+    IERC20 usdbToken = IERC20(0x309627af60F0926daa6041B8279484312f2bf060);
 
     struct TokenWithRatio {
         IERC20 token;
@@ -22,15 +23,21 @@ contract OneSplitSmartTokenBase {
         TokenWithRatio[] reserveTokenList;
         address converter;
         uint256 totalReserveTokensRatio;
+        bool hasHubToken;
     }
 
     function _getSmartTokenDetails(ISmartToken smartToken) internal view returns (SmartTokenDetails memory details) {
         ISmartTokenConverter converter = smartToken.owner();
-        (TokenWithRatio[] memory reserveTokenList, uint256 totalReserveTokensRatio) = _getTokens(converter);
+        (
+            TokenWithRatio[] memory reserveTokenList,
+            uint256 totalReserveTokensRatio,
+            bool hasHubToken
+        ) = _getTokens(converter);
 
         details.reserveTokenList = reserveTokenList;
         details.converter = address(converter);
         details.totalReserveTokensRatio = totalReserveTokensRatio;
+        details.hasHubToken = hasHubToken;
 
         return details;
     }
@@ -40,15 +47,23 @@ contract OneSplitSmartTokenBase {
     )
         internal
         view
-        returns(TokenWithRatio[] memory reserveTokenList, uint256 totalRatio)
+        returns(TokenWithRatio[] memory reserveTokenList, uint256 totalRatio, bool hasHubToken)
     {
         reserveTokenList = new TokenWithRatio[](converter.connectorTokenCount());
         for (uint256 i = 0; i < reserveTokenList.length; i++) {
             reserveTokenList[i].token = converter.connectorTokens(i);
             reserveTokenList[i].ratio = _getReserveRatio(converter, reserveTokenList[i].token);
             totalRatio = totalRatio.add(reserveTokenList[i].ratio);
+
+            hasHubToken = hasHubToken ||
+                (
+                    reserveTokenList[i].token == bntToken ||
+                    reserveTokenList[i].token == usdbToken
+                );
+
         }
-        return (reserveTokenList, totalRatio);
+
+        return (reserveTokenList, totalRatio, hasHubToken);
     }
 
     function _getReserveRatio(
@@ -208,7 +223,7 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
                 continue;
             }
 
-            (uint256 ret, uint256[] memory dist) = super.getExpectedReturn(
+            (uint256 ret, uint256[] memory dist) = getExpectedReturn(
                 smartTokenDetails.reserveTokenList[i].token == originalSUSD
                     ? susd : smartTokenDetails.reserveTokenList[i].token,
                 toToken,
@@ -257,7 +272,7 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
 
             if (smartTokenDetails.reserveTokenList[i].token != fromToken) {
 
-                (tokenAmount, dist) = super.getExpectedReturn(
+                (tokenAmount, dist) = getExpectedReturn(
                     fromToken,
                     smartTokenDetails.reserveTokenList[i].token == originalSUSD
                         ? susd : smartTokenDetails.reserveTokenList[i].token,
@@ -286,6 +301,10 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
 
         }
 
+        if (!smartTokenDetails.hasHubToken) {
+            return (minFundAmount, distribution);
+        }
+
         uint256 _minFundAmount = minFundAmount;
         IERC20 _toToken = toToken;
 
@@ -303,13 +322,13 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
                 .mul(reserveBalance)
                 .div(totalSmartTokenSupply);
 
-            (tokenAmount, dist) = super.getExpectedReturn(
+            (tokenAmount, dist) = getExpectedReturn(
                 smartTokenDetails.reserveTokenList[i].token == originalSUSD
                     ? susd : smartTokenDetails.reserveTokenList[i].token,
                 _toToken,
                 leftover,
                 1,
-                FLAG_DISABLE_ALL - FLAG_DISABLE_BANCOR
+                FLAG_DISABLE_ALL ^ FLAG_DISABLE_BANCOR
             );
 
             minFundAmount = minFundAmount.add(tokenAmount);
@@ -317,35 +336,6 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
         }
 
         return (minFundAmount, distribution);
-    }
-
-    function _safeGetExpectedReturn(
-        IERC20 fromToken,
-        IERC20 toToken,
-        uint256 amount,
-        uint256 parts,
-        uint256 disableFlags
-    )
-        private
-        view
-        returns (uint256 returnAmount, uint256[] memory distribution)
-    {
-        (bool successExchange, bytes memory data) = address(this).staticcall.gas(600000)(
-            abi.encodeWithSelector(
-                this.getExpectedReturn.selector,
-                fromToken,
-                toToken,
-                amount,
-                parts,
-                disableFlags
-            )
-        );
-
-        if (!successExchange) {
-            return (returnAmount, new uint256[](9));
-        }
-
-        return abi.decode(data, (uint256, uint256[]));
     }
 
 }
@@ -447,12 +437,7 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
 
         SmartTokenDetails memory smartTokenDetails = _getSmartTokenDetails(ISmartToken(address(fromToken)));
 
-        (bool ok, ) = smartTokenDetails.converter.call.gas(2000000)(
-            abi.encodeWithSelector(
-                ISmartTokenConverter(smartTokenDetails.converter).liquidate.selector,
-                amount
-            )
-        );
+        ISmartTokenConverter(smartTokenDetails.converter).liquidate(amount);
 
         uint256[] memory dist = new uint256[](distribution.length);
         for (uint16 i = 0; i < smartTokenDetails.reserveTokenList.length; i++) {
@@ -470,28 +455,14 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
                 continue;
             }
 
-            if (ok) {
-
-                _safeTokenSwap(
-                    smartTokenDetails.reserveTokenList[i].token == originalSUSD
-                        ? susd : smartTokenDetails.reserveTokenList[i].token,
-                    toToken,
-                    tokenBalance,
-                    0,
-                    dist,
-                    disableFlags
-                );
-
-                continue;
-            }
-
-            super._swap(
+            _safeTokenSwap(
                 smartTokenDetails.reserveTokenList[i].token == originalSUSD
                     ? susd : smartTokenDetails.reserveTokenList[i].token,
                 toToken,
                 tokenBalance,
+                0,
                 dist,
-                FLAG_DISABLE_SMART_TOKEN
+                disableFlags
             );
 
         }
@@ -528,7 +499,7 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
                     dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
                 }
 
-                super._swap(
+                _swap(
                     fromToken,
                     smartTokenDetails.reserveTokenList[i].token == originalSUSD
                         ? susd : smartTokenDetails.reserveTokenList[i].token,
@@ -559,12 +530,7 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
 
         }
 
-        (bool ok, ) = smartTokenDetails.converter.call.gas(2000000)(
-            abi.encodeWithSelector(
-                ISmartTokenConverter(smartTokenDetails.converter).fund.selector,
-                minFundAmount
-            )
-        );
+        ISmartTokenConverter(smartTokenDetails.converter).fund(minFundAmount);
 
         dist = new uint256[](distribution.length);
         dist[2] = 1;
@@ -578,28 +544,17 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
                 continue;
             }
 
-            if (ok) {
-                log0(bytes32(tokenBalance));
-
-                _safeTokenSwap(
-                    smartTokenDetails.reserveTokenList[i].token == originalSUSD
-                        ? susd : smartTokenDetails.reserveTokenList[i].token,
-                    toToken,
-                    tokenBalance,
-                    0,
-                    dist,
-                    FLAG_DISABLE_SMART_TOKEN
-                );
-
+            if (!smartTokenDetails.hasHubToken) {
+                smartTokenDetails.reserveTokenList[i].token.transfer(msg.sender, tokenBalance);
                 continue;
-
             }
 
-            super._swap(
+            _safeTokenSwap(
                 smartTokenDetails.reserveTokenList[i].token == originalSUSD
                     ? susd : smartTokenDetails.reserveTokenList[i].token,
                 toToken,
                 tokenBalance,
+                0,
                 dist,
                 FLAG_DISABLE_SMART_TOKEN
             );
@@ -617,7 +572,7 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
         uint256 disableFlags
     ) private {
 
-        (bool successExchange, ) = address(this).call.gas(2000000)(
+        (bool successExchange, ) = address(this).call.gas(600000)(
             abi.encodeWithSelector(
                 this.swap.selector,
                 fromToken,
