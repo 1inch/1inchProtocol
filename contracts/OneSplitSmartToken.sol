@@ -180,7 +180,7 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
         for (uint i = 0; i < details.tokens.length; i++) {
             uint256 srcAmount = smartTokenFormula.calculateLiquidateReturn(
                 smartToken.totalSupply(),
-                details.tokens[i].token.balanceOf(details.converter),
+                _canonicalSUSD(details.tokens[i].token).balanceOf(details.converter),
                 uint32(details.totalRatio),
                 amount
             );
@@ -253,7 +253,7 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
 
             fundAmounts[i] = smartTokenFormula.calculatePurchaseReturn(
                 smartToken.totalSupply(),
-                details.tokens[i].token.balanceOf(details.converter),
+                _canonicalSUSD(details.tokens[i].token).balanceOf(details.converter),
                 uint32(details.totalRatio),
                 tokenAmounts[i]
             );
@@ -275,7 +275,7 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
             uint256 leftover = tokenAmounts[i].sub(
                 smartTokenFormula.calculateLiquidateReturn(
                     _smartToken.totalSupply().add(_minFundAmount),
-                    details.tokens[i].token.balanceOf(details.converter).add(tokenAmounts[i]),
+                    _canonicalSUSD(details.tokens[i].token).balanceOf(details.converter).add(tokenAmounts[i]),
                     uint32(details.totalRatio),
                     _minFundAmount
                 )
@@ -401,7 +401,7 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
             this.swap(
                 _canonicalSUSD(details.tokens[i].token),
                 toToken,
-                details.tokens[i].token.balanceOf(address(this)),
+                _canonicalSUSD(details.tokens[i].token).balanceOf(address(this)),
                 0,
                 dist,
                 disableFlags
@@ -430,7 +430,7 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
 
             if (details.tokens[i].token != fromToken) {
 
-                uint256 tokenBalanceBefore = details.tokens[i].token.balanceOf(address(this));
+                uint256 tokenBalanceBefore = _canonicalSUSD(details.tokens[i].token).balanceOf(address(this));
 
                 for (uint j = 0; j < distribution.length; j++) {
                     dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
@@ -444,18 +444,18 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
                     disableFlags
                 );
 
-                uint256 tokenBalanceAfter = details.tokens[i].token.balanceOf(address(this));
+                uint256 tokenBalanceAfter = _canonicalSUSD(details.tokens[i].token).balanceOf(address(this));
 
                 curFundAmount = smartTokenFormula.calculatePurchaseReturn(
                     smartToken.totalSupply(),
-                    details.tokens[i].token.balanceOf(details.converter),
+                    _canonicalSUSD(details.tokens[i].token).balanceOf(details.converter),
                     uint32(details.totalRatio),
                     tokenBalanceAfter.sub(tokenBalanceBefore)
                 );
             } else {
                 curFundAmount = smartTokenFormula.calculatePurchaseReturn(
                     smartToken.totalSupply(),
-                    details.tokens[i].token.balanceOf(details.converter),
+                    _canonicalSUSD(details.tokens[i].token).balanceOf(details.converter),
                     uint32(details.totalRatio),
                     exchangeAmount
                 );
@@ -474,7 +474,7 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
         for (uint i = 0; i < details.tokens.length; i++) {
             IERC20 reserveToken = _canonicalSUSD(details.tokens[i].token);
 
-            uint256 leftover = details.tokens[i].token.balanceOf(address(this));
+            uint256 leftover = _canonicalSUSD(details.tokens[i].token).balanceOf(address(this));
 
             uint256 ret = _swapOnBancorSafe(
                 reserveToken,
