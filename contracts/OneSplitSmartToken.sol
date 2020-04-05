@@ -226,7 +226,7 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
 
         SmartTokenDetails memory details = _getSmartTokenDetails(ISmartToken(address(smartToken)));
 
-        uint256[] memory tokenAmounts;
+        uint256[] memory tokenAmounts = new uint256[](details.tokens.length);
         uint256[] memory dist;
         uint256[] memory fundAmounts = new uint256[](details.tokens.length);
 
