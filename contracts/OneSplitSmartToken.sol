@@ -474,14 +474,16 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
         for (uint i = 0; i < details.tokens.length; i++) {
             IERC20 reserveToken = _canonicalSUSD(details.tokens[i].token);
 
-            uint256 ret = _swapOnBancorSafe(
+            uint256 leftover = details.tokens[i].token.balanceOf(address(this));
+
+            uint256 ret = this.swapOnBancorSafe(
                 reserveToken,
                 smartToken,
-                details.tokens[i].token.balanceOf(address(this))
+                leftover
             );
 
             if (ret == 0) {
-                reserveToken.universalTransfer(msg.sender, amount);
+                reserveToken.universalTransfer(msg.sender, leftover);
             }
         }
     }
