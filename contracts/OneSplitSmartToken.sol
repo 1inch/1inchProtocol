@@ -465,7 +465,7 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
                 minFundAmount = curFundAmount;
             }
 
-            _infiniteApproveIfNeeded(details.tokens[i].token, details.converter);
+            _infiniteApproveIfNeeded(_canonicalSUSD(details.tokens[i].token), details.converter);
         }
 
         ISmartTokenConverter(details.converter).fund(minFundAmount);
