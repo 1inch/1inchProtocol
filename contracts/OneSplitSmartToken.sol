@@ -476,7 +476,7 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
 
             uint256 leftover = details.tokens[i].token.balanceOf(address(this));
 
-            uint256 ret = this.swapOnBancorSafe(
+            uint256 ret = _swapOnBancorSafe(
                 reserveToken,
                 smartToken,
                 leftover
