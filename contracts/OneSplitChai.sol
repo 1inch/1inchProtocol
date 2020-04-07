@@ -4,11 +4,7 @@ import "./interface/IChai.sol";
 import "./OneSplitBase.sol";
 
 
-contract OneSplitChai is OneSplitBase {
-    using ChaiHelper for IChai;
-
-    IChai public chai = IChai(0x06AF07097C9Eeb7fD685c692751D5C66dB49c215);
-
+contract OneSplitChaiView is OneSplitBaseView {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
@@ -24,10 +20,10 @@ contract OneSplitChai is OneSplitBase {
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](4));
+            return (amount, new uint256[](DEXES_COUNT));
         }
 
-        if (disableFlags.enabled(FLAG_CHAI)) {
+        if (!disableFlags.check(FLAG_DISABLE_CHAI)) {
             if (fromToken == IERC20(chai)) {
                 return super.getExpectedReturn(
                     dai,
@@ -58,7 +54,10 @@ contract OneSplitChai is OneSplitBase {
             disableFlags
         );
     }
+}
 
+
+contract OneSplitChai is OneSplitBase {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,
@@ -70,7 +69,7 @@ contract OneSplitChai is OneSplitBase {
             return;
         }
 
-        if (disableFlags.enabled(FLAG_CHAI)) {
+        if (!disableFlags.check(FLAG_DISABLE_CHAI)) {
             if (fromToken == IERC20(chai)) {
                 chai.exit(address(this), amount);
 

@@ -6,26 +6,32 @@ import "./OneSplitMultiPath.sol";
 import "./OneSplitCompound.sol";
 import "./OneSplitFulcrum.sol";
 import "./OneSplitChai.sol";
+import "./OneSplitBdai.sol";
+import "./OneSplitIearn.sol";
 import "./OneSplitAave.sol";
-import "./OneSplitSmartToken.sol";
+import "./OneSplitWeth.sol";
+//import "./OneSplitSmartToken.sol";
 
 
-contract OneSplit is
-    IOneSplit,
-    OneSplitBase,
-    OneSplitMultiPath,
-    OneSplitChai,
-    OneSplitAave,
-    OneSplitFulcrum,
-    OneSplitCompound,
-    OneSplitSmartToken
+contract OneSplitView is
+    IOneSplitView,
+    OneSplitBaseView,
+    OneSplitMultiPathView,
+    OneSplitChaiView,
+    OneSplitBdaiView,
+    OneSplitAaveView,
+    OneSplitFulcrumView,
+    OneSplitCompoundView,
+    OneSplitIearnView,
+    OneSplitWethView
+    //OneSplitSmartTokenView
 {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken
+        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
     )
         public
         view
@@ -35,10 +41,54 @@ contract OneSplit is
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](4));
+            return (amount, new uint256[](DEXES_COUNT));
         }
 
         return super.getExpectedReturn(
+            fromToken,
+            toToken,
+            amount,
+            parts,
+            disableFlags
+        );
+    }
+}
+
+
+contract OneSplit is
+    IOneSplit,
+    OneSplitBase,
+    OneSplitMultiPath,
+    OneSplitChai,
+    OneSplitBdai,
+    OneSplitAave,
+    OneSplitFulcrum,
+    OneSplitCompound,
+    OneSplitIearn,
+    OneSplitWeth
+    //OneSplitSmartToken
+{
+    IOneSplitView public oneSplitView;
+
+    constructor(IOneSplitView _oneSplitView) public {
+        oneSplitView = _oneSplitView;
+    }
+
+    function getExpectedReturn(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
+    )
+        public
+        view
+        returns(
+            uint256 returnAmount,
+            uint256[] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
+        )
+    {
+        return oneSplitView.getExpectedReturn(
             fromToken,
             toToken,
             amount,
@@ -53,7 +103,7 @@ contract OneSplit is
         uint256 amount,
         uint256 minReturn,
         uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
-        uint256 disableFlags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken
+        uint256 disableFlags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
     ) public payable {
         fromToken.universalTransferFrom(msg.sender, address(this), amount);
 
@@ -70,7 +120,7 @@ contract OneSplit is
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
-        uint256 disableFlags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken
+        uint256 disableFlags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
     ) internal {
         if (fromToken == toToken) {
             return;
@@ -80,25 +130,6 @@ contract OneSplit is
             fromToken,
             toToken,
             amount,
-            distribution,
-            disableFlags
-        );
-    }
-
-    function goodSwap(
-        IERC20 fromToken,
-        IERC20 toToken,
-        uint256 amount,
-        uint256 minReturn,
-        uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken
-    ) public payable {
-        (, uint256[] memory distribution) = getExpectedReturn(fromToken, toToken, amount, parts, disableFlags);
-        swap(
-            fromToken,
-            toToken,
-            amount,
-            minReturn,
             distribution,
             disableFlags
         );

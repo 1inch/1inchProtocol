@@ -5,8 +5,52 @@ import "./interface/IFulcrum.sol";
 import "./OneSplitBase.sol";
 
 
-contract OneSplitFulcrum is OneSplitBase {
+contract OneSplitFulcrumBase {
+    using UniversalERC20 for IERC20;
 
+    function _isFulcrumToken(IERC20 token) public view returns(IERC20) {
+        if (token.isETH()) {
+            return IERC20(-1);
+        }
+
+        (bool success, bytes memory data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
+            ERC20Detailed(address(token)).name.selector
+        ));
+        if (!success) {
+            return IERC20(-1);
+        }
+
+        bool foundBZX = false;
+        for (uint i = 0; i + 6 < data.length; i++) {
+            if (data[i + 0] == "F" &&
+                data[i + 1] == "u" &&
+                data[i + 2] == "l" &&
+                data[i + 3] == "c" &&
+                data[i + 4] == "r" &&
+                data[i + 5] == "u" &&
+                data[i + 6] == "m")
+            {
+                foundBZX = true;
+                break;
+            }
+        }
+        if (!foundBZX) {
+            return IERC20(-1);
+        }
+
+        (success, data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
+            IFulcrumToken(address(token)).loanTokenAddress.selector
+        ));
+        if (!success) {
+            return IERC20(-1);
+        }
+
+        return abi.decode(data, (IERC20));
+    }
+}
+
+
+contract OneSplitFulcrumView is OneSplitBaseView, OneSplitFulcrumBase {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
@@ -21,16 +65,39 @@ contract OneSplitFulcrum is OneSplitBase {
             uint256[] memory distribution
         )
     {
+        return _fulcrumGetExpectedReturn(
+            fromToken,
+            toToken,
+            amount,
+            parts,
+            disableFlags
+        );
+    }
+
+    function _fulcrumGetExpectedReturn(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 disableFlags
+    )
+        public
+        view
+        returns(
+            uint256 returnAmount,
+            uint256[] memory distribution
+        )
+    {
         if (fromToken == toToken) {
-            return (amount, new uint256[](4));
+            return (amount, new uint256[](DEXES_COUNT));
         }
 
-        if (disableFlags.enabled(FLAG_FULCRUM)) {
+        if (!disableFlags.check(FLAG_DISABLE_FULCRUM)) {
             IERC20 underlying = _isFulcrumToken(fromToken);
             if (underlying != IERC20(-1)) {
                 uint256 fulcrumRate = IFulcrumToken(address(fromToken)).tokenPrice();
 
-                return super.getExpectedReturn(
+                return _fulcrumGetExpectedReturn(
                     underlying,
                     toToken,
                     amount.mul(fulcrumRate).div(1e18),
@@ -64,7 +131,10 @@ contract OneSplitFulcrum is OneSplitBase {
             disableFlags
         );
     }
+}
 
+
+contract OneSplitFulcrum is OneSplitBase, OneSplitFulcrumBase {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,
@@ -72,11 +142,27 @@ contract OneSplitFulcrum is OneSplitBase {
         uint256[] memory distribution,
         uint256 disableFlags
     ) internal {
+        _fulcrumSwap(
+            fromToken,
+            toToken,
+            amount,
+            distribution,
+            disableFlags
+        );
+    }
+
+    function _fulcrumSwap(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256[] memory distribution,
+        uint256 disableFlags
+    ) private {
         if (fromToken == toToken) {
             return;
         }
 
-        if (disableFlags.enabled(FLAG_FULCRUM)) {
+        if (!disableFlags.check(FLAG_DISABLE_FULCRUM)) {
             IERC20 underlying = _isFulcrumToken(fromToken);
             if (underlying != IERC20(-1)) {
                 if (underlying.isETH()) {
@@ -126,45 +212,4 @@ contract OneSplitFulcrum is OneSplitBase {
             disableFlags
         );
     }
-
-    function _isFulcrumToken(IERC20 token) public view returns(IERC20) {
-        if (token.isETH()) {
-            return IERC20(-1);
-        }
-
-        (bool success, bytes memory data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
-            ERC20Detailed(address(token)).name.selector
-        ));
-        if (!success) {
-            return IERC20(-1);
-        }
-
-        bool foundBZX = false;
-        for (uint i = 0; i < data.length - 7; i++) {
-            if (data[i + 0] == "F" &&
-                data[i + 1] == "u" &&
-                data[i + 2] == "l" &&
-                data[i + 3] == "c" &&
-                data[i + 4] == "r" &&
-                data[i + 5] == "u" &&
-                data[i + 6] == "m")
-            {
-                foundBZX = true;
-                break;
-            }
-        }
-        if (!foundBZX) {
-            return IERC20(-1);
-        }
-
-        (success, data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
-            IFulcrumToken(address(token)).loanTokenAddress.selector
-        ));
-        if (!success) {
-            return IERC20(-1);
-        }
-
-        return abi.decode(data, (IERC20));
-    }
-
 }

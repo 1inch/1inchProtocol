@@ -32,7 +32,7 @@ library UniversalERC20 {
         }
 
         if (isETH(token)) {
-            require(from == msg.sender && msg.value >= amount, "msg.value is zero");
+            require(from == msg.sender && msg.value >= amount, "Wrong useage of ETH.universalTransferFrom()");
             if (to != address(this)) {
                 address(uint160(to)).transfer(amount);
             }
@@ -41,6 +41,21 @@ library UniversalERC20 {
             }
         } else {
             token.safeTransferFrom(from, to, amount);
+        }
+    }
+
+    function universalTransferFromSenderToThis(IERC20 token, uint256 amount) internal {
+        if (amount == 0) {
+            return;
+        }
+
+        if (isETH(token)) {
+            if (msg.value > amount) {
+                // Return remainder if exist
+                msg.sender.transfer(msg.value.sub(amount));
+            }
+        } else {
+            token.safeTransferFrom(msg.sender, address(this), amount);
         }
     }
 
@@ -67,16 +82,16 @@ library UniversalERC20 {
             return 18;
         }
 
-        (bool success, bytes memory data) = address(token).staticcall.gas(5000)(
+        (bool success, bytes memory data) = address(token).staticcall.gas(10000)(
             abi.encodeWithSignature("decimals()")
         );
-        if (!success) {
-            (success, data) = address(token).staticcall.gas(5000)(
+        if (!success || data.length == 0) {
+            (success, data) = address(token).staticcall.gas(10000)(
                 abi.encodeWithSignature("DECIMALS()")
             );
         }
 
-        return success ? abi.decode(data, (uint256)) : 18;
+        return (success && data.length > 0) ? abi.decode(data, (uint256)) : 18;
     }
 
     function isETH(IERC20 token) internal pure returns(bool) {
