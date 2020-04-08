@@ -2,7 +2,8 @@ pragma solidity ^0.5.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract IOneSplitView {
+
+contract IOneSplitConsts {
     // disableFlags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_KYBER + ...
     uint256 public constant FLAG_DISABLE_UNISWAP = 0x01;
     uint256 public constant FLAG_DISABLE_KYBER = 0x02;
@@ -31,8 +32,10 @@ contract IOneSplitView {
     uint256 public constant FLAG_ENABLE_UNISWAP_CHAI = 0x200000; // Works only when ETH<>DAI or FLAG_ENABLE_MULTI_PATH_ETH
     uint256 public constant FLAG_ENABLE_UNISWAP_AAVE = 0x400000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
     uint256 public constant FLAG_DISABLE_IDLE = 0x800000;
+}
 
 
+contract IOneSplit is IOneSplitConsts {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
@@ -46,10 +49,7 @@ contract IOneSplitView {
             uint256 returnAmount,
             uint256[] memory distribution
         );
-}
 
-
-contract IOneSplit is IOneSplitView {
     function swap(
         IERC20 fromToken,
         IERC20 toToken,

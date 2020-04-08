@@ -21,6 +21,22 @@ import "./IOneSplit.sol";
 import "./UniversalERC20.sol";
 
 
+contract IOneSplitView is IOneSplitConsts {
+    function getExpectedReturn(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 disableFlags
+    )
+        internal
+        returns(
+            uint256 returnAmount,
+            uint256[] memory distribution
+        );
+}
+
+
 library DisableFlags {
     function check(uint256 disableFlags, uint256 flag) internal pure returns(bool) {
         return (disableFlags & flag) != 0;
@@ -28,7 +44,7 @@ library DisableFlags {
 }
 
 
-contract OneSplitBaseBase {
+contract OneSplitRoot {
     using SafeMath for uint256;
     using DisableFlags for uint256;
 
@@ -143,10 +159,18 @@ contract OneSplitBaseBase {
 
         return IAaveToken(0);
     }
+
+    function _infiniteApproveIfNeeded(IERC20 token, address to) internal {
+        if (!token.isETH()) {
+            if ((token.allowance(address(this), to) >> 255) == 0) {
+                token.universalApprove(to, uint256(- 1));
+            }
+        }
+    }
 }
 
 
-contract OneSplitBaseView is IOneSplitView, OneSplitBaseBase {
+contract OneSplitBaseView is IOneSplitView, OneSplitRoot {
     function log(uint256) external view {
     }
 
@@ -157,8 +181,7 @@ contract OneSplitBaseView is IOneSplitView, OneSplitBaseBase {
         uint256 parts,
         uint256 disableFlags // See constants in IOneSplit.sol
     )
-        public
-        view
+        internal
         returns(
             uint256 returnAmount,
             uint256[] memory distribution
@@ -631,7 +654,7 @@ contract OneSplitBaseView is IOneSplitView, OneSplitBaseBase {
 }
 
 
-contract OneSplitBase is IOneSplit, OneSplitBaseBase {
+contract OneSplitBase is IOneSplit, OneSplitRoot {
     function() external payable {
         // solium-disable-next-line security/no-tx-origin
         require(msg.sender != tx.origin);
@@ -951,15 +974,5 @@ contract OneSplitBase is IOneSplit, OneSplitBaseBase {
         }
 
         return returnAmount;
-    }
-
-    // Helpers
-
-    function _infiniteApproveIfNeeded(IERC20 token, address to) internal {
-        if (!token.isETH()) {
-            if ((token.allowance(address(this), to) >> 255) == 0) {
-                token.universalApprove(to, uint256(- 1));
-            }
-        }
     }
 }

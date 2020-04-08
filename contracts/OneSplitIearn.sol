@@ -30,8 +30,7 @@ contract OneSplitIearnView is OneSplitBaseView, OneSplitIearnBase {
         uint256 parts,
         uint256 disableFlags
     )
-        public
-        view
+        internal
         returns (uint256 returnAmount, uint256[] memory distribution)
     {
         return _iearnGetExpectedReturn(
@@ -51,7 +50,6 @@ contract OneSplitIearnView is OneSplitBaseView, OneSplitIearnBase {
         uint256 disableFlags
     )
         private
-        view
         returns (uint256 returnAmount, uint256[] memory distribution)
     {
         if (fromToken == toToken) {

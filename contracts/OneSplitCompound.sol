@@ -50,8 +50,7 @@ contract OneSplitCompoundView is OneSplitBaseView, OneSplitCompoundBase {
         uint256 parts,
         uint256 disableFlags
     )
-        public
-        view
+        internal
         returns(
             uint256 returnAmount,
             uint256[] memory distribution
@@ -74,7 +73,6 @@ contract OneSplitCompoundView is OneSplitBaseView, OneSplitCompoundBase {
         uint256 disableFlags
     )
         private
-        view
         returns(
             uint256 returnAmount,
             uint256[] memory distribution

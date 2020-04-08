@@ -8,6 +8,7 @@ import "./OneSplitFulcrum.sol";
 import "./OneSplitChai.sol";
 import "./OneSplitBdai.sol";
 import "./OneSplitIearn.sol";
+import "./OneSplitIdle.sol";
 import "./OneSplitAave.sol";
 import "./OneSplitWeth.sol";
 //import "./OneSplitSmartToken.sol";
@@ -23,28 +24,60 @@ contract OneSplitView is
     OneSplitFulcrumView,
     OneSplitCompoundView,
     OneSplitIearnView,
+    OneSplitIdleView(0x23E4D1536c449e4D79E5903B4A9ddc3655be8609),
     OneSplitWethView
     //OneSplitSmartTokenView
 {
+    function() external {
+        if (msg.sig == IOneSplit(0).getExpectedReturn.selector) {
+            (
+                ,
+                IERC20 fromToken,
+                IERC20 toToken,
+                uint256 amount,
+                uint256 parts,
+                uint256 disableFlags
+            ) = abi.decode(
+                abi.encodePacked(bytes28(0), msg.data),
+                (uint256,IERC20,IERC20,uint256,uint256,uint256)
+            );
+
+            (
+                uint256 returnAmount,
+                uint256[] memory distribution
+            ) = getExpectedReturn(
+                fromToken,
+                toToken,
+                amount,
+                parts,
+                disableFlags
+            );
+
+            bytes memory result = abi.encodePacked(returnAmount, distribution);
+            assembly {
+                return(add(result, 32), sload(result))
+            }
+        }
+    }
+
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
+        uint256 disableFlags
     )
-        public
-        view
+        internal
         returns(
             uint256 returnAmount,
-            uint256[] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
+            uint256[] memory distribution
         )
     {
         if (fromToken == toToken) {
             return (amount, new uint256[](DEXES_COUNT));
         }
 
-        return super.getExpectedReturn(
+        super.getExpectedReturn(
             fromToken,
             toToken,
             amount,
@@ -56,7 +89,6 @@ contract OneSplitView is
 
 
 contract OneSplit is
-    IOneSplit,
     OneSplitBase,
     OneSplitMultiPath,
     OneSplitChai,
@@ -65,6 +97,7 @@ contract OneSplit is
     OneSplitFulcrum,
     OneSplitCompound,
     OneSplitIearn,
+    OneSplitIdle(0x23E4D1536c449e4D79E5903B4A9ddc3655be8609),
     OneSplitWeth
     //OneSplitSmartToken
 {
@@ -84,17 +117,27 @@ contract OneSplit is
         public
         view
         returns(
-            uint256 returnAmount,
-            uint256[] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
+            uint256 /*returnAmount*/,
+            uint256[] memory /*distribution*/
         )
     {
-        return oneSplitView.getExpectedReturn(
-            fromToken,
-            toToken,
-            amount,
-            parts,
-            disableFlags
+        (bool success, bytes memory data) = address(oneSplitView).staticcall(
+            abi.encodeWithSelector(
+                this.getExpectedReturn.selector,
+                fromToken,
+                toToken,
+                amount,
+                parts,
+                disableFlags
+            )
         );
+
+        assembly {
+            switch success
+                // delegatecall returns 0 on error.
+                case 0 { revert(add(data, 32), returndatasize) }
+                default { return(add(data, 32), returndatasize) }
+        }
     }
 
     function swap(
@@ -133,26 +176,5 @@ contract OneSplit is
             distribution,
             disableFlags
         );
-    }
-
-    // DEPERECATED:
-
-    function getAllRatesForDEX(
-        IERC20 fromToken,
-        IERC20 toToken,
-        uint256 amount,
-        uint256 parts,
-        uint256 disableFlags
-    ) public view returns(uint256[] memory results) {
-        results = new uint256[](parts);
-        for (uint i = 0; i < parts; i++) {
-            (results[i],) = getExpectedReturn(
-                fromToken,
-                toToken,
-                amount.mul(i + 1).div(parts),
-                1,
-                disableFlags
-            );
-        }
     }
 }
