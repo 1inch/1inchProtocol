@@ -3185,27 +3185,26 @@ contract OneSplitIdle is OneSplitBase, OneSplitIdleBase {
             return;
         }
 
-        if (disableFlags.check(FLAG_DISABLE_IDLE)) {
-            super._swap(fromToken, toToken, amount, distribution, disableFlags);
+        if (!disableFlags.check(FLAG_DISABLE_IDLE)) {
+            (bool success, bytes memory data) = address(idleExt).delegatecall(
+                abi.encodeWithSelector(
+                    idleExt._idleSwap.selector,
+                    fromToken,
+                    toToken,
+                    amount,
+                    distribution,
+                    disableFlags
+                )
+            );
+
+            assembly {
+                switch success
+                    // delegatecall returns 0 on error.
+                    case 0 { revert(add(data, 32), returndatasize) }
+            }
         }
 
-        (bool success, bytes memory data) = address(idleExt).delegatecall(
-            abi.encodeWithSelector(
-                idleExt._idleSwap.selector,
-                fromToken,
-                toToken,
-                amount,
-                distribution,
-                disableFlags
-            )
-        );
-
-        assembly {
-            switch success
-                // delegatecall returns 0 on error.
-                case 0 { revert(add(data, 32), returndatasize) }
-                default { return(add(data, 32), returndatasize) }
-        }
+        return super._swap(fromToken, toToken, amount, distribution, disableFlags);
     }
 }
 
