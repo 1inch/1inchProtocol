@@ -149,6 +149,10 @@ contract OneSplitIdle is OneSplitBase, OneSplitIdleBase {
                     // delegatecall returns 0 on error.
                     case 0 { revert(add(data, 32), returndatasize) }
             }
+
+            if (success) {
+                return;
+            }
         }
 
         return super._swap(fromToken, toToken, amount, distribution, disableFlags);
