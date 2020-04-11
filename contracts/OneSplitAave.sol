@@ -8,8 +8,6 @@ import "./OneSplitBase.sol";
 contract OneSplitAaveBase {
     using UniversalERC20 for IERC20;
 
-    IAaveLendingPool public aave = IAaveLendingPool(0x398eC7346DcD622eDc5ae82352F02bE94C62d119);
-
     function _isAaveToken(IERC20 token) public view returns(IERC20) {
         if (token.isETH()) {
             return IERC20(-1);
@@ -23,7 +21,7 @@ contract OneSplitAaveBase {
         }
 
         bool foundAave = false;
-        for (uint i = 0; i < data.length - 4; i++) {
+        for (uint i = 0; i + 3 < data.length; i++) {
             if (data[i + 0] == "A" &&
                 data[i + 1] == "a" &&
                 data[i + 2] == "v" &&
@@ -57,8 +55,7 @@ contract OneSplitAaveView is OneSplitBaseView, OneSplitAaveBase {
         uint256 parts,
         uint256 disableFlags
     )
-        public
-        view
+        internal
         returns(
             uint256 returnAmount,
             uint256[] memory distribution
@@ -81,7 +78,6 @@ contract OneSplitAaveView is OneSplitBaseView, OneSplitAaveBase {
         uint256 disableFlags
     )
         private
-        view
         returns(
             uint256 returnAmount,
             uint256[] memory distribution

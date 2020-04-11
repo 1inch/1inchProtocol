@@ -85,13 +85,13 @@ library UniversalERC20 {
         (bool success, bytes memory data) = address(token).staticcall.gas(10000)(
             abi.encodeWithSignature("decimals()")
         );
-        if (!success) {
+        if (!success || data.length == 0) {
             (success, data) = address(token).staticcall.gas(10000)(
                 abi.encodeWithSignature("DECIMALS()")
             );
         }
 
-        return success ? abi.decode(data, (uint256)) : 18;
+        return (success && data.length > 0) ? abi.decode(data, (uint256)) : 18;
     }
 
     function isETH(IERC20 token) internal pure returns(bool) {

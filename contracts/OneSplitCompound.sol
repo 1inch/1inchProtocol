@@ -50,8 +50,7 @@ contract OneSplitCompoundView is OneSplitBaseView, OneSplitCompoundBase {
         uint256 parts,
         uint256 disableFlags
     )
-        public
-        view
+        internal
         returns(
             uint256 returnAmount,
             uint256[] memory distribution
@@ -74,14 +73,13 @@ contract OneSplitCompoundView is OneSplitBaseView, OneSplitCompoundBase {
         uint256 disableFlags
     )
         private
-        view
         returns(
             uint256 returnAmount,
             uint256[] memory distribution
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](9));
+            return (amount, new uint256[](DEXES_COUNT));
         }
 
         if (!disableFlags.check(FLAG_DISABLE_COMPOUND)) {

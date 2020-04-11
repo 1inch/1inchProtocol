@@ -193,7 +193,7 @@ pragma solidity ^0.5.0;
 
 
 
-contract IOneSplitView {
+contract IOneSplitConsts {
     // disableFlags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_KYBER + ...
     uint256 public constant FLAG_DISABLE_UNISWAP = 0x01;
     uint256 public constant FLAG_DISABLE_KYBER = 0x02;
@@ -218,40 +218,35 @@ contract IOneSplitView {
     uint256 public constant FLAG_ENABLE_MULTI_PATH_USDC = 0x20000; // Turned off by default
     uint256 public constant FLAG_DISABLE_CURVE_SYNTHETIX = 0x40000;
     uint256 public constant FLAG_DISABLE_WETH = 0x80000;
+    uint256 public constant FLAG_ENABLE_UNISWAP_COMPOUND = 0x100000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
+    uint256 public constant FLAG_ENABLE_UNISWAP_CHAI = 0x200000; // Works only when ETH<>DAI or FLAG_ENABLE_MULTI_PATH_ETH
+    uint256 public constant FLAG_ENABLE_UNISWAP_AAVE = 0x400000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
+    uint256 public constant FLAG_DISABLE_IDLE = 0x800000;
+}
 
+
+contract IOneSplit is IOneSplitConsts {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
+        uint256 disableFlags
     )
         public
         view
         returns(
             uint256 returnAmount,
-            uint256[] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
+            uint256[] memory distribution
         );
-}
 
-
-contract IOneSplit is IOneSplitView {
     function swap(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 minReturn,
-        uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
-        uint256 disableFlags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
-    ) public payable;
-
-    function goodSwap(
-        IERC20 fromToken,
-        IERC20 toToken,
-        uint256 amount,
-        uint256 minReturn,
-        uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
+        uint256[] memory distribution,
+        uint256 disableFlags
     ) public payable;
 }
 
@@ -652,13 +647,13 @@ library UniversalERC20 {
         (bool success, bytes memory data) = address(token).staticcall.gas(10000)(
             abi.encodeWithSignature("decimals()")
         );
-        if (!success) {
+        if (!success || data.length == 0) {
             (success, data) = address(token).staticcall.gas(10000)(
                 abi.encodeWithSignature("DECIMALS()")
             );
         }
 
-        return success ? abi.decode(data, (uint256)) : 18;
+        return (success && data.length > 0) ? abi.decode(data, (uint256)) : 18;
     }
 
     function isETH(IERC20 token) internal pure returns(bool) {
@@ -695,6 +690,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
     }
 
     function() external payable {
+        // solium-disable-next-line security/no-tx-origin
         require(msg.sender != tx.origin, "OneSplit: do not send ETH directly");
     }
 
@@ -752,7 +748,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
         require(fromToken != toToken && amount > 0, "OneSplit: swap makes no sense");
         require((msg.value != 0) == fromToken.isETH(), "OneSplit: msg.value shoule be used only for ETH swap");
 
-        uint256 fromTokenBalanceBefore = fromToken.universalBalanceOf(address(this));
+        uint256 fromTokenBalanceBefore = fromToken.universalBalanceOf(address(this)).sub(msg.value);
         uint256 toTokenBalanceBefore = toToken.universalBalanceOf(address(this));
 
         fromToken.universalTransferFromSenderToThis(amount);
@@ -773,7 +769,14 @@ contract OneSplitAudit is IOneSplit, Ownable {
         uint256 returnAmount = toTokenBalanceAfter.sub(toTokenBalanceBefore);
         require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
         toToken.universalTransfer(msg.sender, returnAmount);
-        fromToken.universalTransfer(msg.sender, fromTokenBalanceAfter.sub(fromTokenBalanceBefore));
+
+        if (fromTokenBalanceAfter > fromTokenBalanceBefore) {
+            fromToken.universalTransfer(msg.sender, fromTokenBalanceAfter.sub(fromTokenBalanceBefore));
+        }
+    }
+
+    function claimAsset(IERC20 asset, uint256 amount) public onlyOwner {
+        asset.universalTransfer(msg.sender, amount);
     }
 
     //

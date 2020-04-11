@@ -1,3 +1,4 @@
 node_modules
 OneSplit.full.sol
+OneSplitAudit.full.sol
 contracts/interface/IChai.sol
