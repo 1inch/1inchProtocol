@@ -451,8 +451,8 @@ contract OneSplitUniswapPoolToken is OneSplitBase, OneSplitUniswapPoolTokenBase 
         );
 
         IUniswapExchange(address(poolToken)).addLiquidity.value(ethAmount)(
-            returnAmount.mul(995).div(1000),
-            uint256(-1), // todo: think about another value
+            returnAmount.mul(995).div(1000), // 0.5% slippage
+            uint256(-1),                     // todo: think about another value
             now.add(1800)
         );
 
