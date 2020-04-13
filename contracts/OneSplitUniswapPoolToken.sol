@@ -14,6 +14,40 @@ contract OneSplitUniswapPoolTokenBase {
         return address(uniswapFactory.getToken(address(token))) != address(0);
     }
 
+    function getMaxPossibleFund(
+        IERC20 poolToken,
+        IERC20 uniswapToken,
+        uint256 tokenAmount,
+        uint256 existEthAmount
+    )
+        internal
+        view
+        returns (
+            uint256,
+            uint256
+        )
+    {
+        uint256 ethReserve = address(poolToken).balance;
+        uint256 totalLiquidity = poolToken.totalSupply();
+        uint256 tokenReserve = uniswapToken.balanceOf(address(poolToken));
+
+        uint256 possibleEthAmount = ethReserve.mul(
+            tokenAmount.sub(1)
+        ).div(tokenReserve);
+
+        if (existEthAmount > possibleEthAmount) {
+            return (
+                possibleEthAmount,
+                possibleEthAmount.mul(totalLiquidity).div(ethReserve)
+            );
+        }
+
+        return (
+            existEthAmount,
+            existEthAmount.mul(totalLiquidity).div(ethReserve)
+        );
+    }
+
 }
 
 contract OneSplitUniswapPoolTokenView is OneSplitBaseView, OneSplitUniswapPoolTokenBase {
@@ -179,15 +213,12 @@ contract OneSplitUniswapPoolTokenView is OneSplitBaseView, OneSplitUniswapPoolTo
 
         distribution = new uint256[](DEXES_COUNT);
 
-        IERC20 uniswapToken = uniswapFactory.getToken(address(poolToken));
+        uint256[] memory dist = new uint256[](DEXES_COUNT);
 
-        uint256 totalSupply = poolToken.totalSupply();
-
-        uint256 ethReserve = address(poolToken).balance;
+        uint256 ethAmount;
         uint256 partAmountForEth = amount.div(2);
-
         if (!fromToken.isETH()) {
-            (uint256 ret, uint256[] memory dist) = getExpectedReturn(
+            (ethAmount, dist) = super.getExpectedReturn(
                 fromToken,
                 ETH_ADDRESS,
                 partAmountForEth,
@@ -195,23 +226,19 @@ contract OneSplitUniswapPoolTokenView is OneSplitBaseView, OneSplitUniswapPoolTo
                 disableFlags
             );
 
-            returnAmount = returnAmount.add(
-                ret.mul(totalSupply).div(ethReserve)
-            );
             for (uint j = 0; j < distribution.length; j++) {
                 distribution[j] |= dist[j];
             }
         } else {
-            returnAmount = returnAmount.add(
-                partAmountForEth.mul(totalSupply).div(ethReserve)
-            );
+            ethAmount = partAmountForEth;
         }
 
-        uint256 tokenReserve = uniswapToken.balanceOf(address(poolToken));
-        uint256 partAmountForToken = amount.sub(partAmountForEth);
+        IERC20 uniswapToken = uniswapFactory.getToken(address(poolToken));
 
+        uint256 tokenAmount;
+        uint256 partAmountForToken = amount.sub(partAmountForEth);
         if (fromToken != uniswapToken) {
-            (uint256 ret, uint256[] memory dist) = getExpectedReturn(
+            (tokenAmount, dist) = super.getExpectedReturn(
                 fromToken,
                 uniswapToken,
                 partAmountForToken,
@@ -219,19 +246,24 @@ contract OneSplitUniswapPoolTokenView is OneSplitBaseView, OneSplitUniswapPoolTo
                 disableFlags
             );
 
-            returnAmount = returnAmount.add(
-                ret.mul(totalSupply).div(tokenReserve)
-            );
             for (uint j = 0; j < distribution.length; j++) {
                 distribution[j] |= dist[j] << 8;
             }
         } else {
-            returnAmount = returnAmount.add(
-                partAmountForToken.mul(totalSupply).div(tokenReserve)
-            );
+            tokenAmount = partAmountForToken;
         }
 
-        return (returnAmount, distribution);
+        (, returnAmount) = getMaxPossibleFund(
+            poolToken,
+            uniswapToken,
+            tokenAmount,
+            ethAmount
+        );
+
+        return (
+            returnAmount,
+            distribution
+        );
     }
 
 }
@@ -321,7 +353,6 @@ contract OneSplitUniswapPoolToken is OneSplitBase, OneSplitUniswapPoolTokenBase 
         uint256[] memory distribution,
         uint256 disableFlags
     ) private {
-        IERC20 uniswapToken = uniswapFactory.getToken(address(poolToken));
 
         uint256[] memory dist = new uint256[](distribution.length);
 
@@ -340,26 +371,26 @@ contract OneSplitUniswapPoolToken is OneSplitBase, OneSplitUniswapPoolTokenBase 
                 dist[j] = (distribution[j]) & 0xFF;
             }
 
-            this.swap(
+            super._swap(
                 ETH_ADDRESS,
                 toToken,
                 ethAmount,
-                0,
                 dist,
                 disableFlags
             );
         }
+
+        IERC20 uniswapToken = uniswapFactory.getToken(address(poolToken));
 
         if (toToken != uniswapToken) {
             for (uint j = 0; j < distribution.length; j++) {
                 dist[j] = (distribution[j] >> 8) & 0xFF;
             }
 
-            this.swap(
+            super._swap(
                 uniswapToken,
                 toToken,
                 exchangeTokenAmount,
-                0,
                 dist,
                 disableFlags
             );
@@ -373,39 +404,35 @@ contract OneSplitUniswapPoolToken is OneSplitBase, OneSplitUniswapPoolTokenBase 
         uint256[] memory distribution,
         uint256 disableFlags
     ) private {
-        IERC20 uniswapToken = uniswapFactory.getToken(address(poolToken));
-
-        uint256 partAmountForEth = amount.div(2);
-
         uint256[] memory dist = new uint256[](distribution.length);
 
+        uint256 partAmountForEth = amount.div(2);
         if (!fromToken.isETH()) {
             for (uint j = 0; j < distribution.length; j++) {
                 dist[j] = (distribution[j]) & 0xFF;
             }
 
-            this.swap(
+            super._swap(
                 fromToken,
                 ETH_ADDRESS,
                 partAmountForEth,
-                0,
                 dist,
                 disableFlags
             );
         }
 
-        uint256 partAmountForToken = amount.sub(partAmountForEth);
+        IERC20 uniswapToken = uniswapFactory.getToken(address(poolToken));
 
+        uint256 partAmountForToken = amount.sub(partAmountForEth);
         if (fromToken != uniswapToken) {
             for (uint j = 0; j < distribution.length; j++) {
                 dist[j] = (distribution[j] >> 8) & 0xFF;
             }
 
-            this.swap(
+            super._swap(
                 fromToken,
                 uniswapToken,
                 partAmountForToken,
-                0,
                 dist,
                 disableFlags
             );
@@ -413,12 +440,24 @@ contract OneSplitUniswapPoolToken is OneSplitBase, OneSplitUniswapPoolTokenBase 
             _infiniteApproveIfNeeded(uniswapToken, address(poolToken));
         }
 
-        uint256 maxTokens = uniswapToken.balanceOf(address(this)) + 1;
+        uint256 ethBalance = address(this).balance;
+        uint256 tokenBalance = uniswapToken.balanceOf(address(this));
 
-        IUniswapExchange(address(poolToken)).addLiquidity.value(address(this).balance)(
-            1, // todo: think about another value
-            maxTokens,
+        (uint256 ethAmount, uint256 returnAmount) = getMaxPossibleFund(
+            poolToken,
+            uniswapToken,
+            tokenBalance,
+            ethBalance
+        );
+
+        IUniswapExchange(address(poolToken)).addLiquidity.value(ethAmount)(
+            returnAmount.mul(995).div(1000),
+            uint256(-1), // todo: think about another value
             now.add(1800)
         );
+
+        // todo: do we need to check difference between balance before and balance after?
+        uniswapToken.universalTransfer(msg.sender, uniswapToken.balanceOf(address(this)));
+        ETH_ADDRESS.universalTransfer(msg.sender, address(this).balance);
     }
 }
