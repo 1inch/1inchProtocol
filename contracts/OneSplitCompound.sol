@@ -4,13 +4,7 @@ import "./interface/ICompound.sol";
 import "./OneSplitBase.sol";
 
 
-contract OneSplitCompoundBase {
-    ICompound public compound = ICompound(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
-    ICompoundEther public cETH = ICompoundEther(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
-}
-
-
-contract OneSplitCompoundView is OneSplitBaseView, OneSplitCompoundBase {
+contract OneSplitCompoundView is OneSplitBaseView {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
@@ -51,8 +45,8 @@ contract OneSplitCompoundView is OneSplitBaseView, OneSplitCompoundBase {
         }
 
         if (!disableFlags.check(FLAG_DISABLE_COMPOUND)) {
-            IERC20 underlying = _getCompoundToken(fromToken);
-            if (underlying != IERC20(0)) {
+            IERC20 underlying = _getCompoundUnderlyingToken(fromToken);
+            if (underlying != IERC20(-1)) {
                 uint256 compoundRate = ICompoundToken(address(fromToken)).exchangeRateStored();
 
                 return _compoundGetExpectedReturn(
@@ -64,8 +58,8 @@ contract OneSplitCompoundView is OneSplitBaseView, OneSplitCompoundBase {
                 );
             }
 
-            underlying = _getCompoundToken(toToken);
-            if (underlying != IERC20(0)) {
+            underlying = _getCompoundUnderlyingToken(toToken);
+            if (underlying != IERC20(-1)) {
                 uint256 compoundRate = ICompoundToken(address(toToken)).exchangeRateStored();
 
                 (returnAmount, distribution) = super.getExpectedReturn(
@@ -93,7 +87,7 @@ contract OneSplitCompoundView is OneSplitBaseView, OneSplitCompoundBase {
 }
 
 
-contract OneSplitCompound is OneSplitBase, OneSplitCompoundBase {
+contract OneSplitCompound is OneSplitBase {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,
@@ -122,8 +116,8 @@ contract OneSplitCompound is OneSplitBase, OneSplitCompoundBase {
         }
 
         if (!disableFlags.check(FLAG_DISABLE_COMPOUND)) {
-            IERC20 underlying = _getCompoundToken(fromToken);
-            if (underlying != IERC20(0)) {
+            IERC20 underlying = _getCompoundUnderlyingToken(fromToken);
+            if (underlying != IERC20(-1)) {
                 ICompoundToken(address(fromToken)).redeem(amount);
                 uint256 underlyingAmount = underlying.universalBalanceOf(address(this));
 
@@ -136,8 +130,8 @@ contract OneSplitCompound is OneSplitBase, OneSplitCompoundBase {
                 );
             }
 
-            underlying = _getCompoundToken(toToken);
-            if (underlying != IERC20(0)) {
+            underlying = _getCompoundUnderlyingToken(toToken);
+            if (underlying != IERC20(-1)) {
                 super._swap(
                     fromToken,
                     underlying,
