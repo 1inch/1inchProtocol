@@ -24,4 +24,8 @@ interface IUniswapExchange {
         uint256 deadline,
         address tokenAddr
     ) external returns (uint256 tokensBought);
+
+    function addLiquidity(uint256 min_liquidity, uint256 max_tokens, uint256 deadline) external payable returns (uint256);
+
+    function removeLiquidity(uint256 amount, uint256 min_eth, uint256 min_tokens, uint256 deadline) external returns (uint256, uint256);
 }
