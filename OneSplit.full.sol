@@ -442,17 +442,25 @@ contract IBancorContractRegistry {
     function addressOf(bytes32 contractName) external view returns (address);
 }
 
-// File: contracts/interface/IBancorNetworkPathFinder.sol
+// File: contracts/interface/IBancorConverterRegistry.sol
 
 pragma solidity ^0.5.0;
 
 
 
-interface IBancorNetworkPathFinder {
-    function generatePath(IERC20 sourceToken, IERC20 targetToken)
-        external
-        view
-        returns (address[] memory);
+interface IBancorConverterRegistry {
+
+    function getConvertibleTokenSmartTokenCount(IERC20 convertibleToken)
+        external view returns(uint256);
+
+    function getConvertibleTokenSmartTokens(IERC20 convertibleToken)
+        external view returns(address[] memory);
+
+    function getConvertibleTokenSmartToken(IERC20 convertibleToken, uint256 index)
+        external view returns(address);
+
+    function isConvertibleTokenSmartToken(IERC20 convertibleToken, address value)
+        external view returns(bool);
 }
 
 // File: contracts/interface/IBancorEtherToken.sol
@@ -944,6 +952,7 @@ pragma solidity ^0.5.0;
 
 
 
+//import "./interface/IBancorNetworkPathFinder.sol";
 
 
 
@@ -992,6 +1001,7 @@ contract OneSplitRoot {
     IERC20 constant public ETH_ADDRESS = IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
     IERC20 public dai = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
+    IERC20 public bnt = IERC20(0x1F573D6Fb3F13d689FF844B4cE37794d79a7FF1C);
     IERC20 public usdc = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
     IERC20 public usdt = IERC20(0xdAC17F958D2ee523a2206206994597C13D831ec7);
     IERC20 public tusd = IERC20(0x0000000000085d4780B73119b644AE5ecd22b376);
@@ -1004,7 +1014,8 @@ contract OneSplitRoot {
     IKyberNetworkProxy public kyberNetworkProxy = IKyberNetworkProxy(0x818E6FECD516Ecc3849DAf6845e3EC868087B755);
     IUniswapFactory public uniswapFactory = IUniswapFactory(0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95);
     IBancorContractRegistry public bancorContractRegistry = IBancorContractRegistry(0x52Ae12ABe5D8BD778BD5397F99cA900624CfADD4);
-    IBancorNetworkPathFinder bancorNetworkPathFinder = IBancorNetworkPathFinder(0x6F0cD8C4f6F06eAB664C7E3031909452b4B72861);
+    //IBancorNetworkPathFinder bancorNetworkPathFinder = IBancorNetworkPathFinder(0x6F0cD8C4f6F06eAB664C7E3031909452b4B72861);
+    IBancorConverterRegistry public bancorConverterRegistry = IBancorConverterRegistry(0xf6E2D7F616B67E46D708e4410746E9AAb3a4C518);
     IOasisExchange public oasisExchange = IOasisExchange(0x794e6e91555438aFc3ccF1c5076A74F42133d08D);
     ICurve public curveCompound = ICurve(0xA2B47E3D5c44877cca798226B7B8118F9BFb7A56);
     ICurve public curveUsdt = ICurve(0x52EA46506B9CC5Ef470C5bf89f17Dc28bB35D85C);
@@ -1012,6 +1023,84 @@ contract OneSplitRoot {
     ICurve public curveBinance = ICurve(0x79a8C46DeA5aDa233ABaFFD40F3A0A2B1e5A4F27);
     ICurve public curveSynthetix = ICurve(0x3b12e1fBb468BEa80B492d635976809Bf950186C);
     IAaveLendingPool public aave = IAaveLendingPool(0x398eC7346DcD622eDc5ae82352F02bE94C62d119);
+
+    function _buildBancorPath(
+        IERC20 fromToken,
+        IERC20 toToken
+    ) internal view returns(address[] memory path) {
+        if (fromToken == toToken) {
+            return new address[](0);
+        }
+
+        if (fromToken.isETH()) {
+            fromToken = bancorEtherToken;
+        }
+        if (toToken.isETH()) {
+            toToken = bancorEtherToken;
+        }
+
+        if (fromToken == bnt || toToken == bnt) {
+            path = new address[](3);
+        } else {
+            path = new address[](5);
+        }
+
+        address fromConverter;
+        address toConverter;
+
+        if (fromToken != bnt) {
+            (bool success, bytes memory data) = address(bancorConverterRegistry).staticcall.gas(10000)(abi.encodeWithSelector(
+                bancorConverterRegistry.getConvertibleTokenSmartToken.selector,
+                fromToken.isETH() ? bnt : fromToken,
+                0
+            ));
+            if (!success) {
+                return new address[](0);
+            }
+
+            fromConverter = abi.decode(data, (address));
+            if (fromConverter == address(0)) {
+                return new address[](0);
+            }
+        }
+
+        if (toToken != bnt) {
+            (bool success, bytes memory data) = address(bancorConverterRegistry).staticcall.gas(10000)(abi.encodeWithSelector(
+                bancorConverterRegistry.getConvertibleTokenSmartToken.selector,
+                toToken.isETH() ? bnt : toToken,
+                0
+            ));
+            if (!success) {
+                return new address[](0);
+            }
+
+            toConverter = abi.decode(data, (address));
+            if (toConverter == address(0)) {
+                return new address[](0);
+            }
+        }
+
+        if (toToken == bnt) {
+            path[0] = address(fromToken);
+            path[1] = fromConverter;
+            path[2] = address(bnt);
+            return path;
+        }
+
+        if (fromToken == bnt) {
+            path[0] = address(bnt);
+            path[1] = toConverter;
+            path[2] = address(toToken);
+            return path;
+        }
+
+        path[0] = address(fromToken);
+        path[1] = fromConverter;
+        path[2] = address(bnt);
+        path[3] = toConverter;
+        path[4] = address(toToken);
+        return path;
+    }
 
     function _getCompoundToken(IERC20 token) internal pure returns(ICompoundToken) {
         if (token.isETH()) { // ETH
@@ -1537,10 +1626,7 @@ contract OneSplitBaseView is IOneSplitView, OneSplitRoot {
         uint256 /*disableFlags*/
     ) public view returns(uint256) {
         IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
-        address[] memory path = bancorNetworkPathFinder.generatePath(
-            fromToken.isETH() ? bancorEtherToken : fromToken,
-            toToken.isETH() ? bancorEtherToken : toToken
-        );
+        address[] memory path = _buildBancorPath(fromToken, toToken);
 
         (bool success, bytes memory data) = address(bancorNetwork).staticcall.gas(500000)(
             abi.encodeWithSelector(
@@ -1872,10 +1958,7 @@ contract OneSplitBase is IOneSplit, OneSplitRoot {
         }
 
         IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
-        address[] memory path = bancorNetworkPathFinder.generatePath(
-            fromToken.isETH() ? bancorEtherToken : fromToken,
-            toToken.isETH() ? bancorEtherToken : toToken
-        );
+        address[] memory path = _buildBancorPath(fromToken, toToken);
 
         _infiniteApproveIfNeeded(fromToken.isETH() ? bancorEtherToken : fromToken, address(bancorNetwork));
         uint256 returnAmount = bancorNetwork.claimAndConvert(path, amount, 1);
@@ -2122,38 +2205,6 @@ pragma solidity ^0.5.0;
 contract OneSplitCompoundBase {
     ICompound public compound = ICompound(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
     ICompoundEther public cETH = ICompoundEther(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
-
-    function _isCompoundToken(IERC20 token) internal view returns(bool) {
-        if (token == cETH) {
-            return true;
-        }
-
-        (bool success, bytes memory data) = address(compound).staticcall.gas(5000)(abi.encodeWithSelector(
-            compound.markets.selector,
-            token
-        ));
-        if (!success) {
-            return false;
-        }
-
-        (bool isListed,) = abi.decode(data, (bool,uint256));
-        return isListed;
-    }
-
-    function _compoundUnderlyingAsset(IERC20 asset) internal view returns(IERC20) {
-        if (asset == cETH) {
-            return IERC20(address(0));
-        }
-
-        (bool success, bytes memory data) = address(asset).staticcall.gas(5000)(abi.encodeWithSelector(
-            ICompoundToken(address(asset)).underlying.selector
-        ));
-        if (!success) {
-            return IERC20(-1);
-        }
-
-        return abi.decode(data, (IERC20));
-    }
 }
 
 
@@ -2198,37 +2249,34 @@ contract OneSplitCompoundView is OneSplitBaseView, OneSplitCompoundBase {
         }
 
         if (!disableFlags.check(FLAG_DISABLE_COMPOUND)) {
-            if (_isCompoundToken(fromToken)) {
-                IERC20 underlying = _compoundUnderlyingAsset(fromToken);
-                if (underlying != IERC20(-1)) {
-                    uint256 compoundRate = ICompoundToken(address(fromToken)).exchangeRateStored();
+            IERC20 underlying = _getCompoundToken(fromToken);
+            if (underlying != IERC20(0)) {
+                uint256 compoundRate = ICompoundToken(address(fromToken)).exchangeRateStored();
 
-                    return _compoundGetExpectedReturn(
-                        underlying,
-                        toToken,
-                        amount.mul(compoundRate).div(1e18),
-                        parts,
-                        disableFlags
-                    );
-                }
+                return _compoundGetExpectedReturn(
+                    underlying,
+                    toToken,
+                    amount.mul(compoundRate).div(1e18),
+                    parts,
+                    disableFlags
+                );
             }
 
-            if (_isCompoundToken(toToken)) {
-                IERC20 underlying = _compoundUnderlyingAsset(toToken);
-                if (underlying != IERC20(-1)) {
-                    uint256 compoundRate = ICompoundToken(address(toToken)).exchangeRateStored();
+            underlying = _getCompoundToken(toToken);
+            if (underlying != IERC20(0)) {
+                uint256 compoundRate = ICompoundToken(address(toToken)).exchangeRateStored();
 
-                    (returnAmount, distribution) = super.getExpectedReturn(
-                        fromToken,
-                        underlying,
-                        amount,
-                        parts,
-                        disableFlags
-                    );
+                (returnAmount, distribution) = super.getExpectedReturn(
+                    fromToken,
+                    underlying,
+                    amount,
+                    parts,
+                    disableFlags
+                );
 
-                    returnAmount = returnAmount.mul(1e18).div(compoundRate);
-                    return (returnAmount, distribution);
-                }
+                returnAmount = returnAmount.mul(1e18).div(compoundRate);
+                return (returnAmount, distribution);
+
             }
         }
 
@@ -2272,9 +2320,8 @@ contract OneSplitCompound is OneSplitBase, OneSplitCompoundBase {
         }
 
         if (!disableFlags.check(FLAG_DISABLE_COMPOUND)) {
-            if (_isCompoundToken(fromToken)) {
-                IERC20 underlying = _compoundUnderlyingAsset(fromToken);
-
+            IERC20 underlying = _getCompoundToken(fromToken);
+            if (underlying != IERC20(0)) {
                 ICompoundToken(address(fromToken)).redeem(amount);
                 uint256 underlyingAmount = underlying.universalBalanceOf(address(this));
 
@@ -2287,9 +2334,8 @@ contract OneSplitCompound is OneSplitBase, OneSplitCompoundBase {
                 );
             }
 
-            if (_isCompoundToken(toToken)) {
-                IERC20 underlying = _compoundUnderlyingAsset(toToken);
-
+            underlying = _getCompoundToken(toToken);
+            if (underlying != IERC20(0)) {
                 super._swap(
                     fromToken,
                     underlying,
@@ -3333,49 +3379,7 @@ pragma solidity ^0.5.0;
 
 
 
-contract OneSplitAaveBase {
-    using UniversalERC20 for IERC20;
-
-    function _isAaveToken(IERC20 token) public view returns(IERC20) {
-        if (token.isETH()) {
-            return IERC20(-1);
-        }
-
-        (bool success, bytes memory data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
-            ERC20Detailed(address(token)).name.selector
-        ));
-        if (!success) {
-            return IERC20(-1);
-        }
-
-        bool foundAave = false;
-        for (uint i = 0; i + 3 < data.length; i++) {
-            if (data[i + 0] == "A" &&
-                data[i + 1] == "a" &&
-                data[i + 2] == "v" &&
-                data[i + 3] == "e")
-            {
-                foundAave = true;
-                break;
-            }
-        }
-        if (!foundAave) {
-            return IERC20(-1);
-        }
-
-        (success, data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
-            IAaveToken(address(token)).underlyingAssetAddress.selector
-        ));
-        if (!success) {
-            return IERC20(-1);
-        }
-
-        return abi.decode(data, (IERC20));
-    }
-}
-
-
-contract OneSplitAaveView is OneSplitBaseView, OneSplitAaveBase {
+contract OneSplitAaveView is OneSplitBaseView {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
@@ -3416,8 +3420,8 @@ contract OneSplitAaveView is OneSplitBaseView, OneSplitAaveBase {
         }
 
         if (!disableFlags.check(FLAG_DISABLE_AAVE)) {
-            IERC20 underlying = _isAaveToken(fromToken);
-            if (underlying != IERC20(-1)) {
+            IERC20 underlying = _getAaveToken(fromToken);
+            if (underlying != IERC20(0)) {
                 return _aaveGetExpectedReturn(
                     underlying,
                     toToken,
@@ -3427,8 +3431,8 @@ contract OneSplitAaveView is OneSplitBaseView, OneSplitAaveBase {
                 );
             }
 
-            underlying = _isAaveToken(toToken);
-            if (underlying != IERC20(-1)) {
+            underlying = _getAaveToken(toToken);
+            if (underlying != IERC20(0)) {
                 return super.getExpectedReturn(
                     fromToken,
                     underlying,
@@ -3450,7 +3454,7 @@ contract OneSplitAaveView is OneSplitBaseView, OneSplitAaveBase {
 }
 
 
-contract OneSplitAave is OneSplitBase, OneSplitAaveBase {
+contract OneSplitAave is OneSplitBase {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,
@@ -3479,8 +3483,8 @@ contract OneSplitAave is OneSplitBase, OneSplitAaveBase {
         }
 
         if (!disableFlags.check(FLAG_DISABLE_AAVE)) {
-            IERC20 underlying = _isAaveToken(fromToken);
-            if (underlying != IERC20(-1)) {
+            IERC20 underlying = _getAaveToken(fromToken);
+            if (underlying != IERC20(0)) {
                 IAaveToken(address(fromToken)).redeem(amount);
 
                 return _aaveSwap(
@@ -3492,8 +3496,8 @@ contract OneSplitAave is OneSplitBase, OneSplitAaveBase {
                 );
             }
 
-            underlying = _isAaveToken(toToken);
-            if (underlying != IERC20(-1)) {
+            underlying = _getAaveToken(toToken);
+            if (underlying != IERC20(0)) {
                 super._swap(
                     fromToken,
                     underlying,

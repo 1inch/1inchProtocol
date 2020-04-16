@@ -5,49 +5,7 @@ import "./interface/IAaveToken.sol";
 import "./OneSplitBase.sol";
 
 
-contract OneSplitAaveBase {
-    using UniversalERC20 for IERC20;
-
-    function _isAaveToken(IERC20 token) public view returns(IERC20) {
-        if (token.isETH()) {
-            return IERC20(-1);
-        }
-
-        (bool success, bytes memory data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
-            ERC20Detailed(address(token)).name.selector
-        ));
-        if (!success) {
-            return IERC20(-1);
-        }
-
-        bool foundAave = false;
-        for (uint i = 0; i + 3 < data.length; i++) {
-            if (data[i + 0] == "A" &&
-                data[i + 1] == "a" &&
-                data[i + 2] == "v" &&
-                data[i + 3] == "e")
-            {
-                foundAave = true;
-                break;
-            }
-        }
-        if (!foundAave) {
-            return IERC20(-1);
-        }
-
-        (success, data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
-            IAaveToken(address(token)).underlyingAssetAddress.selector
-        ));
-        if (!success) {
-            return IERC20(-1);
-        }
-
-        return abi.decode(data, (IERC20));
-    }
-}
-
-
-contract OneSplitAaveView is OneSplitBaseView, OneSplitAaveBase {
+contract OneSplitAaveView is OneSplitBaseView {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
@@ -88,8 +46,8 @@ contract OneSplitAaveView is OneSplitBaseView, OneSplitAaveBase {
         }
 
         if (!disableFlags.check(FLAG_DISABLE_AAVE)) {
-            IERC20 underlying = _isAaveToken(fromToken);
-            if (underlying != IERC20(-1)) {
+            IERC20 underlying = _getAaveToken(fromToken);
+            if (underlying != IERC20(0)) {
                 return _aaveGetExpectedReturn(
                     underlying,
                     toToken,
@@ -99,8 +57,8 @@ contract OneSplitAaveView is OneSplitBaseView, OneSplitAaveBase {
                 );
             }
 
-            underlying = _isAaveToken(toToken);
-            if (underlying != IERC20(-1)) {
+            underlying = _getAaveToken(toToken);
+            if (underlying != IERC20(0)) {
                 return super.getExpectedReturn(
                     fromToken,
                     underlying,
@@ -122,7 +80,7 @@ contract OneSplitAaveView is OneSplitBaseView, OneSplitAaveBase {
 }
 
 
-contract OneSplitAave is OneSplitBase, OneSplitAaveBase {
+contract OneSplitAave is OneSplitBase {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,
@@ -151,8 +109,8 @@ contract OneSplitAave is OneSplitBase, OneSplitAaveBase {
         }
 
         if (!disableFlags.check(FLAG_DISABLE_AAVE)) {
-            IERC20 underlying = _isAaveToken(fromToken);
-            if (underlying != IERC20(-1)) {
+            IERC20 underlying = _getAaveToken(fromToken);
+            if (underlying != IERC20(0)) {
                 IAaveToken(address(fromToken)).redeem(amount);
 
                 return _aaveSwap(
@@ -164,8 +122,8 @@ contract OneSplitAave is OneSplitBase, OneSplitAaveBase {
                 );
             }
 
-            underlying = _isAaveToken(toToken);
-            if (underlying != IERC20(-1)) {
+            underlying = _getAaveToken(toToken);
+            if (underlying != IERC20(0)) {
                 super._swap(
                     fromToken,
                     underlying,

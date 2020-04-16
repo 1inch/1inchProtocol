@@ -7,38 +7,6 @@ import "./OneSplitBase.sol";
 contract OneSplitCompoundBase {
     ICompound public compound = ICompound(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
     ICompoundEther public cETH = ICompoundEther(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
-
-    function _isCompoundToken(IERC20 token) internal view returns(bool) {
-        if (token == cETH) {
-            return true;
-        }
-
-        (bool success, bytes memory data) = address(compound).staticcall.gas(5000)(abi.encodeWithSelector(
-            compound.markets.selector,
-            token
-        ));
-        if (!success) {
-            return false;
-        }
-
-        (bool isListed,) = abi.decode(data, (bool,uint256));
-        return isListed;
-    }
-
-    function _compoundUnderlyingAsset(IERC20 asset) internal view returns(IERC20) {
-        if (asset == cETH) {
-            return IERC20(address(0));
-        }
-
-        (bool success, bytes memory data) = address(asset).staticcall.gas(5000)(abi.encodeWithSelector(
-            ICompoundToken(address(asset)).underlying.selector
-        ));
-        if (!success) {
-            return IERC20(-1);
-        }
-
-        return abi.decode(data, (IERC20));
-    }
 }
 
 
@@ -83,37 +51,34 @@ contract OneSplitCompoundView is OneSplitBaseView, OneSplitCompoundBase {
         }
 
         if (!disableFlags.check(FLAG_DISABLE_COMPOUND)) {
-            if (_isCompoundToken(fromToken)) {
-                IERC20 underlying = _compoundUnderlyingAsset(fromToken);
-                if (underlying != IERC20(-1)) {
-                    uint256 compoundRate = ICompoundToken(address(fromToken)).exchangeRateStored();
+            IERC20 underlying = _getCompoundToken(fromToken);
+            if (underlying != IERC20(0)) {
+                uint256 compoundRate = ICompoundToken(address(fromToken)).exchangeRateStored();
 
-                    return _compoundGetExpectedReturn(
-                        underlying,
-                        toToken,
-                        amount.mul(compoundRate).div(1e18),
-                        parts,
-                        disableFlags
-                    );
-                }
+                return _compoundGetExpectedReturn(
+                    underlying,
+                    toToken,
+                    amount.mul(compoundRate).div(1e18),
+                    parts,
+                    disableFlags
+                );
             }
 
-            if (_isCompoundToken(toToken)) {
-                IERC20 underlying = _compoundUnderlyingAsset(toToken);
-                if (underlying != IERC20(-1)) {
-                    uint256 compoundRate = ICompoundToken(address(toToken)).exchangeRateStored();
+            underlying = _getCompoundToken(toToken);
+            if (underlying != IERC20(0)) {
+                uint256 compoundRate = ICompoundToken(address(toToken)).exchangeRateStored();
 
-                    (returnAmount, distribution) = super.getExpectedReturn(
-                        fromToken,
-                        underlying,
-                        amount,
-                        parts,
-                        disableFlags
-                    );
+                (returnAmount, distribution) = super.getExpectedReturn(
+                    fromToken,
+                    underlying,
+                    amount,
+                    parts,
+                    disableFlags
+                );
 
-                    returnAmount = returnAmount.mul(1e18).div(compoundRate);
-                    return (returnAmount, distribution);
-                }
+                returnAmount = returnAmount.mul(1e18).div(compoundRate);
+                return (returnAmount, distribution);
+
             }
         }
 
@@ -157,9 +122,8 @@ contract OneSplitCompound is OneSplitBase, OneSplitCompoundBase {
         }
 
         if (!disableFlags.check(FLAG_DISABLE_COMPOUND)) {
-            if (_isCompoundToken(fromToken)) {
-                IERC20 underlying = _compoundUnderlyingAsset(fromToken);
-
+            IERC20 underlying = _getCompoundToken(fromToken);
+            if (underlying != IERC20(0)) {
                 ICompoundToken(address(fromToken)).redeem(amount);
                 uint256 underlyingAmount = underlying.universalBalanceOf(address(this));
 
@@ -172,9 +136,8 @@ contract OneSplitCompound is OneSplitBase, OneSplitCompoundBase {
                 );
             }
 
-            if (_isCompoundToken(toToken)) {
-                IERC20 underlying = _compoundUnderlyingAsset(toToken);
-
+            underlying = _getCompoundToken(toToken);
+            if (underlying != IERC20(0)) {
                 super._swap(
                     fromToken,
                     underlying,

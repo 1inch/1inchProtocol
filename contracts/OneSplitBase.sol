@@ -9,7 +9,8 @@ import "./interface/IKyberOasisReserve.sol";
 import "./interface/IKyberBancorReserve.sol";
 import "./interface/IBancorNetwork.sol";
 import "./interface/IBancorContractRegistry.sol";
-import "./interface/IBancorNetworkPathFinder.sol";
+//import "./interface/IBancorNetworkPathFinder.sol";
+import "./interface/IBancorConverterRegistry.sol";
 import "./interface/IBancorEtherToken.sol";
 import "./interface/IOasisExchange.sol";
 import "./interface/IWETH.sol";
@@ -57,6 +58,7 @@ contract OneSplitRoot {
     IERC20 constant public ETH_ADDRESS = IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
     IERC20 public dai = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
+    IERC20 public bnt = IERC20(0x1F573D6Fb3F13d689FF844B4cE37794d79a7FF1C);
     IERC20 public usdc = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
     IERC20 public usdt = IERC20(0xdAC17F958D2ee523a2206206994597C13D831ec7);
     IERC20 public tusd = IERC20(0x0000000000085d4780B73119b644AE5ecd22b376);
@@ -69,7 +71,8 @@ contract OneSplitRoot {
     IKyberNetworkProxy public kyberNetworkProxy = IKyberNetworkProxy(0x818E6FECD516Ecc3849DAf6845e3EC868087B755);
     IUniswapFactory public uniswapFactory = IUniswapFactory(0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95);
     IBancorContractRegistry public bancorContractRegistry = IBancorContractRegistry(0x52Ae12ABe5D8BD778BD5397F99cA900624CfADD4);
-    IBancorNetworkPathFinder bancorNetworkPathFinder = IBancorNetworkPathFinder(0x6F0cD8C4f6F06eAB664C7E3031909452b4B72861);
+    //IBancorNetworkPathFinder bancorNetworkPathFinder = IBancorNetworkPathFinder(0x6F0cD8C4f6F06eAB664C7E3031909452b4B72861);
+    IBancorConverterRegistry public bancorConverterRegistry = IBancorConverterRegistry(0xf6E2D7F616B67E46D708e4410746E9AAb3a4C518);
     IOasisExchange public oasisExchange = IOasisExchange(0x794e6e91555438aFc3ccF1c5076A74F42133d08D);
     ICurve public curveCompound = ICurve(0xA2B47E3D5c44877cca798226B7B8118F9BFb7A56);
     ICurve public curveUsdt = ICurve(0x52EA46506B9CC5Ef470C5bf89f17Dc28bB35D85C);
@@ -77,6 +80,84 @@ contract OneSplitRoot {
     ICurve public curveBinance = ICurve(0x79a8C46DeA5aDa233ABaFFD40F3A0A2B1e5A4F27);
     ICurve public curveSynthetix = ICurve(0x3b12e1fBb468BEa80B492d635976809Bf950186C);
     IAaveLendingPool public aave = IAaveLendingPool(0x398eC7346DcD622eDc5ae82352F02bE94C62d119);
+
+    function _buildBancorPath(
+        IERC20 fromToken,
+        IERC20 toToken
+    ) internal view returns(address[] memory path) {
+        if (fromToken == toToken) {
+            return new address[](0);
+        }
+
+        if (fromToken.isETH()) {
+            fromToken = bancorEtherToken;
+        }
+        if (toToken.isETH()) {
+            toToken = bancorEtherToken;
+        }
+
+        if (fromToken == bnt || toToken == bnt) {
+            path = new address[](3);
+        } else {
+            path = new address[](5);
+        }
+
+        address fromConverter;
+        address toConverter;
+
+        if (fromToken != bnt) {
+            (bool success, bytes memory data) = address(bancorConverterRegistry).staticcall.gas(10000)(abi.encodeWithSelector(
+                bancorConverterRegistry.getConvertibleTokenSmartToken.selector,
+                fromToken.isETH() ? bnt : fromToken,
+                0
+            ));
+            if (!success) {
+                return new address[](0);
+            }
+
+            fromConverter = abi.decode(data, (address));
+            if (fromConverter == address(0)) {
+                return new address[](0);
+            }
+        }
+
+        if (toToken != bnt) {
+            (bool success, bytes memory data) = address(bancorConverterRegistry).staticcall.gas(10000)(abi.encodeWithSelector(
+                bancorConverterRegistry.getConvertibleTokenSmartToken.selector,
+                toToken.isETH() ? bnt : toToken,
+                0
+            ));
+            if (!success) {
+                return new address[](0);
+            }
+
+            toConverter = abi.decode(data, (address));
+            if (toConverter == address(0)) {
+                return new address[](0);
+            }
+        }
+
+        if (toToken == bnt) {
+            path[0] = address(fromToken);
+            path[1] = fromConverter;
+            path[2] = address(bnt);
+            return path;
+        }
+
+        if (fromToken == bnt) {
+            path[0] = address(bnt);
+            path[1] = toConverter;
+            path[2] = address(toToken);
+            return path;
+        }
+
+        path[0] = address(fromToken);
+        path[1] = fromConverter;
+        path[2] = address(bnt);
+        path[3] = toConverter;
+        path[4] = address(toToken);
+        return path;
+    }
 
     function _getCompoundToken(IERC20 token) internal pure returns(ICompoundToken) {
         if (token.isETH()) { // ETH
@@ -602,10 +683,7 @@ contract OneSplitBaseView is IOneSplitView, OneSplitRoot {
         uint256 /*disableFlags*/
     ) public view returns(uint256) {
         IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
-        address[] memory path = bancorNetworkPathFinder.generatePath(
-            fromToken.isETH() ? bancorEtherToken : fromToken,
-            toToken.isETH() ? bancorEtherToken : toToken
-        );
+        address[] memory path = _buildBancorPath(fromToken, toToken);
 
         (bool success, bytes memory data) = address(bancorNetwork).staticcall.gas(500000)(
             abi.encodeWithSelector(
@@ -937,10 +1015,7 @@ contract OneSplitBase is IOneSplit, OneSplitRoot {
         }
 
         IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
-        address[] memory path = bancorNetworkPathFinder.generatePath(
-            fromToken.isETH() ? bancorEtherToken : fromToken,
-            toToken.isETH() ? bancorEtherToken : toToken
-        );
+        address[] memory path = _buildBancorPath(fromToken, toToken);
 
         _infiniteApproveIfNeeded(fromToken.isETH() ? bancorEtherToken : fromToken, address(bancorNetwork));
         uint256 returnAmount = bancorNetwork.claimAndConvert(path, amount, 1);
