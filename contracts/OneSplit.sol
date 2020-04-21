@@ -12,6 +12,7 @@ import "./OneSplitIdle.sol";
 import "./OneSplitAave.sol";
 import "./OneSplitWeth.sol";
 import "./OneSplitUniswapPoolToken.sol";
+import "./OneSplitBalancerPoolToken.sol";
 //import "./OneSplitSmartToken.sol";
 
 
@@ -27,7 +28,8 @@ contract OneSplitView is
     OneSplitIearnView,
     OneSplitIdleView(0x23E4D1536c449e4D79E5903B4A9ddc3655be8609),
     OneSplitWethView,
-    OneSplitUniswapPoolTokenView
+    OneSplitUniswapPoolTokenView,
+    OneSplitBalancerPoolTokenView
     //OneSplitSmartTokenView
 {
     function() external {
