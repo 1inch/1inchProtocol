@@ -20,6 +20,12 @@ contract IBMath is BConst {
 }
 
 contract IBPool is IERC20, IBMath {
+    function joinPool(uint poolAmountOut, uint[] calldata maxAmountsIn) external;
+
+    function exitPool(uint poolAmountIn, uint[] calldata minAmountsOut) external;
+
+    function joinswapExternAmountIn(address tokenIn, uint tokenAmountIn, uint minPoolAmountOut) external returns (uint poolAmountOut);
+
     function getCurrentTokens() external view returns (address[] memory tokens);
 
     function getBalance(address token) external view returns (uint);

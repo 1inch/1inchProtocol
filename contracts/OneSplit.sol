@@ -103,7 +103,8 @@ contract OneSplit is
     OneSplitIearn,
     OneSplitIdle(0x23E4D1536c449e4D79E5903B4A9ddc3655be8609),
     OneSplitWeth,
-    OneSplitUniswapPoolToken
+    OneSplitUniswapPoolToken,
+    OneSplitBalancerPoolToken
     //OneSplitSmartToken
 {
     IOneSplitView public oneSplitView;
