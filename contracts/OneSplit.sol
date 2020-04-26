@@ -13,6 +13,7 @@ import "./OneSplitAave.sol";
 import "./OneSplitWeth.sol";
 import "./OneSplitUniswapPoolToken.sol";
 import "./OneSplitBalancerPoolToken.sol";
+import "./OneSplitCurveSusdPoolToken.sol";
 //import "./OneSplitSmartToken.sol";
 
 
@@ -29,7 +30,8 @@ contract OneSplitView is
     OneSplitIdleView(0x23E4D1536c449e4D79E5903B4A9ddc3655be8609),
     OneSplitWethView,
     OneSplitUniswapPoolTokenView,
-    OneSplitBalancerPoolTokenView
+    OneSplitBalancerPoolTokenView,
+    OneSplitCurveSusdPoolTokenView
     //OneSplitSmartTokenView
 {
     function() external {
@@ -104,7 +106,8 @@ contract OneSplit is
     OneSplitIdle(0x23E4D1536c449e4D79E5903B4A9ddc3655be8609),
     OneSplitWeth,
     OneSplitUniswapPoolToken,
-    OneSplitBalancerPoolToken
+    OneSplitBalancerPoolToken,
+    OneSplitCurveSusdPoolToken
     //OneSplitSmartToken
 {
     IOneSplitView public oneSplitView;

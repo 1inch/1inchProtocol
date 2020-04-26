@@ -11,22 +11,22 @@ contract OneSplitCurveSusdPoolTokenBase {
     ISusdCurve curve = ISusdCurve(0xA5407eAE9Ba41422680e2e00537571bcC53efBfD);
     IERC20 curveSusdToken = IERC20(0xC25a3A3b969415c80451098fa907EC722572917F);
 
-    struct TokenInfo {
+    struct CurveSusdTokenInfo {
         IERC20 token;
         uint256 reserveBalance;
     }
 
-    struct PoolTokenDetails {
-        TokenInfo[] tokens;
+    struct CurveSusdPoolTokenDetails {
+        CurveSusdTokenInfo[] tokens;
         uint256 totalSupply;
     }
 
     function _getPoolDetails()
         internal
         view
-        returns(PoolTokenDetails memory details)
+        returns(CurveSusdPoolTokenDetails memory details)
     {
-        details.tokens = new TokenInfo[](4);
+        details.tokens = new CurveSusdTokenInfo[](4);
         details.totalSupply = curveSusdToken.totalSupply();
         for (uint256 i = 0; i < 4; i++) {
             details.tokens[i].token = IERC20(curve.coins(int128(i)));
@@ -102,7 +102,7 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitBaseView, OneSplitCurveSusdPo
     {
         distribution = new uint256[](DEXES_COUNT);
 
-        PoolTokenDetails memory details = _getPoolDetails();
+        CurveSusdPoolTokenDetails memory details = _getPoolDetails();
 
         uint256 ratio = amount.mul(1e18).div(details.totalSupply);
         for (uint i = 0; i < 4; i++) {
@@ -146,7 +146,7 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitBaseView, OneSplitCurveSusdPo
     {
         distribution = new uint256[](DEXES_COUNT);
 
-        PoolTokenDetails memory details = _getPoolDetails();
+        CurveSusdPoolTokenDetails memory details = _getPoolDetails();
 
         uint256[4] memory tokenAmounts;
         uint256[] memory dist;
@@ -229,7 +229,7 @@ contract OneSplitCurveSusdPoolToken is OneSplitBase, OneSplitCurveSusdPoolTokenB
         uint256 disableFlags
     ) private {
 
-        PoolTokenDetails memory details = _getPoolDetails();
+        CurveSusdPoolTokenDetails memory details = _getPoolDetails();
 
         uint256 ratio = amount.mul(1e18).div(details.totalSupply);
 
@@ -274,7 +274,7 @@ contract OneSplitCurveSusdPoolToken is OneSplitBase, OneSplitCurveSusdPoolTokenB
     ) private {
         uint256[] memory dist = new uint256[](distribution.length);
 
-        PoolTokenDetails memory details = _getPoolDetails();
+        CurveSusdPoolTokenDetails memory details = _getPoolDetails();
 
         uint256[4] memory tokenAmounts;
         uint256 exchangeAmountPart = amount.div(4);
