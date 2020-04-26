@@ -34,6 +34,7 @@ contract IOneSplitConsts {
     uint256 public constant FLAG_DISABLE_IDLE = 0x800000;
     uint256 public constant FLAG_DISABLE_UNISWAP_POOL_TOKEN = 0x1000000;
     uint256 public constant FLAG_DISABLE_BALANCER_POOL_TOKEN = 0x2000000;
+    uint256 public constant FLAG_DISABLE_CURVE_SUSD_POOL_TOKEN = 0x4000000;
 }
 
 
