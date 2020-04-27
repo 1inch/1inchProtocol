@@ -20,6 +20,7 @@ contract OneSplitCurveSusdPoolTokenBase {
     struct CurveSusdPoolTokenDetails {
         CurveSusdTokenInfo[] tokens;
         uint256 totalSupply;
+        uint256 totalWeightedBalance;
     }
 
     function _getPoolDetails()
@@ -32,8 +33,9 @@ contract OneSplitCurveSusdPoolTokenBase {
         for (uint256 i = 0; i < 4; i++) {
             details.tokens[i].token = IERC20(curve.coins(int128(i)));
             details.tokens[i].reserveBalance = curve.balances(int128(i));
-            uint256 ratio = 1e18 * 1e18 / details.tokens[i].token.universalDecimals();
+            uint256 ratio = 1e18 * 1e18 / (10 ** details.tokens[i].token.universalDecimals());
             details.tokens[i].weightedReserveBalance = ratio.mul(details.tokens[i].reserveBalance).div(1e18);
+            details.totalWeightedBalance = details.totalWeightedBalance.add(details.tokens[i].weightedReserveBalance);
         }
     }
 
@@ -151,21 +153,18 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitBaseView, OneSplitCurveSusdPo
         distribution = new uint256[](DEXES_COUNT);
 
         CurveSusdPoolTokenDetails memory details = _getPoolDetails();
-        uint256 weightedTotalSupply = details.totalSupply.mul(curve.get_virtual_price()).div(1e18);
 
-        uint256 exchangeAmountSum;
         uint256[4] memory tokenAmounts;
         uint256[] memory dist;
         for (uint i = 0; i < 4; i++) {
-            uint256 exchangeAmount = amount
-                .mul(details.tokens[i].weightedReserveBalance)
-                .div(weightedTotalSupply);
+            uint256 ratio = details.tokens[i].weightedReserveBalance.mul(1e18).div(details.totalWeightedBalance);
+            uint256 exchangeAmount = amount.mul(ratio).div(1e18);
 
             if (details.tokens[i].token != fromToken) {
                 (tokenAmounts[i], dist) = getExpectedReturn(
                     fromToken,
                     details.tokens[i].token,
-                    i != 3 ? exchangeAmount : amount - exchangeAmountSum,
+                    exchangeAmount,
                     parts,
                     disableFlags
                 );
@@ -174,10 +173,8 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitBaseView, OneSplitCurveSusdPo
                     distribution[j] |= dist[j] << (i * 8);
                 }
             } else {
-                tokenAmounts[i] = i != 3 ? exchangeAmount : amount - exchangeAmountSum;
+                tokenAmounts[i] = exchangeAmount;
             }
-
-            exchangeAmountSum = exchangeAmountSum.add(exchangeAmount);
         }
 
         returnAmount = curve.calc_token_amount(tokenAmounts, true);
@@ -286,14 +283,11 @@ contract OneSplitCurveSusdPoolToken is OneSplitBase, OneSplitCurveSusdPoolTokenB
         uint256[] memory dist = new uint256[](distribution.length);
 
         CurveSusdPoolTokenDetails memory details = _getPoolDetails();
-        uint256 weightedTotalSupply = details.totalSupply.mul(curve.get_virtual_price()).div(1e18);
 
-        uint256 exchangeAmountSum;
         uint256[4] memory tokenAmounts;
         for (uint i = 0; i < 4; i++) {
-            uint256 exchangeAmount = amount
-                .mul(details.tokens[i].weightedReserveBalance)
-                .div(weightedTotalSupply);
+            uint256 ratio = details.tokens[i].weightedReserveBalance.mul(1e18).div(details.totalWeightedBalance);
+            uint256 exchangeAmount = amount.mul(ratio).div(1e18);
 
             if (details.tokens[i].token != fromToken) {
                 uint256 tokenBalanceBefore = details.tokens[i].token.balanceOf(address(this));
@@ -305,7 +299,7 @@ contract OneSplitCurveSusdPoolToken is OneSplitBase, OneSplitCurveSusdPoolTokenB
                 this.swap(
                     fromToken,
                     details.tokens[i].token,
-                    i != 3 ? exchangeAmount : amount - exchangeAmountSum,
+                    exchangeAmount,
                     0,
                     dist,
                     disableFlags
@@ -315,10 +309,8 @@ contract OneSplitCurveSusdPoolToken is OneSplitBase, OneSplitCurveSusdPoolTokenB
 
                 tokenAmounts[i] = tokenBalanceAfter.sub(tokenBalanceBefore);
             } else {
-                tokenAmounts[i] = i != 3 ? exchangeAmount : amount - exchangeAmountSum;
+                tokenAmounts[i] = exchangeAmount;
             }
-
-            exchangeAmountSum = exchangeAmountSum.add(exchangeAmount);
 
             _infiniteApproveIfNeeded(details.tokens[i].token, address(curve));
         }
