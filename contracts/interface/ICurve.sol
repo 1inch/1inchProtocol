@@ -7,9 +7,6 @@ interface ICurve {
 
     // solium-disable-next-line mixedcase
     function exchange_underlying(int128 i, int128 j, uint256 dx, uint256 minDy) external;
-}
-
-interface  ISusdCurve {
 
     function coins(int128 arg0) external view returns (address);
 

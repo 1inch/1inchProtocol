@@ -8,8 +8,8 @@ contract OneSplitCurveSusdPoolTokenBase {
     using SafeMath for uint256;
     using UniversalERC20 for IERC20;
 
-    ISusdCurve curve = ISusdCurve(0xA5407eAE9Ba41422680e2e00537571bcC53efBfD);
     IERC20 curveSusdToken = IERC20(0xC25a3A3b969415c80451098fa907EC722572917F);
+    ICurve public curveSynthetix = ICurve(0xA5407eAE9Ba41422680e2e00537571bcC53efBfD);
 
     struct CurveSusdTokenInfo {
         IERC20 token;
@@ -29,8 +29,8 @@ contract OneSplitCurveSusdPoolTokenBase {
         details.tokens = new CurveSusdTokenInfo[](4);
         details.totalSupply = curveSusdToken.totalSupply();
         for (uint256 i = 0; i < 4; i++) {
-            details.tokens[i].token = IERC20(curve.coins(int128(i)));
-            details.tokens[i].reserveBalance = curve.balances(int128(i));
+            details.tokens[i].token = IERC20(curveSynthetix.coins(int128(i)));
+            details.tokens[i].reserveBalance = curveSynthetix.balances(int128(i));
         }
     }
 
@@ -170,7 +170,7 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitBaseView, OneSplitCurveSusdPo
             }
         }
 
-        returnAmount = curve.calc_token_amount(tokenAmounts, true);
+        returnAmount = curveSynthetix.calc_token_amount(tokenAmounts, true);
 
         return (returnAmount, distribution);
     }
@@ -238,7 +238,7 @@ contract OneSplitCurveSusdPoolToken is OneSplitBase, OneSplitCurveSusdPoolTokenB
             minAmountsOut[i] = details.tokens[i].reserveBalance.mul(ratio).div(1e18).mul(995).div(1000); // 0.5% slippage;
         }
 
-        curve.remove_liquidity(amount, minAmountsOut);
+        curveSynthetix.remove_liquidity(amount, minAmountsOut);
 
         uint256[] memory dist = new uint256[](distribution.length);
         for (uint i = 0; i < 4; i++) {
@@ -303,12 +303,12 @@ contract OneSplitCurveSusdPoolToken is OneSplitBase, OneSplitCurveSusdPoolTokenB
                 tokenAmounts[i] = i != 3 ? exchangeAmountPart : exchangeAmountPart.add(exchangeAmountPart % 4);
             }
 
-            _infiniteApproveIfNeeded(details.tokens[i].token, address(curve));
+            _infiniteApproveIfNeeded(details.tokens[i].token, address(curveSynthetix));
         }
 
-        uint256 minAmount = curve.calc_token_amount(tokenAmounts, true);
+        uint256 minAmount = curveSynthetix.calc_token_amount(tokenAmounts, true);
 
         // 0.5% slippage
-        curve.add_liquidity(tokenAmounts, minAmount.mul(995).div(1000));
+        curveSynthetix.add_liquidity(tokenAmounts, minAmount.mul(995).div(1000));
     }
 }
