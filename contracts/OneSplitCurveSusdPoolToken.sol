@@ -13,13 +13,11 @@ contract OneSplitCurveSusdPoolTokenBase {
 
     struct CurveSusdTokenInfo {
         IERC20 token;
-        uint256 reserveBalance;
         uint256 weightedReserveBalance;
     }
 
     struct CurveSusdPoolTokenDetails {
         CurveSusdTokenInfo[] tokens;
-        uint256 totalSupply;
         uint256 totalWeightedBalance;
     }
 
@@ -29,12 +27,12 @@ contract OneSplitCurveSusdPoolTokenBase {
         returns(CurveSusdPoolTokenDetails memory details)
     {
         details.tokens = new CurveSusdTokenInfo[](4);
-        details.totalSupply = curveSusdToken.totalSupply();
         for (uint256 i = 0; i < 4; i++) {
             details.tokens[i].token = IERC20(curve.coins(int128(i)));
-            details.tokens[i].reserveBalance = curve.balances(int128(i));
-            uint256 ratio = 1e18 * 1e18 / (10 ** details.tokens[i].token.universalDecimals());
-            details.tokens[i].weightedReserveBalance = ratio.mul(details.tokens[i].reserveBalance).div(1e18);
+            details.tokens[i].weightedReserveBalance = uint256(1e36)
+                .div(10 ** details.tokens[i].token.universalDecimals())
+                .mul(curve.balances(int128(i)))
+                .div(1e18);
             details.totalWeightedBalance = details.totalWeightedBalance.add(details.tokens[i].weightedReserveBalance);
         }
     }
@@ -93,7 +91,7 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitBaseView, OneSplitCurveSusdPo
     }
 
     function _getExpectedReturnFromCurveSusdPoolToken(
-        IERC20, // poolToken
+        IERC20 poolToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
@@ -107,20 +105,21 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitBaseView, OneSplitCurveSusdPo
     {
         distribution = new uint256[](DEXES_COUNT);
 
-        CurveSusdPoolTokenDetails memory details = _getPoolDetails();
-
+        uint256 totalSupply = poolToken.totalSupply();
         for (uint i = 0; i < 4; i++) {
-            uint256 tokenAmountOut = details.tokens[i].reserveBalance
-                .mul(amount)
-                .div(details.totalSupply);
+            IERC20 coin = IERC20(curve.coins(int128(i)));
 
-            if (details.tokens[i].token == toToken) {
+            uint256 tokenAmountOut = curve.balances(int128(i))
+                .mul(amount)
+                .div(totalSupply);
+
+            if (coin == toToken) {
                 returnAmount = returnAmount.add(tokenAmountOut);
                 continue;
             }
 
             (uint256 ret, uint256[] memory dist) = getExpectedReturn(
-                details.tokens[i].token,
+                coin,
                 toToken,
                 tokenAmountOut,
                 parts,
@@ -229,20 +228,19 @@ contract OneSplitCurveSusdPoolToken is OneSplitBase, OneSplitCurveSusdPoolTokenB
     }
 
     function _swapFromCurveSusdPoolToken(
-        IERC20, // poolToken
+        IERC20 poolToken,
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
         uint256 disableFlags
     ) private {
 
-        CurveSusdPoolTokenDetails memory details = _getPoolDetails();
-
+        uint256 totalSupply = poolToken.totalSupply();
         uint256[4] memory minAmountsOut;
         for (uint i = 0; i < 4; i++) {
-            minAmountsOut[i] = details.tokens[i].reserveBalance
+            minAmountsOut[i] = curve.balances(int128(i))
                 .mul(amount)
-                .div(details.totalSupply)
+                .div(totalSupply)
                 .mul(995).div(1000); // 0.5% slippage;
         }
 
@@ -250,8 +248,9 @@ contract OneSplitCurveSusdPoolToken is OneSplitBase, OneSplitCurveSusdPoolTokenB
 
         uint256[] memory dist = new uint256[](distribution.length);
         for (uint i = 0; i < 4; i++) {
+            IERC20 coin = IERC20(curve.coins(int128(i)));
 
-            if (details.tokens[i].token == toToken) {
+            if (coin == toToken) {
                 continue;
             }
 
@@ -259,10 +258,10 @@ contract OneSplitCurveSusdPoolToken is OneSplitBase, OneSplitCurveSusdPoolTokenB
                 dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
             }
 
-            uint256 exchangeTokenAmount = details.tokens[i].token.balanceOf(address(this));
+            uint256 exchangeTokenAmount = coin.balanceOf(address(this));
 
             this.swap(
-                details.tokens[i].token,
+                coin,
                 toToken,
                 exchangeTokenAmount,
                 0,
@@ -286,8 +285,9 @@ contract OneSplitCurveSusdPoolToken is OneSplitBase, OneSplitCurveSusdPoolTokenB
 
         uint256[4] memory tokenAmounts;
         for (uint i = 0; i < 4; i++) {
-            uint256 ratio = details.tokens[i].weightedReserveBalance.mul(1e18).div(details.totalWeightedBalance);
-            uint256 exchangeAmount = amount.mul(ratio).div(1e18);
+            uint256 exchangeAmount = amount.mul(
+                details.tokens[i].weightedReserveBalance.mul(1e18).div(details.totalWeightedBalance)
+            ).div(1e18);
 
             if (details.tokens[i].token != fromToken) {
                 uint256 tokenBalanceBefore = details.tokens[i].token.balanceOf(address(this));
