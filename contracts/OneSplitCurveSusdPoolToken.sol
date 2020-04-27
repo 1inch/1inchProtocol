@@ -9,11 +9,12 @@ contract OneSplitCurveSusdPoolTokenBase {
     using UniversalERC20 for IERC20;
 
     IERC20 curveSusdToken = IERC20(0xC25a3A3b969415c80451098fa907EC722572917F);
-    ICurve public curveSynthetix = ICurve(0xA5407eAE9Ba41422680e2e00537571bcC53efBfD);
+    ICurve public curve = ICurve(0xA5407eAE9Ba41422680e2e00537571bcC53efBfD);
 
     struct CurveSusdTokenInfo {
         IERC20 token;
         uint256 reserveBalance;
+        uint256 weightedReserveBalance;
     }
 
     struct CurveSusdPoolTokenDetails {
@@ -29,8 +30,10 @@ contract OneSplitCurveSusdPoolTokenBase {
         details.tokens = new CurveSusdTokenInfo[](4);
         details.totalSupply = curveSusdToken.totalSupply();
         for (uint256 i = 0; i < 4; i++) {
-            details.tokens[i].token = IERC20(curveSynthetix.coins(int128(i)));
-            details.tokens[i].reserveBalance = curveSynthetix.balances(int128(i));
+            details.tokens[i].token = IERC20(curve.coins(int128(i)));
+            details.tokens[i].reserveBalance = curve.balances(int128(i));
+            uint256 ratio = 1e18 * 1e18 / details.tokens[i].token.universalDecimals();
+            details.tokens[i].weightedReserveBalance = ratio.mul(details.tokens[i].reserveBalance).div(1e18);
         }
     }
 
@@ -104,9 +107,10 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitBaseView, OneSplitCurveSusdPo
 
         CurveSusdPoolTokenDetails memory details = _getPoolDetails();
 
-        uint256 ratio = amount.mul(1e18).div(details.totalSupply);
         for (uint i = 0; i < 4; i++) {
-            uint256 tokenAmountOut = details.tokens[i].reserveBalance.mul(ratio).div(1e18);
+            uint256 tokenAmountOut = details.tokens[i].reserveBalance
+                .mul(amount)
+                .div(details.totalSupply);
 
             if (details.tokens[i].token == toToken) {
                 returnAmount = returnAmount.add(tokenAmountOut);
@@ -147,17 +151,21 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitBaseView, OneSplitCurveSusdPo
         distribution = new uint256[](DEXES_COUNT);
 
         CurveSusdPoolTokenDetails memory details = _getPoolDetails();
+        uint256 weightedTotalSupply = details.totalSupply.mul(curve.get_virtual_price()).div(1e18);
 
+        uint256 exchangeAmountSum;
         uint256[4] memory tokenAmounts;
         uint256[] memory dist;
-        uint256 exchangeAmountPart = amount.div(4);
         for (uint i = 0; i < 4; i++) {
+            uint256 exchangeAmount = amount
+                .mul(details.tokens[i].weightedReserveBalance)
+                .div(weightedTotalSupply);
 
             if (details.tokens[i].token != fromToken) {
                 (tokenAmounts[i], dist) = getExpectedReturn(
                     fromToken,
                     details.tokens[i].token,
-                    i != 3 ? exchangeAmountPart : exchangeAmountPart.add(exchangeAmountPart % 4),
+                    i != 3 ? exchangeAmount : amount - exchangeAmountSum,
                     parts,
                     disableFlags
                 );
@@ -166,11 +174,13 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitBaseView, OneSplitCurveSusdPo
                     distribution[j] |= dist[j] << (i * 8);
                 }
             } else {
-                tokenAmounts[i] = i != 3 ? exchangeAmountPart : exchangeAmountPart.add(exchangeAmountPart % 4);
+                tokenAmounts[i] = i != 3 ? exchangeAmount : amount - exchangeAmountSum;
             }
+
+            exchangeAmountSum = exchangeAmountSum.add(exchangeAmount);
         }
 
-        returnAmount = curveSynthetix.calc_token_amount(tokenAmounts, true);
+        returnAmount = curve.calc_token_amount(tokenAmounts, true);
 
         return (returnAmount, distribution);
     }
@@ -231,14 +241,15 @@ contract OneSplitCurveSusdPoolToken is OneSplitBase, OneSplitCurveSusdPoolTokenB
 
         CurveSusdPoolTokenDetails memory details = _getPoolDetails();
 
-        uint256 ratio = amount.mul(1e18).div(details.totalSupply);
-
         uint256[4] memory minAmountsOut;
         for (uint i = 0; i < 4; i++) {
-            minAmountsOut[i] = details.tokens[i].reserveBalance.mul(ratio).div(1e18).mul(995).div(1000); // 0.5% slippage;
+            minAmountsOut[i] = details.tokens[i].reserveBalance
+                .mul(amount)
+                .div(details.totalSupply)
+                .mul(995).div(1000); // 0.5% slippage;
         }
 
-        curveSynthetix.remove_liquidity(amount, minAmountsOut);
+        curve.remove_liquidity(amount, minAmountsOut);
 
         uint256[] memory dist = new uint256[](distribution.length);
         for (uint i = 0; i < 4; i++) {
@@ -275,10 +286,14 @@ contract OneSplitCurveSusdPoolToken is OneSplitBase, OneSplitCurveSusdPoolTokenB
         uint256[] memory dist = new uint256[](distribution.length);
 
         CurveSusdPoolTokenDetails memory details = _getPoolDetails();
+        uint256 weightedTotalSupply = details.totalSupply.mul(curve.get_virtual_price()).div(1e18);
 
+        uint256 exchangeAmountSum;
         uint256[4] memory tokenAmounts;
-        uint256 exchangeAmountPart = amount.div(4);
         for (uint i = 0; i < 4; i++) {
+            uint256 exchangeAmount = amount
+                .mul(details.tokens[i].weightedReserveBalance)
+                .div(weightedTotalSupply);
 
             if (details.tokens[i].token != fromToken) {
                 uint256 tokenBalanceBefore = details.tokens[i].token.balanceOf(address(this));
@@ -290,7 +305,7 @@ contract OneSplitCurveSusdPoolToken is OneSplitBase, OneSplitCurveSusdPoolTokenB
                 this.swap(
                     fromToken,
                     details.tokens[i].token,
-                    i != 3 ? exchangeAmountPart : exchangeAmountPart.add(exchangeAmountPart % 4),
+                    i != 3 ? exchangeAmount : amount - exchangeAmountSum,
                     0,
                     dist,
                     disableFlags
@@ -300,15 +315,17 @@ contract OneSplitCurveSusdPoolToken is OneSplitBase, OneSplitCurveSusdPoolTokenB
 
                 tokenAmounts[i] = tokenBalanceAfter.sub(tokenBalanceBefore);
             } else {
-                tokenAmounts[i] = i != 3 ? exchangeAmountPart : exchangeAmountPart.add(exchangeAmountPart % 4);
+                tokenAmounts[i] = i != 3 ? exchangeAmount : amount - exchangeAmountSum;
             }
 
-            _infiniteApproveIfNeeded(details.tokens[i].token, address(curveSynthetix));
+            exchangeAmountSum = exchangeAmountSum.add(exchangeAmount);
+
+            _infiniteApproveIfNeeded(details.tokens[i].token, address(curve));
         }
 
-        uint256 minAmount = curveSynthetix.calc_token_amount(tokenAmounts, true);
+        uint256 minAmount = curve.calc_token_amount(tokenAmounts, true);
 
         // 0.5% slippage
-        curveSynthetix.add_liquidity(tokenAmounts, minAmount.mul(995).div(1000));
+        curve.add_liquidity(tokenAmounts, minAmount.mul(995).div(1000));
     }
 }
