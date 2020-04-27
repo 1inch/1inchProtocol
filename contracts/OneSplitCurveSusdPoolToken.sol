@@ -8,8 +8,8 @@ contract OneSplitCurveSusdPoolTokenBase {
     using SafeMath for uint256;
     using UniversalERC20 for IERC20;
 
-    IERC20 curveSusdToken = IERC20(0xC25a3A3b969415c80451098fa907EC722572917F);
-    ICurve public curve = ICurve(0xA5407eAE9Ba41422680e2e00537571bcC53efBfD);
+    IERC20 constant curveSusdToken = IERC20(0xC25a3A3b969415c80451098fa907EC722572917F);
+    ICurve constant curve = ICurve(0xA5407eAE9Ba41422680e2e00537571bcC53efBfD);
 
     struct CurveSusdTokenInfo {
         IERC20 token;
