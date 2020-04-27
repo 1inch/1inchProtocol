@@ -29,18 +29,17 @@ contract OneSplitCurveSusdPoolTokenBase {
         details.tokens = new CurveSusdTokenInfo[](4);
         for (uint256 i = 0; i < 4; i++) {
             details.tokens[i].token = IERC20(curve.coins(int128(i)));
-            details.tokens[i].weightedReserveBalance = uint256(1e36)
-                .div(10 ** details.tokens[i].token.universalDecimals())
-                .mul(curve.balances(int128(i)))
-                .div(1e18);
-            details.totalWeightedBalance = details.totalWeightedBalance.add(details.tokens[i].weightedReserveBalance);
+            details.tokens[i].weightedReserveBalance = curve.balances(int128(i))
+                .mul(1e18).div(10 ** details.tokens[i].token.universalDecimals());
+            details.totalWeightedBalance = details.totalWeightedBalance.add(
+                details.tokens[i].weightedReserveBalance
+            );
         }
     }
-
 }
 
-contract OneSplitCurveSusdPoolTokenView is OneSplitBaseView, OneSplitCurveSusdPoolTokenBase {
 
+contract OneSplitCurveSusdPoolTokenView is OneSplitBaseView, OneSplitCurveSusdPoolTokenBase {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
@@ -118,7 +117,7 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitBaseView, OneSplitCurveSusdPo
                 continue;
             }
 
-            (uint256 ret, uint256[] memory dist) = getExpectedReturn(
+            (uint256 ret, uint256[] memory dist) = this.getExpectedReturn(
                 coin,
                 toToken,
                 tokenAmountOut,
@@ -156,23 +155,25 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitBaseView, OneSplitCurveSusdPo
         uint256[4] memory tokenAmounts;
         uint256[] memory dist;
         for (uint i = 0; i < 4; i++) {
-            uint256 ratio = details.tokens[i].weightedReserveBalance.mul(1e18).div(details.totalWeightedBalance);
-            uint256 exchangeAmount = amount.mul(ratio).div(1e18);
+            uint256 exchangeAmount = amount
+                .mul(details.tokens[i].weightedReserveBalance)
+                .div(details.totalWeightedBalance);
 
-            if (details.tokens[i].token != fromToken) {
-                (tokenAmounts[i], dist) = getExpectedReturn(
-                    fromToken,
-                    details.tokens[i].token,
-                    exchangeAmount,
-                    parts,
-                    disableFlags
-                );
-
-                for (uint j = 0; j < distribution.length; j++) {
-                    distribution[j] |= dist[j] << (i * 8);
-                }
-            } else {
+            if (details.tokens[i].token == fromToken) {
                 tokenAmounts[i] = exchangeAmount;
+                continue;
+            }
+
+            (tokenAmounts[i], dist) = this.getExpectedReturn(
+                fromToken,
+                details.tokens[i].token,
+                exchangeAmount,
+                parts,
+                disableFlags
+            );
+
+            for (uint j = 0; j < distribution.length; j++) {
+                distribution[j] |= dist[j] << (i * 8);
             }
         }
 
@@ -180,7 +181,6 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitBaseView, OneSplitCurveSusdPo
 
         return (returnAmount, distribution);
     }
-
 }
 
 
@@ -258,7 +258,7 @@ contract OneSplitCurveSusdPoolToken is OneSplitBase, OneSplitCurveSusdPoolTokenB
                 dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
             }
 
-            uint256 exchangeTokenAmount = coin.balanceOf(address(this));
+            uint256 exchangeTokenAmount = coin.universalBalanceOf(address(this));
 
             this.swap(
                 coin,
@@ -269,7 +269,6 @@ contract OneSplitCurveSusdPoolToken is OneSplitBase, OneSplitCurveSusdPoolTokenB
                 disableFlags
             );
         }
-
     }
 
     function _swapToCurveSusdPoolToken(
@@ -285,39 +284,33 @@ contract OneSplitCurveSusdPoolToken is OneSplitBase, OneSplitCurveSusdPoolTokenB
 
         uint256[4] memory tokenAmounts;
         for (uint i = 0; i < 4; i++) {
-            uint256 exchangeAmount = amount.mul(
-                details.tokens[i].weightedReserveBalance.mul(1e18).div(details.totalWeightedBalance)
-            ).div(1e18);
-
-            if (details.tokens[i].token != fromToken) {
-                uint256 tokenBalanceBefore = details.tokens[i].token.balanceOf(address(this));
-
-                for (uint j = 0; j < distribution.length; j++) {
-                    dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
-                }
-
-                this.swap(
-                    fromToken,
-                    details.tokens[i].token,
-                    exchangeAmount,
-                    0,
-                    dist,
-                    disableFlags
-                );
-
-                uint256 tokenBalanceAfter = details.tokens[i].token.balanceOf(address(this));
-
-                tokenAmounts[i] = tokenBalanceAfter.sub(tokenBalanceBefore);
-            } else {
-                tokenAmounts[i] = exchangeAmount;
-            }
+            uint256 exchangeAmount = amount
+                .mul(details.tokens[i].weightedReserveBalance)
+                .div(details.totalWeightedBalance);
 
             _infiniteApproveIfNeeded(details.tokens[i].token, address(curve));
+
+            if (details.tokens[i].token == fromToken) {
+                tokenAmounts[i] = exchangeAmount;
+                continue;
+            }
+
+            for (uint j = 0; j < distribution.length; j++) {
+                dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
+            }
+
+            this.swap(
+                fromToken,
+                details.tokens[i].token,
+                exchangeAmount,
+                0,
+                dist,
+                disableFlags
+            );
+
+            tokenAmounts[i] = details.tokens[i].token.univeralBalanceOf(address(this));
         }
 
-        uint256 minAmount = curve.calc_token_amount(tokenAmounts, true);
-
-        // 0.5% slippage
-        curve.add_liquidity(tokenAmounts, minAmount.mul(995).div(1000));
+        curve.add_liquidity(tokenAmounts, 0);
     }
 }
