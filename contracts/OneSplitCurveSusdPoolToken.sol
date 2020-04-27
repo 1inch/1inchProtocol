@@ -308,7 +308,7 @@ contract OneSplitCurveSusdPoolToken is OneSplitBase, OneSplitCurveSusdPoolTokenB
                 disableFlags
             );
 
-            tokenAmounts[i] = details.tokens[i].token.univeralBalanceOf(address(this));
+            tokenAmounts[i] = details.tokens[i].token.universalBalanceOf(address(this));
         }
 
         curve.add_liquidity(tokenAmounts, 0);
