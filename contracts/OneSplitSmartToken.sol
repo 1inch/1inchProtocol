@@ -37,7 +37,7 @@ contract OneSplitSmartTokenBase {
 }
 
 
-contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
+contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
@@ -45,7 +45,8 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
         uint256 parts,
         uint256 disableFlags
     )
-        internal
+        public
+        view
         returns(
             uint256 returnAmount,
             uint256[] memory distribution
@@ -149,7 +150,7 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
 }
 
 
-contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
+contract OneSplitSmartToken is OneSplitBaseWrap, OneSplitSmartTokenBase {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,

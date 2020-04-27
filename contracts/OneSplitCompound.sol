@@ -4,7 +4,36 @@ import "./interface/ICompound.sol";
 import "./OneSplitBase.sol";
 
 
-contract OneSplitCompoundView is OneSplitBaseView {
+contract OneSplitCompoundBase {
+    function _getCompoundUnderlyingToken(IERC20 token) internal pure returns(IERC20) {
+        if (token == IERC20(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5)) { // ETH
+            return IERC20(0);
+        }
+        if (token == IERC20(0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643)) { // DAI
+            return IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
+        }
+        if (token == IERC20(0x6C8c6b02E7b2BE14d4fA6022Dfd6d75921D90E4E)) { // BAT
+            return IERC20(0x0D8775F648430679A709E98d2b0Cb6250d2887EF);
+        }
+        if (token == IERC20(0x158079Ee67Fce2f58472A96584A73C7Ab9AC95c1)) { // REP
+            return IERC20(0x1985365e9f78359a9B6AD760e32412f4a445E862);
+        }
+        if (token == IERC20(0x39AA39c021dfbaE8faC545936693aC917d5E7563)) { // USDC
+            return IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
+        }
+        if (token == IERC20(0xC11b1268C1A384e55C48c2391d8d480264A3A7F4)) { // WBTC
+            return IERC20(0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599);
+        }
+        if (token == IERC20(0xB3319f5D18Bc0D84dD1b4825Dcde5d5f7266d407)) { // ZRX
+            return IERC20(0xE41d2489571d322189246DaFA5ebDe1F4699F498);
+        }
+
+        return IERC20(-1);
+    }
+}
+
+
+contract OneSplitCompoundView is OneSplitViewWrapBase, OneSplitCompoundBase {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
@@ -12,7 +41,8 @@ contract OneSplitCompoundView is OneSplitBaseView {
         uint256 parts,
         uint256 disableFlags
     )
-        internal
+        public
+        view
         returns(
             uint256 returnAmount,
             uint256[] memory distribution
@@ -35,6 +65,7 @@ contract OneSplitCompoundView is OneSplitBaseView {
         uint256 disableFlags
     )
         private
+        view
         returns(
             uint256 returnAmount,
             uint256[] memory distribution
@@ -87,7 +118,7 @@ contract OneSplitCompoundView is OneSplitBaseView {
 }
 
 
-contract OneSplitCompound is OneSplitBase {
+contract OneSplitCompound is OneSplitBaseWrap, OneSplitCompoundBase {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,

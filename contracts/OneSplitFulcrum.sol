@@ -50,7 +50,7 @@ contract OneSplitFulcrumBase {
 }
 
 
-contract OneSplitFulcrumView is OneSplitBaseView, OneSplitFulcrumBase {
+contract OneSplitFulcrumView is OneSplitViewWrapBase, OneSplitFulcrumBase {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
@@ -58,7 +58,8 @@ contract OneSplitFulcrumView is OneSplitBaseView, OneSplitFulcrumBase {
         uint256 parts,
         uint256 disableFlags
     )
-        internal
+        public
+        view
         returns(
             uint256 returnAmount,
             uint256[] memory distribution
@@ -81,6 +82,7 @@ contract OneSplitFulcrumView is OneSplitBaseView, OneSplitFulcrumBase {
         uint256 disableFlags
     )
         private
+        view
         returns(
             uint256 returnAmount,
             uint256[] memory distribution
@@ -132,7 +134,7 @@ contract OneSplitFulcrumView is OneSplitBaseView, OneSplitFulcrumBase {
 }
 
 
-contract OneSplitFulcrum is OneSplitBase, OneSplitFulcrumBase {
+contract OneSplitFulcrum is OneSplitBaseWrap, OneSplitFulcrumBase {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,

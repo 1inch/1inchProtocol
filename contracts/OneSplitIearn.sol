@@ -22,7 +22,7 @@ contract OneSplitIearnBase {
 }
 
 
-contract OneSplitIearnView is OneSplitBaseView, OneSplitIearnBase {
+contract OneSplitIearnView is OneSplitViewWrapBase, OneSplitIearnBase {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
@@ -30,7 +30,8 @@ contract OneSplitIearnView is OneSplitBaseView, OneSplitIearnBase {
         uint256 parts,
         uint256 disableFlags
     )
-        internal
+        public
+        view
         returns (uint256 returnAmount, uint256[] memory distribution)
     {
         return _iearnGetExpectedReturn(
@@ -50,7 +51,11 @@ contract OneSplitIearnView is OneSplitBaseView, OneSplitIearnBase {
         uint256 disableFlags
     )
         private
-        returns (uint256 returnAmount, uint256[] memory distribution)
+        view
+        returns(
+            uint256 returnAmount,
+            uint256[] memory distribution
+        )
     {
         if (fromToken == toToken) {
             return (amount, new uint256[](DEXES_COUNT));
@@ -104,7 +109,7 @@ contract OneSplitIearnView is OneSplitBaseView, OneSplitIearnBase {
 }
 
 
-contract OneSplitIearn is OneSplitBase, OneSplitIearnBase {
+contract OneSplitIearn is OneSplitBaseWrap, OneSplitIearnBase {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,

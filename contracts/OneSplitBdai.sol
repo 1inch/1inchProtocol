@@ -10,7 +10,7 @@ contract OneSplitBdaiBase {
 }
 
 
-contract OneSplitBdaiView is OneSplitBaseView, OneSplitBdaiBase {
+contract OneSplitBdaiView is OneSplitViewWrapBase, OneSplitBdaiBase {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
@@ -18,7 +18,8 @@ contract OneSplitBdaiView is OneSplitBaseView, OneSplitBdaiBase {
         uint256 parts,
         uint256 disableFlags
     )
-        internal
+        public
+        view
         returns (uint256 returnAmount, uint256[] memory distribution)
     {
         if (fromToken == toToken) {
@@ -58,7 +59,7 @@ contract OneSplitBdaiView is OneSplitBaseView, OneSplitBdaiBase {
 }
 
 
-contract OneSplitBdai is OneSplitBase, OneSplitBdaiBase {
+contract OneSplitBdai is OneSplitBaseWrap, OneSplitBdaiBase {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,

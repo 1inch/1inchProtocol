@@ -3,9 +3,15 @@ pragma solidity ^0.5.0;
 import "../../contracts/OneSplit.sol";
 
 
-contract OneSplitMock is OneSplit {
+contract OneSplitMock is OneSplitWrap {
 
-    constructor(OneSplitView v) public OneSplit(v) {
+    constructor(OneSplitView v)
+        public
+        OneSplitWrap(
+            new OneSplitViewWrap(new OneSplitView()),
+            new OneSplit()
+        )
+    {
     }
 
     function getExpectedReturnMock(

@@ -4,7 +4,7 @@ import "./interface/ICompound.sol";
 import "./OneSplitBase.sol";
 
 
-contract OneSplitWethView is OneSplitBaseView {
+contract OneSplitWethView is OneSplitViewWrapBase {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
@@ -12,7 +12,8 @@ contract OneSplitWethView is OneSplitBaseView {
         uint256 parts,
         uint256 disableFlags
     )
-        internal
+        public
+        view
         returns(
             uint256 returnAmount,
             uint256[] memory distribution
@@ -35,6 +36,7 @@ contract OneSplitWethView is OneSplitBaseView {
         uint256 disableFlags
     )
         private
+        view
         returns(
             uint256 returnAmount,
             uint256[] memory distribution
@@ -65,7 +67,7 @@ contract OneSplitWethView is OneSplitBaseView {
 }
 
 
-contract OneSplitWeth is OneSplitBase {
+contract OneSplitWeth is OneSplitBaseWrap {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,
