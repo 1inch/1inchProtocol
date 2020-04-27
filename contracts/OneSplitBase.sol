@@ -338,18 +338,12 @@ contract OneSplitBaseView is IOneSplitView, OneSplitRoot {
         int128 i = (fromToken == dai ? 1 : 0) +
             (fromToken == usdc ? 2 : 0) +
             (fromToken == usdt ? 3 : 0) +
-            (fromToken == tusd ? 4 : 0) +
-            (fromToken == susd ? 5 : 0);
+            (fromToken == susd ? 4 : 0);
         int128 j = (destToken == dai ? 1 : 0) +
             (destToken == usdc ? 2 : 0) +
             (destToken == usdt ? 3 : 0) +
-            (destToken == tusd ? 4 : 0) +
-            (destToken == susd ? 5 : 0);
+            (destToken == susd ? 4 : 0);
         if (i == 0 || j == 0) {
-            return 0;
-        }
-
-        if (fromToken != susd && destToken != susd) {
             return 0;
         }
 
@@ -800,18 +794,12 @@ contract OneSplitBase is IOneSplit, OneSplitRoot {
         int128 i = (fromToken == dai ? 1 : 0) +
             (fromToken == usdc ? 2 : 0) +
             (fromToken == usdt ? 3 : 0) +
-            (fromToken == tusd ? 4 : 0) +
-            (fromToken == susd ? 5 : 0);
+            (fromToken == susd ? 4 : 0);
         int128 j = (destToken == dai ? 1 : 0) +
             (destToken == usdc ? 2 : 0) +
             (destToken == usdt ? 3 : 0) +
-            (destToken == tusd ? 4 : 0) +
-            (destToken == susd ? 5 : 0);
+            (destToken == susd ? 4 : 0);
         if (i == 0 || j == 0) {
-            return 0;
-        }
-
-        if (fromToken != susd && destToken != susd) {
             return 0;
         }
 
