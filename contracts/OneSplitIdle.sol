@@ -20,7 +20,7 @@ contract OneSplitIdleView is OneSplitViewWrapBase, OneSplitIdleBase {
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         public
         view
@@ -31,7 +31,7 @@ contract OneSplitIdleView is OneSplitViewWrapBase, OneSplitIdleBase {
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
         );
     }
 
@@ -40,9 +40,10 @@ contract OneSplitIdleView is OneSplitViewWrapBase, OneSplitIdleBase {
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
-        public
+        internal
+        view
         returns (uint256 returnAmount, uint256[] memory distribution)
     {
         if (fromToken == toToken) {
@@ -58,7 +59,7 @@ contract OneSplitIdleView is OneSplitViewWrapBase, OneSplitIdleBase {
                     toToken,
                     amount.mul(tokens[i].tokenPrice()).div(1e18),
                     parts,
-                    disableFlags
+                    flags
                 );
             }
         }
@@ -70,7 +71,7 @@ contract OneSplitIdleView is OneSplitViewWrapBase, OneSplitIdleBase {
                     tokens[i].token(),
                     amount,
                     parts,
-                    disableFlags
+                    flags
                 );
 
                 return (
@@ -85,7 +86,7 @@ contract OneSplitIdleView is OneSplitViewWrapBase, OneSplitIdleBase {
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
         );
     }
 }
@@ -97,12 +98,12 @@ contract OneSplitIdle is OneSplitBaseWrap, OneSplitIdleBase {
         IERC20 toToken,
         uint256 amount,
         uint256[] calldata distribution,
-        uint256 disableFlags
+        uint256 flags
     )
         external
     {
         require(msg.sender == address(this));
-        return super._swap(fromToken, toToken, amount, distribution, disableFlags);
+        return super._swap(fromToken, toToken, amount, distribution, flags);
     }
 
     function _swap(
@@ -110,14 +111,14 @@ contract OneSplitIdle is OneSplitBaseWrap, OneSplitIdleBase {
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) internal {
         _idleSwap(
             fromToken,
             toToken,
             amount,
             distribution,
-            disableFlags
+            flags
         );
     }
 
@@ -126,7 +127,7 @@ contract OneSplitIdle is OneSplitBaseWrap, OneSplitIdleBase {
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) public payable {
         IIdle[2] memory tokens = _idleTokens();
 
@@ -134,7 +135,7 @@ contract OneSplitIdle is OneSplitBaseWrap, OneSplitIdleBase {
             if (fromToken == IERC20(tokens[i])) {
                 IERC20 underlying = tokens[i].token();
                 uint256 minted = tokens[i].redeemIdleToken(amount, true, new uint256[](0));
-                _idleSwap(underlying, toToken, minted, distribution, disableFlags);
+                _idleSwap(underlying, toToken, minted, distribution, flags);
                 return;
             }
         }
@@ -142,13 +143,13 @@ contract OneSplitIdle is OneSplitBaseWrap, OneSplitIdleBase {
         for (uint i = 0; i < tokens.length; i++) {
             if (toToken == IERC20(tokens[i])) {
                 IERC20 underlying = tokens[i].token();
-                super._swap(fromToken, underlying, amount, distribution, disableFlags);
+                super._swap(fromToken, underlying, amount, distribution, flags);
                 _infiniteApproveIfNeeded(underlying, address(tokens[i]));
                 tokens[i].mintIdleToken(underlying.balanceOf(address(this)), new uint256[](0));
                 return;
             }
         }
 
-        return super._swap(fromToken, toToken, amount, distribution, disableFlags);
+        return super._swap(fromToken, toToken, amount, distribution, flags);
     }
 }

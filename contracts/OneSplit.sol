@@ -38,7 +38,7 @@ contract OneSplitViewWrap is
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         public
         view
@@ -56,18 +56,19 @@ contract OneSplitViewWrap is
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
         );
     }
 
-    function getExpectedReturnFloor(
+    function _getExpectedReturnFloor(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         internal
+        view
         returns(
             uint256 returnAmount,
             uint256[] memory distribution
@@ -78,7 +79,7 @@ contract OneSplitViewWrap is
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
         );
     }
 }
@@ -105,12 +106,17 @@ contract OneSplitWrap is
         oneSplit = _oneSplit;
     }
 
+    function() external payable {
+        // solium-disable-next-line security/no-tx-origin
+        require(msg.sender != tx.origin);
+    }
+
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
+        uint256 flags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
     )
         public
         view
@@ -124,7 +130,7 @@ contract OneSplitWrap is
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
         );
     }
 
@@ -134,11 +140,11 @@ contract OneSplitWrap is
         uint256 amount,
         uint256 minReturn,
         uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
-        uint256 disableFlags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
+        uint256 flags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
     ) public payable {
         fromToken.universalTransferFrom(msg.sender, address(this), amount);
 
-        _swap(fromToken, toToken, amount, distribution, disableFlags);
+        _swap(fromToken, toToken, amount, distribution, flags);
 
         uint256 returnAmount = toToken.universalBalanceOf(address(this));
         require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
@@ -150,9 +156,8 @@ contract OneSplitWrap is
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
-        uint256 minReturn,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) internal {
         (bool success, bytes memory data) = address(oneSplit).delegatecall(
             abi.encodeWithSelector(
@@ -160,9 +165,9 @@ contract OneSplitWrap is
                 fromToken,
                 toToken,
                 amount,
-                minReturn,
+                0,
                 distribution,
-                disableFlags
+                flags
             )
         );
 

@@ -39,7 +39,7 @@ contract OneSplitCompoundView is OneSplitViewWrapBase, OneSplitCompoundBase {
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         public
         view
@@ -53,7 +53,7 @@ contract OneSplitCompoundView is OneSplitViewWrapBase, OneSplitCompoundBase {
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
         );
     }
 
@@ -62,7 +62,7 @@ contract OneSplitCompoundView is OneSplitViewWrapBase, OneSplitCompoundBase {
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         private
         view
@@ -75,7 +75,7 @@ contract OneSplitCompoundView is OneSplitViewWrapBase, OneSplitCompoundBase {
             return (amount, new uint256[](DEXES_COUNT));
         }
 
-        if (!disableFlags.check(FLAG_DISABLE_COMPOUND)) {
+        if (!flags.check(FLAG_DISABLE_COMPOUND)) {
             IERC20 underlying = _getCompoundUnderlyingToken(fromToken);
             if (underlying != IERC20(-1)) {
                 uint256 compoundRate = ICompoundToken(address(fromToken)).exchangeRateStored();
@@ -85,7 +85,7 @@ contract OneSplitCompoundView is OneSplitViewWrapBase, OneSplitCompoundBase {
                     toToken,
                     amount.mul(compoundRate).div(1e18),
                     parts,
-                    disableFlags
+                    flags
                 );
             }
 
@@ -98,7 +98,7 @@ contract OneSplitCompoundView is OneSplitViewWrapBase, OneSplitCompoundBase {
                     underlying,
                     amount,
                     parts,
-                    disableFlags
+                    flags
                 );
 
                 returnAmount = returnAmount.mul(1e18).div(compoundRate);
@@ -112,7 +112,7 @@ contract OneSplitCompoundView is OneSplitViewWrapBase, OneSplitCompoundBase {
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
         );
     }
 }
@@ -124,14 +124,14 @@ contract OneSplitCompound is OneSplitBaseWrap, OneSplitCompoundBase {
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) internal {
         _compundSwap(
             fromToken,
             toToken,
             amount,
             distribution,
-            disableFlags
+            flags
         );
     }
 
@@ -140,13 +140,13 @@ contract OneSplitCompound is OneSplitBaseWrap, OneSplitCompoundBase {
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) private {
         if (fromToken == toToken) {
             return;
         }
 
-        if (!disableFlags.check(FLAG_DISABLE_COMPOUND)) {
+        if (!flags.check(FLAG_DISABLE_COMPOUND)) {
             IERC20 underlying = _getCompoundUnderlyingToken(fromToken);
             if (underlying != IERC20(-1)) {
                 ICompoundToken(address(fromToken)).redeem(amount);
@@ -157,7 +157,7 @@ contract OneSplitCompound is OneSplitBaseWrap, OneSplitCompoundBase {
                     toToken,
                     underlyingAmount,
                     distribution,
-                    disableFlags
+                    flags
                 );
             }
 
@@ -168,7 +168,7 @@ contract OneSplitCompound is OneSplitBaseWrap, OneSplitCompoundBase {
                     underlying,
                     amount,
                     distribution,
-                    disableFlags
+                    flags
                 );
 
                 uint256 underlyingAmount = underlying.universalBalanceOf(address(this));
@@ -188,7 +188,7 @@ contract OneSplitCompound is OneSplitBaseWrap, OneSplitCompoundBase {
             toToken,
             amount,
             distribution,
-            disableFlags
+            flags
         );
     }
 }

@@ -16,7 +16,7 @@ contract OneSplitBdaiView is OneSplitViewWrapBase, OneSplitBdaiBase {
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         public
         view
@@ -26,14 +26,14 @@ contract OneSplitBdaiView is OneSplitViewWrapBase, OneSplitBdaiBase {
             return (amount, new uint256[](DEXES_COUNT));
         }
 
-        if (!disableFlags.check(FLAG_DISABLE_BDAI)) {
+        if (!flags.check(FLAG_DISABLE_BDAI)) {
             if (fromToken == IERC20(bdai)) {
                 return super.getExpectedReturn(
                     dai,
                     toToken,
                     amount,
                     parts,
-                    disableFlags
+                    flags
                 );
             }
 
@@ -43,7 +43,7 @@ contract OneSplitBdaiView is OneSplitViewWrapBase, OneSplitBdaiBase {
                     dai,
                     amount,
                     parts,
-                    disableFlags
+                    flags
                 );
             }
         }
@@ -53,7 +53,7 @@ contract OneSplitBdaiView is OneSplitViewWrapBase, OneSplitBdaiBase {
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
         );
     }
 }
@@ -65,13 +65,13 @@ contract OneSplitBdai is OneSplitBaseWrap, OneSplitBdaiBase {
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) internal {
         if (fromToken == toToken) {
             return;
         }
 
-        if (!disableFlags.check(FLAG_DISABLE_BDAI)) {
+        if (!flags.check(FLAG_DISABLE_BDAI)) {
             if (fromToken == IERC20(bdai)) {
                 bdai.exit(amount);
 
@@ -82,7 +82,7 @@ contract OneSplitBdai is OneSplitBaseWrap, OneSplitBdaiBase {
                         toToken,
                         btuBalance,
                         1,
-                        disableFlags
+                        flags
                     );
 
                     _swap(
@@ -90,7 +90,7 @@ contract OneSplitBdai is OneSplitBaseWrap, OneSplitBdaiBase {
                         toToken,
                         btuBalance,
                         btuDistribution,
-                        disableFlags
+                        flags
                     );
                 }
 
@@ -99,12 +99,12 @@ contract OneSplitBdai is OneSplitBaseWrap, OneSplitBdaiBase {
                     toToken,
                     amount,
                     distribution,
-                    disableFlags
+                    flags
                 );
             }
 
             if (toToken == IERC20(bdai)) {
-                super._swap(fromToken, dai, amount, distribution, disableFlags);
+                super._swap(fromToken, dai, amount, distribution, flags);
 
                 _infiniteApproveIfNeeded(dai, address(bdai));
                 bdai.join(dai.balanceOf(address(this)));
@@ -112,6 +112,6 @@ contract OneSplitBdai is OneSplitBaseWrap, OneSplitBdaiBase {
             }
         }
 
-        return super._swap(fromToken, toToken, amount, distribution, disableFlags);
+        return super._swap(fromToken, toToken, amount, distribution, flags);
     }
 }

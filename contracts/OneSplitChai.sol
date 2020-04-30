@@ -10,7 +10,7 @@ contract OneSplitChaiView is OneSplitViewWrapBase {
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         public
         view
@@ -23,14 +23,14 @@ contract OneSplitChaiView is OneSplitViewWrapBase {
             return (amount, new uint256[](DEXES_COUNT));
         }
 
-        if (!disableFlags.check(FLAG_DISABLE_CHAI)) {
+        if (!flags.check(FLAG_DISABLE_CHAI)) {
             if (fromToken == IERC20(chai)) {
                 return super.getExpectedReturn(
                     dai,
                     toToken,
                     chai.chaiToDai(amount),
                     parts,
-                    disableFlags
+                    flags
                 );
             }
 
@@ -40,7 +40,7 @@ contract OneSplitChaiView is OneSplitViewWrapBase {
                     dai,
                     amount,
                     parts,
-                    disableFlags
+                    flags
                 );
                 return (chai.daiToChai(returnAmount), distribution);
             }
@@ -51,7 +51,7 @@ contract OneSplitChaiView is OneSplitViewWrapBase {
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
         );
     }
 }
@@ -63,13 +63,13 @@ contract OneSplitChai is OneSplitBaseWrap {
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) internal {
         if (fromToken == toToken) {
             return;
         }
 
-        if (!disableFlags.check(FLAG_DISABLE_CHAI)) {
+        if (!flags.check(FLAG_DISABLE_CHAI)) {
             if (fromToken == IERC20(chai)) {
                 chai.exit(address(this), amount);
 
@@ -78,7 +78,7 @@ contract OneSplitChai is OneSplitBaseWrap {
                     toToken,
                     dai.balanceOf(address(this)),
                     distribution,
-                    disableFlags
+                    flags
                 );
             }
 
@@ -88,7 +88,7 @@ contract OneSplitChai is OneSplitBaseWrap {
                     dai,
                     amount,
                     distribution,
-                    disableFlags
+                    flags
                 );
 
                 _infiniteApproveIfNeeded(dai, address(chai));
@@ -102,7 +102,7 @@ contract OneSplitChai is OneSplitBaseWrap {
             toToken,
             amount,
             distribution,
-            disableFlags
+            flags
         );
     }
 }

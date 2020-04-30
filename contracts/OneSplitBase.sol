@@ -28,7 +28,7 @@ contract IOneSplitView is IOneSplitConsts {
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         public
         view
@@ -40,8 +40,8 @@ contract IOneSplitView is IOneSplitConsts {
 
 
 library DisableFlags {
-    function check(uint256 disableFlags, uint256 flag) internal pure returns(bool) {
-        return (disableFlags & flag) != 0;
+    function check(uint256 flags, uint256 flag) internal pure returns(bool) {
+        return (flags & flag) != 0;
     }
 }
 
@@ -260,7 +260,7 @@ contract OneSplitViewWrapBase is IOneSplitView, OneSplitRoot {
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags // See constants in IOneSplit.sol
+        uint256 flags // See constants in IOneSplit.sol
     )
         public
         view
@@ -269,23 +269,24 @@ contract OneSplitViewWrapBase is IOneSplitView, OneSplitRoot {
             uint256[] memory distribution
         )
     {
-        return getExpectedReturnFloor(
+        return _getExpectedReturnFloor(
             fromToken,
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
         );
     }
 
-    function getExpectedReturnFloor(
+    function _getExpectedReturnFloor(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags // See constants in IOneSplit.sol
+        uint256 flags // See constants in IOneSplit.sol
     )
         internal
+        view
         returns(
             uint256 returnAmount,
             uint256[] memory distribution
@@ -302,7 +303,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags // See constants in IOneSplit.sol
+        uint256 flags // See constants in IOneSplit.sol
     )
         public
         view
@@ -318,24 +319,24 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         }
 
         function(IERC20,IERC20,uint256,uint256) view returns(uint256)[DEXES_COUNT] memory reserves = [
-            disableFlags.check(FLAG_DISABLE_UNISWAP)          ? _calculateNoReturn : calculateUniswapReturn,
-            disableFlags.check(FLAG_DISABLE_KYBER)            ? _calculateNoReturn : calculateKyberReturn,
-            disableFlags.check(FLAG_DISABLE_BANCOR)           ? _calculateNoReturn : calculateBancorReturn,
-            disableFlags.check(FLAG_DISABLE_OASIS)            ? _calculateNoReturn : calculateOasisReturn,
-            disableFlags.check(FLAG_DISABLE_CURVE_COMPOUND)   ? _calculateNoReturn : calculateCurveCompound,
-            disableFlags.check(FLAG_DISABLE_CURVE_USDT)       ? _calculateNoReturn : calculateCurveUsdt,
-            disableFlags.check(FLAG_DISABLE_CURVE_Y)          ? _calculateNoReturn : calculateCurveY,
-            disableFlags.check(FLAG_DISABLE_CURVE_BINANCE)    ? _calculateNoReturn : calculateCurveBinance,
-            disableFlags.check(FLAG_DISABLE_CURVE_SYNTHETIX)  ? _calculateNoReturn : calculateCurveSynthetix,
-            !disableFlags.check(FLAG_ENABLE_UNISWAP_COMPOUND) ? _calculateNoReturn : calculateUniswapCompound,
-            !disableFlags.check(FLAG_ENABLE_UNISWAP_CHAI)     ? _calculateNoReturn : calculateUniswapChai,
-            !disableFlags.check(FLAG_ENABLE_UNISWAP_AAVE)     ? _calculateNoReturn : calculateUniswapAave
+            flags.check(FLAG_DISABLE_UNISWAP)          ? _calculateNoReturn : calculateUniswapReturn,
+            flags.check(FLAG_DISABLE_KYBER)            ? _calculateNoReturn : calculateKyberReturn,
+            flags.check(FLAG_DISABLE_BANCOR)           ? _calculateNoReturn : calculateBancorReturn,
+            flags.check(FLAG_DISABLE_OASIS)            ? _calculateNoReturn : calculateOasisReturn,
+            flags.check(FLAG_DISABLE_CURVE_COMPOUND)   ? _calculateNoReturn : calculateCurveCompound,
+            flags.check(FLAG_DISABLE_CURVE_USDT)       ? _calculateNoReturn : calculateCurveUsdt,
+            flags.check(FLAG_DISABLE_CURVE_Y)          ? _calculateNoReturn : calculateCurveY,
+            flags.check(FLAG_DISABLE_CURVE_BINANCE)    ? _calculateNoReturn : calculateCurveBinance,
+            flags.check(FLAG_DISABLE_CURVE_SYNTHETIX)  ? _calculateNoReturn : calculateCurveSynthetix,
+            !flags.check(FLAG_ENABLE_UNISWAP_COMPOUND) ? _calculateNoReturn : calculateUniswapCompound,
+            !flags.check(FLAG_ENABLE_UNISWAP_CHAI)     ? _calculateNoReturn : calculateUniswapChai,
+            !flags.check(FLAG_ENABLE_UNISWAP_AAVE)     ? _calculateNoReturn : calculateUniswapAave
         ];
 
         uint256[DEXES_COUNT] memory rates;
         uint256[DEXES_COUNT] memory fullRates;
         for (uint i = 0; i < rates.length; i++) {
-            rates[i] = reserves[i](fromToken, toToken, amount.div(parts), disableFlags);
+            rates[i] = reserves[i](fromToken, toToken, amount.div(parts), flags);
             this.log(rates[i]);
             fullRates[i] = rates[i];
         }
@@ -362,7 +363,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
                     fromToken,
                     toToken,
                     srcAmount.mul(distribution[bestIndex] + 1).div(parts),
-                    disableFlags
+                    flags
                 );
                 if (newRate > fullRates[bestIndex]) {
                     rates[bestIndex] = newRate.sub(fullRates[bestIndex]);
@@ -381,7 +382,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
-        uint256 /*disableFlags*/
+        uint256 /*flags*/
     ) public view returns(uint256) {
         int128 i = (fromToken == dai ? 1 : 0) + (fromToken == usdc ? 2 : 0);
         int128 j = (destToken == dai ? 1 : 0) + (destToken == usdc ? 2 : 0);
@@ -396,7 +397,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
-        uint256 /*disableFlags*/
+        uint256 /*flags*/
     ) public view returns(uint256) {
         int128 i = (fromToken == dai ? 1 : 0) +
             (fromToken == usdc ? 2 : 0) +
@@ -415,7 +416,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
-        uint256 /*disableFlags*/
+        uint256 /*flags*/
     ) public view returns(uint256) {
         int128 i = (fromToken == dai ? 1 : 0) +
             (fromToken == usdc ? 2 : 0) +
@@ -436,7 +437,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
-        uint256 /*disableFlags*/
+        uint256 /*flags*/
     ) public view returns(uint256) {
         int128 i = (fromToken == dai ? 1 : 0) +
             (fromToken == usdc ? 2 : 0) +
@@ -457,7 +458,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
-        uint256 /*disableFlags*/
+        uint256 /*flags*/
     ) public view returns(uint256) {
         int128 i = (fromToken == dai ? 1 : 0) +
             (fromToken == usdc ? 2 : 0) +
@@ -478,7 +479,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
-        uint256 /*disableFlags*/
+        uint256 /*flags*/
     ) public view returns(uint256) {
         uint256 returnAmount = amount;
 
@@ -527,7 +528,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
-        uint256 disableFlags
+        uint256 flags
     ) public view returns(uint256) {
         if (!fromToken.isETH() && !toToken.isETH()) {
             return 0;
@@ -540,7 +541,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
                     fromCompound,
                     toToken,
                     amount.mul(1e18).div(fromCompound.exchangeRateStored()),
-                    disableFlags
+                    flags
                 );
             }
         } else {
@@ -550,7 +551,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
                     fromToken,
                     toCompound,
                     amount,
-                    disableFlags
+                    flags
                 ).mul(toCompound.exchangeRateStored()).div(1e18);
             }
         }
@@ -562,14 +563,14 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
-        uint256 disableFlags
+        uint256 flags
     ) public view returns(uint256) {
         if (fromToken == dai && toToken.isETH()) {
             return calculateUniswapReturn(
                 chai,
                 toToken,
                 chai.daiToChai(amount),
-                disableFlags
+                flags
             );
         }
 
@@ -578,7 +579,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
                 fromToken,
                 chai,
                 amount,
-                disableFlags
+                flags
             ));
         }
 
@@ -589,7 +590,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
-        uint256 disableFlags
+        uint256 flags
     ) public view returns(uint256) {
         if (!fromToken.isETH() && !toToken.isETH()) {
             return 0;
@@ -602,7 +603,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
                     fromAave,
                     toToken,
                     amount,
-                    disableFlags
+                    flags
                 );
             }
         } else {
@@ -612,7 +613,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
                     fromToken,
                     toAave,
                     amount,
-                    disableFlags
+                    flags
                 );
             }
         }
@@ -624,7 +625,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
-        uint256 disableFlags
+        uint256 flags
     ) public view returns(uint256) {
         (bool success, bytes memory data) = address(kyberNetworkProxy).staticcall.gas(2300)(abi.encodeWithSelector(
             kyberNetworkProxy.kyberNetworkContract.selector
@@ -636,15 +637,15 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IKyberNetworkContract kyberNetworkContract = IKyberNetworkContract(abi.decode(data, (address)));
 
         if (fromToken.isETH() || toToken.isETH()) {
-            return _calculateKyberReturnWithEth(kyberNetworkContract, fromToken, toToken, amount, disableFlags);
+            return _calculateKyberReturnWithEth(kyberNetworkContract, fromToken, toToken, amount, flags);
         }
 
-        uint256 value = _calculateKyberReturnWithEth(kyberNetworkContract, fromToken, ETH_ADDRESS, amount, disableFlags);
+        uint256 value = _calculateKyberReturnWithEth(kyberNetworkContract, fromToken, ETH_ADDRESS, amount, flags);
         if (value == 0) {
             return 0;
         }
 
-        return _calculateKyberReturnWithEth(kyberNetworkContract, ETH_ADDRESS, toToken, value, disableFlags);
+        return _calculateKyberReturnWithEth(kyberNetworkContract, ETH_ADDRESS, toToken, value, flags);
     }
 
     function _calculateKyberReturnWithEth(
@@ -652,7 +653,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
-        uint256 disableFlags
+        uint256 flags
     ) public view returns(uint256) {
         require(fromToken.isETH() || toToken.isETH(), "One of the tokens should be ETH");
 
@@ -673,14 +674,14 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             return 0;
         }
 
-        if ((reserve == 0x31E085Afd48a1d6e51Cc193153d625e8f0514C7F && !disableFlags.check(FLAG_ENABLE_KYBER_UNISWAP_RESERVE)) ||
-            (reserve == 0x1E158c0e93c30d24e918Ef83d1e0bE23595C3c0f && !disableFlags.check(FLAG_ENABLE_KYBER_OASIS_RESERVE)) ||
-            (reserve == 0x053AA84FCC676113a57e0EbB0bD1913839874bE4 && !disableFlags.check(FLAG_ENABLE_KYBER_BANCOR_RESERVE)))
+        if ((reserve == 0x31E085Afd48a1d6e51Cc193153d625e8f0514C7F && !flags.check(FLAG_ENABLE_KYBER_UNISWAP_RESERVE)) ||
+            (reserve == 0x1E158c0e93c30d24e918Ef83d1e0bE23595C3c0f && !flags.check(FLAG_ENABLE_KYBER_OASIS_RESERVE)) ||
+            (reserve == 0x053AA84FCC676113a57e0EbB0bD1913839874bE4 && !flags.check(FLAG_ENABLE_KYBER_BANCOR_RESERVE)))
         {
             return 0;
         }
 
-        if (!disableFlags.check(FLAG_ENABLE_KYBER_UNISWAP_RESERVE)) {
+        if (!flags.check(FLAG_ENABLE_KYBER_UNISWAP_RESERVE)) {
             (success,) = reserve.staticcall.gas(2300)(abi.encodeWithSelector(
                 IKyberUniswapReserve(reserve).uniswapFactory.selector
             ));
@@ -689,7 +690,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             }
         }
 
-        if (!disableFlags.check(FLAG_ENABLE_KYBER_OASIS_RESERVE)) {
+        if (!flags.check(FLAG_ENABLE_KYBER_OASIS_RESERVE)) {
             (success,) = reserve.staticcall.gas(2300)(abi.encodeWithSelector(
                 IKyberOasisReserve(reserve).otc.selector
             ));
@@ -698,7 +699,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             }
         }
 
-        if (!disableFlags.check(FLAG_ENABLE_KYBER_BANCOR_RESERVE)) {
+        if (!flags.check(FLAG_ENABLE_KYBER_BANCOR_RESERVE)) {
             (success,) = reserve.staticcall.gas(2300)(abi.encodeWithSelector(
                 IKyberBancorReserve(reserve).bancorEth.selector
             ));
@@ -717,7 +718,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
-        uint256 /*disableFlags*/
+        uint256 /*flags*/
     ) public view returns(uint256) {
         IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
         address[] memory path = _buildBancorPath(fromToken, toToken);
@@ -741,7 +742,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
-        uint256 /*disableFlags*/
+        uint256 /*flags*/
     ) public view returns(uint256) {
         (bool success, bytes memory data) = address(oasisExchange).staticcall.gas(500000)(
             abi.encodeWithSelector(
@@ -762,7 +763,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 /*fromToken*/,
         IERC20 /*toToken*/,
         uint256 /*amount*/,
-        uint256 /*disableFlags*/
+        uint256 /*flags*/
     ) internal view returns(uint256) {
         this;
     }
@@ -775,7 +776,7 @@ contract OneSplitBaseWrap is IOneSplit, OneSplitRoot {
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags // See constants in IOneSplit.sol
+        uint256 flags // See constants in IOneSplit.sol
     ) internal {
         if (fromToken == toToken) {
             return;
@@ -786,7 +787,7 @@ contract OneSplitBaseWrap is IOneSplit, OneSplitRoot {
             toToken,
             amount,
             distribution,
-            disableFlags
+            flags
         );
     }
 
@@ -795,12 +796,18 @@ contract OneSplitBaseWrap is IOneSplit, OneSplitRoot {
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 /*disableFlags*/ // See constants in IOneSplit.sol
+        uint256 /*flags*/ // See constants in IOneSplit.sol
     ) internal;
 }
 
 
 contract OneSplit is IOneSplit, OneSplitRoot {
+    IOneSplitView public oneSplitView;
+
+    constructor(IOneSplitView _oneSplitView) public {
+        oneSplitView = _oneSplitView;
+    }
+
     function() external payable {
         // solium-disable-next-line security/no-tx-origin
         require(msg.sender != tx.origin);
@@ -811,7 +818,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         public
         view
@@ -820,14 +827,22 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             uint256[] memory distribution
         )
     {
+        return oneSplitView.getExpectedReturn(
+            fromToken,
+            toToken,
+            amount,
+            parts,
+            flags
+        );
     }
 
     function swap(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
+        uint256 /*minReturn*/,
         uint256[] memory distribution,
-        uint256 /*disableFlags*/ // See constants in IOneSplit.sol
+        uint256 /*flags*/  // See constants in IOneSplit.sol
     ) public payable {
         if (fromToken == toToken) {
             return;
