@@ -45,7 +45,7 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitViewWrapBase, OneSplitCurveSu
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         public
         view
@@ -59,7 +59,7 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitViewWrapBase, OneSplitCurveSu
         }
 
 
-        if (!disableFlags.check(FLAG_DISABLE_CURVE_SUSD_POOL_TOKEN)) {
+        if (!flags.check(FLAG_DISABLE_CURVE_SUSD_POOL_TOKEN)) {
             if (fromToken == curveSusdToken) {
                 return _getExpectedReturnFromCurveSusdPoolToken(
                     fromToken,
@@ -86,7 +86,7 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitViewWrapBase, OneSplitCurveSu
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
         );
     }
 
@@ -95,7 +95,7 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitViewWrapBase, OneSplitCurveSu
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         private
         view
@@ -124,7 +124,7 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitViewWrapBase, OneSplitCurveSu
                 toToken,
                 tokenAmountOut,
                 parts,
-                disableFlags
+                flags
             );
 
             returnAmount = returnAmount.add(ret);
@@ -142,7 +142,7 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitViewWrapBase, OneSplitCurveSu
         IERC20, // poolToken
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         private
         view
@@ -172,7 +172,7 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitViewWrapBase, OneSplitCurveSu
                 details.tokens[i].token,
                 exchangeAmount,
                 parts,
-                disableFlags
+                flags
             );
 
             for (uint j = 0; j < distribution.length; j++) {
@@ -193,13 +193,13 @@ contract OneSplitCurveSusdPoolToken is OneSplitBaseWrap, OneSplitCurveSusdPoolTo
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) internal {
         if (fromToken == toToken) {
             return;
         }
 
-        if (!disableFlags.check(FLAG_DISABLE_CURVE_SUSD_POOL_TOKEN)) {
+        if (!flags.check(FLAG_DISABLE_CURVE_SUSD_POOL_TOKEN)) {
             if (fromToken == curveSusdToken) {
                 return _swapFromCurveSusdPoolToken(
                     fromToken,
@@ -226,7 +226,7 @@ contract OneSplitCurveSusdPoolToken is OneSplitBaseWrap, OneSplitCurveSusdPoolTo
             toToken,
             amount,
             distribution,
-            disableFlags
+            flags
         );
     }
 
@@ -235,7 +235,7 @@ contract OneSplitCurveSusdPoolToken is OneSplitBaseWrap, OneSplitCurveSusdPoolTo
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) private {
 
         uint256 totalSupply = poolToken.totalSupply();
@@ -269,7 +269,7 @@ contract OneSplitCurveSusdPoolToken is OneSplitBaseWrap, OneSplitCurveSusdPoolTo
                 exchangeTokenAmount,
                 0,
                 dist,
-                disableFlags
+                flags
             );
         }
     }
@@ -279,7 +279,7 @@ contract OneSplitCurveSusdPoolToken is OneSplitBaseWrap, OneSplitCurveSusdPoolTo
         IERC20, // poolToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) private {
         uint256[] memory dist = new uint256[](distribution.length);
 
@@ -308,7 +308,7 @@ contract OneSplitCurveSusdPoolToken is OneSplitBaseWrap, OneSplitCurveSusdPoolTo
                 exchangeAmount,
                 0,
                 dist,
-                disableFlags
+                flags
             );
 
             tokenAmounts[i] = details.tokens[i].token.universalBalanceOf(address(this));

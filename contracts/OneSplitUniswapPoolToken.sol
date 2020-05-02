@@ -57,7 +57,7 @@ contract OneSplitUniswapPoolTokenView is OneSplitViewWrapBase, OneSplitUniswapPo
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         public
         view
@@ -71,7 +71,7 @@ contract OneSplitUniswapPoolTokenView is OneSplitViewWrapBase, OneSplitUniswapPo
         }
 
 
-        if (!disableFlags.check(FLAG_DISABLE_UNISWAP_POOL_TOKEN)) {
+        if (!flags.check(FLAG_DISABLE_UNISWAP_POOL_TOKEN)) {
             bool isPoolTokenFrom = isLiquidityPool(fromToken);
             bool isPoolTokenTo = isLiquidityPool(toToken);
 
@@ -131,7 +131,7 @@ contract OneSplitUniswapPoolTokenView is OneSplitViewWrapBase, OneSplitUniswapPo
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
         );
     }
 
@@ -140,7 +140,7 @@ contract OneSplitUniswapPoolTokenView is OneSplitViewWrapBase, OneSplitUniswapPo
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         private
         view
@@ -165,7 +165,7 @@ contract OneSplitUniswapPoolTokenView is OneSplitViewWrapBase, OneSplitUniswapPo
                 toToken,
                 ethAmount,
                 parts,
-                disableFlags
+                flags
             );
 
             returnAmount = returnAmount.add(ret);
@@ -185,7 +185,7 @@ contract OneSplitUniswapPoolTokenView is OneSplitViewWrapBase, OneSplitUniswapPo
                 toToken,
                 exchangeTokenAmount,
                 parts,
-                disableFlags
+                flags
             );
 
             returnAmount = returnAmount.add(ret);
@@ -204,7 +204,7 @@ contract OneSplitUniswapPoolTokenView is OneSplitViewWrapBase, OneSplitUniswapPo
         IERC20 poolToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         private
         view
@@ -226,7 +226,7 @@ contract OneSplitUniswapPoolTokenView is OneSplitViewWrapBase, OneSplitUniswapPo
                 ETH_ADDRESS,
                 partAmountForEth,
                 parts,
-                disableFlags
+                flags
             );
 
             for (uint j = 0; j < distribution.length; j++) {
@@ -246,7 +246,7 @@ contract OneSplitUniswapPoolTokenView is OneSplitViewWrapBase, OneSplitUniswapPo
                 uniswapToken,
                 partAmountForToken,
                 parts,
-                disableFlags
+                flags
             );
 
             for (uint j = 0; j < distribution.length; j++) {
@@ -278,13 +278,13 @@ contract OneSplitUniswapPoolToken is OneSplitBaseWrap, OneSplitUniswapPoolTokenB
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) internal {
         if (fromToken == toToken) {
             return;
         }
 
-        if (!disableFlags.check(FLAG_DISABLE_UNISWAP_POOL_TOKEN)) {
+        if (!flags.check(FLAG_DISABLE_UNISWAP_POOL_TOKEN)) {
             bool isPoolTokenFrom = isLiquidityPool(fromToken);
             bool isPoolTokenTo = isLiquidityPool(toToken);
 
@@ -345,7 +345,7 @@ contract OneSplitUniswapPoolToken is OneSplitBaseWrap, OneSplitUniswapPoolTokenB
             toToken,
             amount,
             distribution,
-            disableFlags
+            flags
         );
     }
 
@@ -354,7 +354,7 @@ contract OneSplitUniswapPoolToken is OneSplitBaseWrap, OneSplitUniswapPoolTokenB
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) private {
 
         uint256[] memory dist = new uint256[](distribution.length);
@@ -379,7 +379,7 @@ contract OneSplitUniswapPoolToken is OneSplitBaseWrap, OneSplitUniswapPoolTokenB
                 toToken,
                 ethAmount,
                 dist,
-                disableFlags
+                flags
             );
         }
 
@@ -395,7 +395,7 @@ contract OneSplitUniswapPoolToken is OneSplitBaseWrap, OneSplitUniswapPoolTokenB
                 toToken,
                 exchangeTokenAmount,
                 dist,
-                disableFlags
+                flags
             );
         }
     }
@@ -405,7 +405,7 @@ contract OneSplitUniswapPoolToken is OneSplitBaseWrap, OneSplitUniswapPoolTokenB
         IERC20 poolToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) private {
         uint256[] memory dist = new uint256[](distribution.length);
 
@@ -420,7 +420,7 @@ contract OneSplitUniswapPoolToken is OneSplitBaseWrap, OneSplitUniswapPoolTokenB
                 ETH_ADDRESS,
                 partAmountForEth,
                 dist,
-                disableFlags
+                flags
             );
         }
 
@@ -437,7 +437,7 @@ contract OneSplitUniswapPoolToken is OneSplitBaseWrap, OneSplitUniswapPoolTokenB
                 uniswapToken,
                 partAmountForToken,
                 dist,
-                disableFlags
+                flags
             );
 
             _infiniteApproveIfNeeded(uniswapToken, address(poolToken));
