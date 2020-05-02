@@ -42,7 +42,7 @@ contract OneSplitBalancerPoolTokenBase {
 
 }
 
-contract OneSplitBalancerPoolTokenView is OneSplitBaseView, OneSplitBalancerPoolTokenBase {
+contract OneSplitBalancerPoolTokenView is OneSplitViewWrapBase, OneSplitBalancerPoolTokenBase {
 
     function getExpectedReturn(
         IERC20 fromToken,
@@ -51,7 +51,8 @@ contract OneSplitBalancerPoolTokenView is OneSplitBaseView, OneSplitBalancerPool
         uint256 parts,
         uint256 disableFlags
     )
-        internal
+        public
+        view
         returns (
             uint256 returnAmount,
             uint256[] memory distribution
@@ -134,6 +135,7 @@ contract OneSplitBalancerPoolTokenView is OneSplitBaseView, OneSplitBalancerPool
         uint256 disableFlags
     )
         private
+        view
         returns (
             uint256 returnAmount,
             uint256[] memory distribution
@@ -182,6 +184,7 @@ contract OneSplitBalancerPoolTokenView is OneSplitBaseView, OneSplitBalancerPool
         uint256 disableFlags
     )
         private
+        view
         returns (
             uint256 minFundAmount,
             uint256[] memory distribution
@@ -256,7 +259,7 @@ contract OneSplitBalancerPoolTokenView is OneSplitBaseView, OneSplitBalancerPool
 }
 
 
-contract OneSplitBalancerPoolToken is OneSplitBase, OneSplitBalancerPoolTokenBase {
+contract OneSplitBalancerPoolToken is OneSplitBaseWrap, OneSplitBalancerPoolTokenBase {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,

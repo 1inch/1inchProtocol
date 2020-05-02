@@ -4,15 +4,16 @@ import "./interface/ICompound.sol";
 import "./OneSplitBase.sol";
 
 
-contract OneSplitWethView is OneSplitBaseView {
+contract OneSplitWethView is OneSplitViewWrapBase {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
-        internal
+        public
+        view
         returns(
             uint256 returnAmount,
             uint256[] memory distribution
@@ -23,7 +24,7 @@ contract OneSplitWethView is OneSplitBaseView {
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
         );
     }
 
@@ -32,9 +33,10 @@ contract OneSplitWethView is OneSplitBaseView {
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         private
+        view
         returns(
             uint256 returnAmount,
             uint256[] memory distribution
@@ -44,13 +46,13 @@ contract OneSplitWethView is OneSplitBaseView {
             return (amount, new uint256[](DEXES_COUNT));
         }
 
-        if (!disableFlags.check(FLAG_DISABLE_WETH)) {
+        if (!flags.check(FLAG_DISABLE_WETH)) {
             if (fromToken == wethToken || fromToken == bancorEtherToken) {
-                return super.getExpectedReturn(ETH_ADDRESS, toToken, amount, parts, disableFlags);
+                return super.getExpectedReturn(ETH_ADDRESS, toToken, amount, parts, flags);
             }
 
             if (toToken == wethToken || toToken == bancorEtherToken) {
-                return super.getExpectedReturn(fromToken, ETH_ADDRESS, amount, parts, disableFlags);
+                return super.getExpectedReturn(fromToken, ETH_ADDRESS, amount, parts, flags);
             }
         }
 
@@ -59,26 +61,26 @@ contract OneSplitWethView is OneSplitBaseView {
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
         );
     }
 }
 
 
-contract OneSplitWeth is OneSplitBase {
+contract OneSplitWeth is OneSplitBaseWrap {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) internal {
         _wethSwap(
             fromToken,
             toToken,
             amount,
             distribution,
-            disableFlags
+            flags
         );
     }
 
@@ -87,13 +89,13 @@ contract OneSplitWeth is OneSplitBase {
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) private {
         if (fromToken == toToken) {
             return;
         }
 
-        if (!disableFlags.check(FLAG_DISABLE_WETH)) {
+        if (!flags.check(FLAG_DISABLE_WETH)) {
             if (fromToken == wethToken) {
                 wethToken.withdraw(wethToken.balanceOf(address(this)));
                 super._swap(
@@ -101,7 +103,7 @@ contract OneSplitWeth is OneSplitBase {
                     toToken,
                     amount,
                     distribution,
-                    disableFlags
+                    flags
                 );
                 return;
             }
@@ -113,7 +115,7 @@ contract OneSplitWeth is OneSplitBase {
                     toToken,
                     amount,
                     distribution,
-                    disableFlags
+                    flags
                 );
                 return;
             }
@@ -124,7 +126,7 @@ contract OneSplitWeth is OneSplitBase {
                     ETH_ADDRESS,
                     amount,
                     distribution,
-                    disableFlags
+                    flags
                 );
                 wethToken.deposit.value(address(this).balance)();
                 return;
@@ -136,7 +138,7 @@ contract OneSplitWeth is OneSplitBase {
                     ETH_ADDRESS,
                     amount,
                     distribution,
-                    disableFlags
+                    flags
                 );
                 bancorEtherToken.deposit.value(address(this).balance)();
                 return;
@@ -148,7 +150,7 @@ contract OneSplitWeth is OneSplitBase {
             toToken,
             amount,
             distribution,
-            disableFlags
+            flags
         );
     }
 }

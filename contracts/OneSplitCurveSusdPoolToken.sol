@@ -39,7 +39,7 @@ contract OneSplitCurveSusdPoolTokenBase {
 }
 
 
-contract OneSplitCurveSusdPoolTokenView is OneSplitBaseView, OneSplitCurveSusdPoolTokenBase {
+contract OneSplitCurveSusdPoolTokenView is OneSplitViewWrapBase, OneSplitCurveSusdPoolTokenBase {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
@@ -47,7 +47,8 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitBaseView, OneSplitCurveSusdPo
         uint256 parts,
         uint256 disableFlags
     )
-        internal
+        public
+        view
         returns (
             uint256 returnAmount,
             uint256[] memory distribution
@@ -97,6 +98,7 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitBaseView, OneSplitCurveSusdPo
         uint256 disableFlags
     )
         private
+        view
         returns (
             uint256 returnAmount,
             uint256[] memory distribution
@@ -143,6 +145,7 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitBaseView, OneSplitCurveSusdPo
         uint256 disableFlags
     )
         private
+        view
         returns (
             uint256 returnAmount,
             uint256[] memory distribution
@@ -184,7 +187,7 @@ contract OneSplitCurveSusdPoolTokenView is OneSplitBaseView, OneSplitCurveSusdPo
 }
 
 
-contract OneSplitCurveSusdPoolToken is OneSplitBase, OneSplitCurveSusdPoolTokenBase {
+contract OneSplitCurveSusdPoolToken is OneSplitBaseWrap, OneSplitCurveSusdPoolTokenBase {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,

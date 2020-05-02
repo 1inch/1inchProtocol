@@ -114,33 +114,4 @@ contract OneSplitAudit is IOneSplit, Ownable {
     function claimAsset(IERC20 asset, uint256 amount) public onlyOwner {
         asset.universalTransfer(msg.sender, amount);
     }
-
-    //
-    // DEPRECATED: Implement in own contract if needed, but this is
-    //             still should not be considered as safe oracle.
-    //
-    // function goodSwap(
-    //     IERC20 fromToken,
-    //     IERC20 toToken,
-    //     uint256 amount,
-    //     uint256 minReturn,
-    //     uint256 parts,
-    //     uint256 featureFlags // See contants in IOneSplit.sol
-    // ) public payable {
-    //     (, uint256[] memory distribution) = getExpectedReturn(
-    //         fromToken,
-    //         toToken,
-    //         amount,
-    //         parts,
-    //         featureFlags
-    //     );
-    //     swap(
-    //         fromToken,
-    //         toToken,
-    //         amount,
-    //         minReturn,
-    //         distribution,
-    //         featureFlags
-    //     );
-    // }
 }

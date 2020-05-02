@@ -50,15 +50,16 @@ contract OneSplitFulcrumBase {
 }
 
 
-contract OneSplitFulcrumView is OneSplitBaseView, OneSplitFulcrumBase {
+contract OneSplitFulcrumView is OneSplitViewWrapBase, OneSplitFulcrumBase {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
-        internal
+        public
+        view
         returns(
             uint256 returnAmount,
             uint256[] memory distribution
@@ -69,7 +70,7 @@ contract OneSplitFulcrumView is OneSplitBaseView, OneSplitFulcrumBase {
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
         );
     }
 
@@ -78,9 +79,10 @@ contract OneSplitFulcrumView is OneSplitBaseView, OneSplitFulcrumBase {
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         private
+        view
         returns(
             uint256 returnAmount,
             uint256[] memory distribution
@@ -90,7 +92,7 @@ contract OneSplitFulcrumView is OneSplitBaseView, OneSplitFulcrumBase {
             return (amount, new uint256[](DEXES_COUNT));
         }
 
-        if (!disableFlags.check(FLAG_DISABLE_FULCRUM)) {
+        if (!flags.check(FLAG_DISABLE_FULCRUM)) {
             IERC20 underlying = _isFulcrumToken(fromToken);
             if (underlying != IERC20(-1)) {
                 uint256 fulcrumRate = IFulcrumToken(address(fromToken)).tokenPrice();
@@ -100,7 +102,7 @@ contract OneSplitFulcrumView is OneSplitBaseView, OneSplitFulcrumBase {
                     toToken,
                     amount.mul(fulcrumRate).div(1e18),
                     parts,
-                    disableFlags
+                    flags
                 );
             }
 
@@ -113,7 +115,7 @@ contract OneSplitFulcrumView is OneSplitBaseView, OneSplitFulcrumBase {
                     underlying,
                     amount,
                     parts,
-                    disableFlags
+                    flags
                 );
 
                 returnAmount = returnAmount.mul(1e18).div(fulcrumRate);
@@ -126,26 +128,26 @@ contract OneSplitFulcrumView is OneSplitBaseView, OneSplitFulcrumBase {
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
         );
     }
 }
 
 
-contract OneSplitFulcrum is OneSplitBase, OneSplitFulcrumBase {
+contract OneSplitFulcrum is OneSplitBaseWrap, OneSplitFulcrumBase {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) internal {
         _fulcrumSwap(
             fromToken,
             toToken,
             amount,
             distribution,
-            disableFlags
+            flags
         );
     }
 
@@ -154,13 +156,13 @@ contract OneSplitFulcrum is OneSplitBase, OneSplitFulcrumBase {
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) private {
         if (fromToken == toToken) {
             return;
         }
 
-        if (!disableFlags.check(FLAG_DISABLE_FULCRUM)) {
+        if (!flags.check(FLAG_DISABLE_FULCRUM)) {
             IERC20 underlying = _isFulcrumToken(fromToken);
             if (underlying != IERC20(-1)) {
                 if (underlying.isETH()) {
@@ -176,7 +178,7 @@ contract OneSplitFulcrum is OneSplitBase, OneSplitFulcrumBase {
                     toToken,
                     underlyingAmount,
                     distribution,
-                    disableFlags
+                    flags
                 );
             }
 
@@ -187,7 +189,7 @@ contract OneSplitFulcrum is OneSplitBase, OneSplitFulcrumBase {
                     underlying,
                     amount,
                     distribution,
-                    disableFlags
+                    flags
                 );
 
                 uint256 underlyingAmount = underlying.universalBalanceOf(address(this));
@@ -207,7 +209,7 @@ contract OneSplitFulcrum is OneSplitBase, OneSplitFulcrumBase {
             toToken,
             amount,
             distribution,
-            disableFlags
+            flags
         );
     }
 }

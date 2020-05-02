@@ -37,15 +37,16 @@ contract OneSplitSmartTokenBase {
 }
 
 
-contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
+contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
-        internal
+        public
+        view
         returns(
             uint256 returnAmount,
             uint256[] memory distribution
@@ -55,7 +56,7 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
             return (amount, new uint256[](DEXES_COUNT));
         }
 
-        if (!disableFlags.check(FLAG_DISABLE_SMART_TOKEN)) {
+        if (!flags.check(FLAG_DISABLE_SMART_TOKEN)) {
             distribution = new uint256[](DEXES_COUNT);
             if (smartTokenRegistry.isSmartToken(fromToken)) {
                 this;
@@ -76,7 +77,7 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
                 //         toToken,
                 //         srcAmount,
                 //         parts,
-                //         disableFlags
+                //         flags
                 //     );
 
                 //     returnAmount = returnAmount.add(ret);
@@ -101,7 +102,7 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
                 //         tokens.tokens[i],
                 //         amount.mul(tokens.ratios[i]).div(tokens.totalRatio),
                 //         parts,
-                //         disableFlags | FLAG_DISABLE_BANCOR
+                //         flags | FLAG_DISABLE_BANCOR
                 //     );
                 //     for (uint j = 0; j < distribution.length; j++) {
                 //         distribution[j] = distribution[j].add(dist[j] << (i * 8));
@@ -143,19 +144,19 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
         );
     }
 }
 
 
-contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
+contract OneSplitSmartToken is OneSplitBaseWrap, OneSplitSmartTokenBase {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) internal {
         if (fromToken == toToken) {
             return;
@@ -168,7 +169,7 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
             toToken,
             amount,
             distribution,
-            disableFlags
+            flags
         );
     }
 }
