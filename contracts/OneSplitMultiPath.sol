@@ -3,13 +3,13 @@ pragma solidity ^0.5.0;
 import "./OneSplitBase.sol";
 
 
-contract OneSplitMultiPathView is OneSplitBaseView {
+contract OneSplitMultiPathView is OneSplitViewWrapBase {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         public
         view
@@ -19,16 +19,16 @@ contract OneSplitMultiPathView is OneSplitBaseView {
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](9));
+            return (amount, new uint256[](DEXES_COUNT));
         }
 
-        if (!fromToken.isETH() && !toToken.isETH() && disableFlags.check(FLAG_ENABLE_MULTI_PATH_ETH)) {
+        if (!fromToken.isETH() && !toToken.isETH() && flags.check(FLAG_ENABLE_MULTI_PATH_ETH)) {
             (returnAmount, distribution) = super.getExpectedReturn(
                 fromToken,
                 ETH_ADDRESS,
                 amount,
                 parts,
-                disableFlags | FLAG_DISABLE_BANCOR | FLAG_DISABLE_CURVE_COMPOUND | FLAG_DISABLE_CURVE_USDT | FLAG_DISABLE_CURVE_Y | FLAG_DISABLE_CURVE_BINANCE
+                flags | FLAG_DISABLE_BANCOR | FLAG_DISABLE_CURVE_COMPOUND | FLAG_DISABLE_CURVE_USDT | FLAG_DISABLE_CURVE_Y | FLAG_DISABLE_CURVE_BINANCE
             );
 
             uint256[] memory dist;
@@ -37,7 +37,7 @@ contract OneSplitMultiPathView is OneSplitBaseView {
                 toToken,
                 returnAmount,
                 parts,
-                disableFlags | FLAG_DISABLE_BANCOR | FLAG_DISABLE_CURVE_COMPOUND | FLAG_DISABLE_CURVE_USDT | FLAG_DISABLE_CURVE_Y | FLAG_DISABLE_CURVE_BINANCE
+                flags | FLAG_DISABLE_BANCOR | FLAG_DISABLE_CURVE_COMPOUND | FLAG_DISABLE_CURVE_USDT | FLAG_DISABLE_CURVE_Y | FLAG_DISABLE_CURVE_BINANCE
             );
             for (uint i = 0; i < distribution.length; i++) {
                 distribution[i] = distribution[i].add(dist[i] << 8);
@@ -45,13 +45,13 @@ contract OneSplitMultiPathView is OneSplitBaseView {
             return (returnAmount, distribution);
         }
 
-        if (fromToken != dai && toToken != dai && disableFlags.check(FLAG_ENABLE_MULTI_PATH_DAI)) {
+        if (fromToken != dai && toToken != dai && flags.check(FLAG_ENABLE_MULTI_PATH_DAI)) {
             (returnAmount, distribution) = super.getExpectedReturn(
                 fromToken,
                 dai,
                 amount,
                 parts,
-                disableFlags
+                flags
             );
 
             uint256[] memory dist;
@@ -60,7 +60,7 @@ contract OneSplitMultiPathView is OneSplitBaseView {
                 toToken,
                 returnAmount,
                 parts,
-                disableFlags
+                flags
             );
             for (uint i = 0; i < distribution.length; i++) {
                 distribution[i] = distribution[i].add(dist[i] << 8);
@@ -68,13 +68,13 @@ contract OneSplitMultiPathView is OneSplitBaseView {
             return (returnAmount, distribution);
         }
 
-        if (fromToken != usdc && toToken != usdc && disableFlags.check(FLAG_ENABLE_MULTI_PATH_USDC)) {
+        if (fromToken != usdc && toToken != usdc && flags.check(FLAG_ENABLE_MULTI_PATH_USDC)) {
             (returnAmount, distribution) = super.getExpectedReturn(
                 fromToken,
                 usdc,
                 amount,
                 parts,
-                disableFlags
+                flags
             );
 
             uint256[] memory dist;
@@ -83,7 +83,7 @@ contract OneSplitMultiPathView is OneSplitBaseView {
                 toToken,
                 returnAmount,
                 parts,
-                disableFlags
+                flags
             );
             for (uint i = 0; i < distribution.length; i++) {
                 distribution[i] = distribution[i].add(dist[i] << 8);
@@ -96,21 +96,21 @@ contract OneSplitMultiPathView is OneSplitBaseView {
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
         );
     }
 }
 
 
-contract OneSplitMultiPath is OneSplitBase {
+contract OneSplitMultiPath is OneSplitBaseWrap {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) internal {
-        if (!fromToken.isETH() && !toToken.isETH() && disableFlags.check(FLAG_ENABLE_MULTI_PATH_ETH)) {
+        if (!fromToken.isETH() && !toToken.isETH() && flags.check(FLAG_ENABLE_MULTI_PATH_ETH)) {
             uint256[] memory dist = new uint256[](distribution.length);
             for (uint i = 0; i < distribution.length; i++) {
                 dist[i] = distribution[i] & 0xFF;
@@ -120,7 +120,7 @@ contract OneSplitMultiPath is OneSplitBase {
                 ETH_ADDRESS,
                 amount,
                 dist,
-                disableFlags
+                flags
             );
 
             for (uint i = 0; i < distribution.length; i++) {
@@ -131,12 +131,12 @@ contract OneSplitMultiPath is OneSplitBase {
                 toToken,
                 address(this).balance,
                 dist,
-                disableFlags
+                flags
             );
             return;
         }
 
-        if (fromToken != dai && toToken != dai && disableFlags.check(FLAG_ENABLE_MULTI_PATH_DAI)) {
+        if (fromToken != dai && toToken != dai && flags.check(FLAG_ENABLE_MULTI_PATH_DAI)) {
             uint256[] memory dist = new uint256[](distribution.length);
             for (uint i = 0; i < distribution.length; i++) {
                 dist[i] = distribution[i] & 0xFF;
@@ -146,7 +146,7 @@ contract OneSplitMultiPath is OneSplitBase {
                 dai,
                 amount,
                 dist,
-                disableFlags
+                flags
             );
 
             for (uint i = 0; i < distribution.length; i++) {
@@ -157,12 +157,12 @@ contract OneSplitMultiPath is OneSplitBase {
                 toToken,
                 dai.balanceOf(address(this)),
                 dist,
-                disableFlags
+                flags
             );
             return;
         }
 
-        if (fromToken != usdc && toToken != usdc && disableFlags.check(FLAG_ENABLE_MULTI_PATH_USDC)) {
+        if (fromToken != usdc && toToken != usdc && flags.check(FLAG_ENABLE_MULTI_PATH_USDC)) {
             uint256[] memory dist = new uint256[](distribution.length);
             for (uint i = 0; i < distribution.length; i++) {
                 dist[i] = distribution[i] & 0xFF;
@@ -172,7 +172,7 @@ contract OneSplitMultiPath is OneSplitBase {
                 usdc,
                 amount,
                 dist,
-                disableFlags
+                flags
             );
 
             for (uint i = 0; i < distribution.length; i++) {
@@ -183,7 +183,7 @@ contract OneSplitMultiPath is OneSplitBase {
                 toToken,
                 usdc.balanceOf(address(this)),
                 dist,
-                disableFlags
+                flags
             );
             return;
         }
@@ -193,7 +193,7 @@ contract OneSplitMultiPath is OneSplitBase {
             toToken,
             amount,
             distribution,
-            disableFlags
+            flags
         );
     }
 }

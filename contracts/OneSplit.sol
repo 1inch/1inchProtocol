@@ -8,14 +8,17 @@ import "./OneSplitFulcrum.sol";
 import "./OneSplitChai.sol";
 import "./OneSplitBdai.sol";
 import "./OneSplitIearn.sol";
+import "./OneSplitIdle.sol";
 import "./OneSplitAave.sol";
 import "./OneSplitWeth.sol";
+import "./OneSplitBalancerPoolToken.sol";
+import "./OneSplitUniswapPoolToken.sol";
+import "./OneSplitCurveSusdPoolToken.sol";
 import "./OneSplitSmartToken.sol";
 
 
-contract OneSplitView is
-    IOneSplitView,
-    OneSplitBaseView,
+contract OneSplitViewWrap is
+    OneSplitViewWrapBase,
     OneSplitMultiPathView,
     OneSplitChaiView,
     OneSplitBdaiView,
@@ -23,25 +26,35 @@ contract OneSplitView is
     OneSplitFulcrumView,
     OneSplitCompoundView,
     OneSplitIearnView,
+    OneSplitIdleView,
     OneSplitWethView,
+    OneSplitBalancerPoolTokenView,
+    OneSplitUniswapPoolTokenView,
+    OneSplitCurveSusdPoolTokenView
     OneSplitSmartTokenView
 {
+    IOneSplitView public oneSplitView;
+
+    constructor(IOneSplitView _oneSplit) public {
+        oneSplitView = _oneSplit;
+    }
+
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
+        uint256 flags
     )
         public
         view
         returns(
             uint256 returnAmount,
-            uint256[] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
+            uint256[] memory distribution
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](9));
+            return (amount, new uint256[](DEXES_COUNT));
         }
 
         return super.getExpectedReturn(
@@ -49,43 +62,22 @@ contract OneSplitView is
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
         );
     }
-}
 
-
-contract OneSplit is
-    IOneSplit,
-    OneSplitBase,
-    OneSplitMultiPath,
-    OneSplitChai,
-    OneSplitBdai,
-    OneSplitAave,
-    OneSplitFulcrum,
-    OneSplitCompound,
-    OneSplitIearn,
-    OneSplitWeth,
-    OneSplitSmartToken
-{
-    IOneSplitView public oneSplitView;
-
-    constructor(IOneSplitView _oneSplitView) public {
-        oneSplitView = _oneSplitView;
-    }
-
-    function getExpectedReturn(
+    function _getExpectedReturnFloor(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
+        uint256 flags
     )
-        public
+        internal
         view
         returns(
             uint256 returnAmount,
-            uint256[] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
+            uint256[] memory distribution
         )
     {
         return oneSplitView.getExpectedReturn(
@@ -93,7 +85,61 @@ contract OneSplit is
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
+        );
+    }
+}
+
+
+contract OneSplitWrap is
+    OneSplitBaseWrap,
+    OneSplitMultiPath,
+    OneSplitChai,
+    OneSplitBdai,
+    OneSplitAave,
+    OneSplitFulcrum,
+    OneSplitCompound,
+    OneSplitIearn,
+    OneSplitIdle,
+    OneSplitWeth,
+    OneSplitBalancerPoolToken,
+    OneSplitUniswapPoolToken,
+    OneSplitCurveSusdPoolToken
+    OneSplitSmartToken
+{
+    IOneSplitView public oneSplitView;
+    IOneSplit public oneSplit;
+
+    constructor(IOneSplitView _oneSplitView, IOneSplit _oneSplit) public {
+        oneSplitView = _oneSplitView;
+        oneSplit = _oneSplit;
+    }
+
+    function() external payable {
+        // solium-disable-next-line security/no-tx-origin
+        require(msg.sender != tx.origin);
+    }
+
+    function getExpectedReturn(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
+    )
+        public
+        view
+        returns(
+            uint256 /*returnAmount*/,
+            uint256[] memory /*distribution*/
+        )
+    {
+        return oneSplitView.getExpectedReturn(
+            fromToken,
+            toToken,
+            amount,
+            parts,
+            flags
         );
     }
 
@@ -103,13 +149,13 @@ contract OneSplit is
         uint256 amount,
         uint256 minReturn,
         uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
-        uint256 disableFlags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
+        uint256 flags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
     ) public payable {
         if (msg.sender != address(this)) {
             fromToken.universalTransferFrom(msg.sender, address(this), amount);
         }
 
-        _swap(fromToken, toToken, amount, distribution, disableFlags);
+        _swap(fromToken, toToken, amount, distribution, flags);
 
         uint256 returnAmount = toToken.universalBalanceOf(address(this));
         require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
@@ -120,69 +166,29 @@ contract OneSplit is
         }
     }
 
-    function _swap(
+    function _swapFloor(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
-        uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
-        uint256 disableFlags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
+        uint256[] memory distribution,
+        uint256 flags
     ) internal {
-        if (fromToken == toToken) {
-            return;
-        }
-
-        return super._swap(
-            fromToken,
-            toToken,
-            amount,
-            distribution,
-            disableFlags
-        );
-    }
-
-    function goodSwap(
-        IERC20 fromToken,
-        IERC20 toToken,
-        uint256 amount,
-        uint256 minReturn,
-        uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
-    ) public payable {
-        (, uint256[] memory distribution) = getExpectedReturn(
-            fromToken,
-            toToken,
-            amount,
-            parts,
-            disableFlags
-        );
-        swap(
-            fromToken,
-            toToken,
-            amount,
-            minReturn,
-            distribution,
-            disableFlags
-        );
-    }
-
-    // DEPERECATED:
-
-    function getAllRatesForDEX(
-        IERC20 fromToken,
-        IERC20 toToken,
-        uint256 amount,
-        uint256 parts,
-        uint256 disableFlags
-    ) public view returns(uint256[] memory results) {
-        results = new uint256[](parts);
-        for (uint i = 0; i < parts; i++) {
-            (results[i],) = getExpectedReturn(
+        (bool success, bytes memory data) = address(oneSplit).delegatecall(
+            abi.encodeWithSelector(
+                this.swap.selector,
                 fromToken,
                 toToken,
-                amount.mul(i + 1).div(parts),
-                1,
-                disableFlags
-            );
+                amount,
+                0,
+                distribution,
+                flags
+            )
+        );
+
+        assembly {
+            switch success
+                // delegatecall returns 0 on error.
+                case 0 { revert(add(data, 32), returndatasize) }
         }
     }
 }

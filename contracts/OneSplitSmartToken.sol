@@ -75,14 +75,13 @@ contract OneSplitSmartTokenBase {
 }
 
 
-contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
-
+contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         public
         view
@@ -92,7 +91,7 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](9));
+            return (amount, new uint256[](DEXES_COUNT));
         }
 
         if (!disableFlags.check(FLAG_DISABLE_SMART_TOKEN)) {
@@ -147,6 +146,7 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
                     parts,
                     0
                 );
+
             }
         }
 
@@ -155,7 +155,7 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
         );
     }
 
@@ -296,14 +296,13 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
 }
 
 
-contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
-
+contract OneSplitSmartToken is OneSplitBaseWrap, OneSplitSmartTokenBase {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) internal {
 
         if (fromToken == toToken) {
@@ -372,7 +371,7 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
             toToken,
             amount,
             distribution,
-            disableFlags
+            flags
         );
     }
 

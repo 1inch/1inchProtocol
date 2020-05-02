@@ -26,6 +26,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
     }
 
     function() external payable {
+        // solium-disable-next-line security/no-tx-origin
         require(msg.sender != tx.origin, "OneSplit: do not send ETH directly");
     }
 
@@ -83,7 +84,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
         require(fromToken != toToken && amount > 0, "OneSplit: swap makes no sense");
         require((msg.value != 0) == fromToken.isETH(), "OneSplit: msg.value shoule be used only for ETH swap");
 
-        uint256 fromTokenBalanceBefore = fromToken.universalBalanceOf(address(this));
+        uint256 fromTokenBalanceBefore = fromToken.universalBalanceOf(address(this)).sub(msg.value);
         uint256 toTokenBalanceBefore = toToken.universalBalanceOf(address(this));
 
         fromToken.universalTransferFromSenderToThis(amount);
@@ -104,35 +105,13 @@ contract OneSplitAudit is IOneSplit, Ownable {
         uint256 returnAmount = toTokenBalanceAfter.sub(toTokenBalanceBefore);
         require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
         toToken.universalTransfer(msg.sender, returnAmount);
-        fromToken.universalTransfer(msg.sender, fromTokenBalanceAfter.sub(fromTokenBalanceBefore));
+
+        if (fromTokenBalanceAfter > fromTokenBalanceBefore) {
+            fromToken.universalTransfer(msg.sender, fromTokenBalanceAfter.sub(fromTokenBalanceBefore));
+        }
     }
 
-    //
-    // DEPRECATED: Implement in own contract if needed, but this is
-    //             still should not be considered as safe oracle.
-    //
-    // function goodSwap(
-    //     IERC20 fromToken,
-    //     IERC20 toToken,
-    //     uint256 amount,
-    //     uint256 minReturn,
-    //     uint256 parts,
-    //     uint256 featureFlags // See contants in IOneSplit.sol
-    // ) public payable {
-    //     (, uint256[] memory distribution) = getExpectedReturn(
-    //         fromToken,
-    //         toToken,
-    //         amount,
-    //         parts,
-    //         featureFlags
-    //     );
-    //     swap(
-    //         fromToken,
-    //         toToken,
-    //         amount,
-    //         minReturn,
-    //         distribution,
-    //         featureFlags
-    //     );
-    // }
+    function claimAsset(IERC20 asset, uint256 amount) public onlyOwner {
+        asset.universalTransfer(msg.sender, amount);
+    }
 }

@@ -3,8 +3,25 @@ pragma solidity ^0.5.0;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 
-contract IOneSplitView {
-    // disableFlags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_KYBER + ...
+//
+//        ||
+//        ||
+//        \/
+// +--------------+
+// | OneSplitWrap |
+// +--------------+
+//        ||
+//        || (delegatecall)
+//        \/
+// +--------------+
+// |   OneSplit   |
+// +--------------+
+//
+//
+
+
+contract IOneSplitConsts {
+    // flags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_KYBER + ...
     uint256 public constant FLAG_DISABLE_UNISWAP = 0x01;
     uint256 public constant FLAG_DISABLE_KYBER = 0x02;
     uint256 public constant FLAG_ENABLE_KYBER_UNISWAP_RESERVE = 0x100000000; // Turned off by default
@@ -28,7 +45,14 @@ contract IOneSplitView {
     uint256 public constant FLAG_ENABLE_MULTI_PATH_USDC = 0x20000; // Turned off by default
     uint256 public constant FLAG_DISABLE_CURVE_SYNTHETIX = 0x40000;
     uint256 public constant FLAG_DISABLE_WETH = 0x80000;
-
+    uint256 public constant FLAG_ENABLE_UNISWAP_COMPOUND = 0x100000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
+    uint256 public constant FLAG_ENABLE_UNISWAP_CHAI = 0x200000; // Works only when ETH<>DAI or FLAG_ENABLE_MULTI_PATH_ETH
+    uint256 public constant FLAG_ENABLE_UNISWAP_AAVE = 0x400000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
+    uint256 public constant FLAG_DISABLE_IDLE = 0x800000;
+    uint256 public constant FLAG_DISABLE_UNISWAP_POOL_TOKEN = 0x1000000;
+    uint256 public constant FLAG_DISABLE_BALANCER_POOL_TOKEN = 0x2000000;
+    uint256 public constant FLAG_DISABLE_CURVE_SUSD_POOL_TOKEN = 0x4000000;
+    
     uint256 public constant FLAG_DISABLE_ALL_SOURCES =
         FLAG_DISABLE_UNISWAP |
         FLAG_DISABLE_KYBER |
@@ -51,39 +75,29 @@ contract IOneSplitView {
         FLAG_DISABLE_WETH;
 
     uint256 public constant FLAG_DISABLE_ALL = FLAG_DISABLE_ALL_SOURCES | FLAG_DISABLE_ALL_WRAPPERS;
+}
 
+contract IOneSplit is IOneSplitConsts {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
+        uint256 flags
     )
         public
         view
         returns(
             uint256 returnAmount,
-            uint256[] memory distribution // [Uniswap, Kyber, Bancor, Oasis]
+            uint256[] memory distribution
         );
-}
 
-
-contract IOneSplit is IOneSplitView {
     function swap(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 minReturn,
-        uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
-        uint256 disableFlags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
-    ) public payable;
-
-    function goodSwap(
-        IERC20 fromToken,
-        IERC20 toToken,
-        uint256 amount,
-        uint256 minReturn,
-        uint256 parts,
-        uint256 disableFlags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
+        uint256[] memory distribution,
+        uint256 flags
     ) public payable;
 }
