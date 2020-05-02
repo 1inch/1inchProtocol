@@ -30,7 +30,7 @@ contract OneSplitViewWrap is
     OneSplitWethView,
     OneSplitBalancerPoolTokenView,
     OneSplitUniswapPoolTokenView,
-    OneSplitCurveSusdPoolTokenView
+    OneSplitCurveSusdPoolTokenView,
     OneSplitSmartTokenView
 {
     IOneSplitView public oneSplitView;
@@ -104,7 +104,7 @@ contract OneSplitWrap is
     OneSplitWeth,
     OneSplitBalancerPoolToken,
     OneSplitUniswapPoolToken,
-    OneSplitCurveSusdPoolToken
+    OneSplitCurveSusdPoolToken,
     OneSplitSmartToken
 {
     IOneSplitView public oneSplitView;

@@ -94,7 +94,7 @@ contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase 
             return (amount, new uint256[](DEXES_COUNT));
         }
 
-        if (!disableFlags.check(FLAG_DISABLE_SMART_TOKEN)) {
+        if (!flags.check(FLAG_DISABLE_SMART_TOKEN)) {
             bool isSmartTokenFrom = smartTokenRegistry.isSmartToken(fromToken);
             bool isSmartTokenTo = smartTokenRegistry.isSmartToken(toToken);
 
@@ -173,7 +173,7 @@ contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase 
             uint256[] memory distribution
         )
     {
-        distribution = new uint256[](9);
+        distribution = new uint256[](DEXES_COUNT);
 
         SmartTokenDetails memory details = _getSmartTokenDetails(ISmartToken(address(smartToken)));
 
@@ -221,7 +221,7 @@ contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase 
             uint256[] memory distribution
         )
     {
-        distribution = new uint256[](9);
+        distribution = new uint256[](DEXES_COUNT);
         minFundAmount = uint256(-1);
 
         SmartTokenDetails memory details = _getSmartTokenDetails(ISmartToken(address(smartToken)));

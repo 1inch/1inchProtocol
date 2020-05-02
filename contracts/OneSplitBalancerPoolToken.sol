@@ -49,7 +49,7 @@ contract OneSplitBalancerPoolTokenView is OneSplitViewWrapBase, OneSplitBalancer
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         public
         view
@@ -63,7 +63,7 @@ contract OneSplitBalancerPoolTokenView is OneSplitViewWrapBase, OneSplitBalancer
         }
 
 
-        if (!disableFlags.check(FLAG_DISABLE_BALANCER_POOL_TOKEN)) {
+        if (!flags.check(FLAG_DISABLE_BALANCER_POOL_TOKEN)) {
             bool isPoolTokenFrom = bFactory.isBPool(address(fromToken));
             bool isPoolTokenTo = bFactory.isBPool(address(toToken));
 
@@ -123,7 +123,7 @@ contract OneSplitBalancerPoolTokenView is OneSplitViewWrapBase, OneSplitBalancer
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
         );
     }
 
@@ -132,7 +132,7 @@ contract OneSplitBalancerPoolTokenView is OneSplitViewWrapBase, OneSplitBalancer
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         private
         view
@@ -163,7 +163,7 @@ contract OneSplitBalancerPoolTokenView is OneSplitViewWrapBase, OneSplitBalancer
                 toToken,
                 tokenAmountOut,
                 parts,
-                disableFlags
+                flags
             );
 
             returnAmount = returnAmount.add(ret);
@@ -181,7 +181,7 @@ contract OneSplitBalancerPoolTokenView is OneSplitViewWrapBase, OneSplitBalancer
         IERC20 poolToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         private
         view
@@ -210,7 +210,7 @@ contract OneSplitBalancerPoolTokenView is OneSplitViewWrapBase, OneSplitBalancer
                     details.tokens[i].token,
                     exchangeAmount,
                     parts,
-                    disableFlags
+                    flags
                 );
 
                 for (uint j = 0; j < distribution.length; j++) {
@@ -265,13 +265,13 @@ contract OneSplitBalancerPoolToken is OneSplitBaseWrap, OneSplitBalancerPoolToke
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) internal {
         if (fromToken == toToken) {
             return;
         }
 
-        if (!disableFlags.check(FLAG_DISABLE_BALANCER_POOL_TOKEN)) {
+        if (!flags.check(FLAG_DISABLE_BALANCER_POOL_TOKEN)) {
             bool isPoolTokenFrom = bFactory.isBPool(address(fromToken));
             bool isPoolTokenTo = bFactory.isBPool(address(toToken));
 
@@ -332,7 +332,7 @@ contract OneSplitBalancerPoolToken is OneSplitBaseWrap, OneSplitBalancerPoolToke
             toToken,
             amount,
             distribution,
-            disableFlags
+            flags
         );
     }
 
@@ -341,7 +341,7 @@ contract OneSplitBalancerPoolToken is OneSplitBaseWrap, OneSplitBalancerPoolToke
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) private {
 
         IBPool bToken = IBPool(address(poolToken));
@@ -378,7 +378,7 @@ contract OneSplitBalancerPoolToken is OneSplitBaseWrap, OneSplitBalancerPoolToke
                 exchangeTokenAmount,
                 0,
                 dist,
-                disableFlags
+                flags
             );
         }
 
@@ -389,7 +389,7 @@ contract OneSplitBalancerPoolToken is OneSplitBaseWrap, OneSplitBalancerPoolToke
         IERC20 poolToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) private {
         uint256[] memory dist = new uint256[](distribution.length);
         uint256 minFundAmount = uint256(-1);
@@ -416,7 +416,7 @@ contract OneSplitBalancerPoolToken is OneSplitBaseWrap, OneSplitBalancerPoolToke
                     exchangeAmount,
                     0,
                     dist,
-                    disableFlags
+                    flags
                 );
 
                 uint256 tokenBalanceAfter = details.tokens[i].token.balanceOf(address(this));
