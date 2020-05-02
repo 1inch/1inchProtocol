@@ -1,5 +1,5 @@
-const { expectRevert } = require('@openzeppelin/test-helpers');
-const { expect } = require('chai');
+// const { expectRevert } = require('@openzeppelin/test-helpers');
+// const { expect } = require('chai');
 const assert = require('assert');
 
 const OneSplitView = artifacts.require('OneSplitView');
@@ -8,39 +8,6 @@ const OneSplit = artifacts.require('OneSplit');
 const OneSplitWrap = artifacts.require('OneSplitWrap');
 
 contract('OneSplit', function ([_, addr1]) {
-
-    describe('OneSplitSmartContract', async function () {
-        beforeEach('should be ok', async function () {
-            this.smartTokenView = await OneSplitViewMock.new();
-        });
-
-        it('should view buying price', async function () {
-            const res = await this.smartTokenView.getExpectedReturn(
-                '0x0000000000000000000000000000000000000000', // ETH
-                '0x482c31355F4f7966fFcD38eC5c9635ACAe5F4D4F', // Ether Token Smart Relay Token (ETHUSDB)
-                '0x' + Number(web3.utils.toWei('0.5')).toString(16),
-                '0x' + (10).toString(16),
-                '0x0',
-            );
-
-            console.log(res['0'].toString());
-            console.log(res['1'].map(x => x.toString()));
-        });
-
-        it('should view selling price', async function () {
-            const res = await this.smartTokenView.getExpectedReturn(
-                '0x482c31355F4f7966fFcD38eC5c9635ACAe5F4D4F', // Ether Token Smart Relay Token (ETHUSDB)
-                '0x0000000000000000000000000000000000000000', // ETH
-                '0x' + Number(web3.utils.toWei('20')).toString(16),
-                '0x' + (10).toString(16),
-                '0x0'
-            );
-
-            console.log(res['0'].toString());
-            console.log(res['1'].map(x => x.toString()));
-        });
-
-    });
 
     describe('OneSplit', async function () {
         beforeEach('should be ok', async function () {
