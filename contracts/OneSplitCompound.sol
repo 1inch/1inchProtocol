@@ -27,6 +27,9 @@ contract OneSplitCompoundBase {
         if (token == IERC20(0xB3319f5D18Bc0D84dD1b4825Dcde5d5f7266d407)) { // ZRX
             return IERC20(0xE41d2489571d322189246DaFA5ebDe1F4699F498);
         }
+        if (token == IERC20(0xf650C3d88D12dB855b8bf7D11Be6C55A4e07dCC9)) { // USDT
+            return IERC20(0xdAC17F958D2ee523a2206206994597C13D831ec7);
+        }
 
         return IERC20(-1);
     }
