@@ -193,8 +193,25 @@ pragma solidity ^0.5.0;
 
 
 
+//
+//        ||
+//        ||
+//        \/
+// +--------------+
+// | OneSplitWrap |
+// +--------------+
+//        ||
+//        || (delegatecall)
+//        \/
+// +--------------+
+// |   OneSplit   |
+// +--------------+
+//
+//
+
+
 contract IOneSplitConsts {
-    // disableFlags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_KYBER + ...
+    // flags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_KYBER + ...
     uint256 public constant FLAG_DISABLE_UNISWAP = 0x01;
     uint256 public constant FLAG_DISABLE_KYBER = 0x02;
     uint256 public constant FLAG_ENABLE_KYBER_UNISWAP_RESERVE = 0x100000000; // Turned off by default
@@ -231,7 +248,7 @@ contract IOneSplit is IOneSplitConsts {
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         public
         view
@@ -246,7 +263,7 @@ contract IOneSplit is IOneSplitConsts {
         uint256 amount,
         uint256 minReturn,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) public payable;
 }
 
@@ -778,33 +795,4 @@ contract OneSplitAudit is IOneSplit, Ownable {
     function claimAsset(IERC20 asset, uint256 amount) public onlyOwner {
         asset.universalTransfer(msg.sender, amount);
     }
-
-    //
-    // DEPRECATED: Implement in own contract if needed, but this is
-    //             still should not be considered as safe oracle.
-    //
-    // function goodSwap(
-    //     IERC20 fromToken,
-    //     IERC20 toToken,
-    //     uint256 amount,
-    //     uint256 minReturn,
-    //     uint256 parts,
-    //     uint256 featureFlags // See contants in IOneSplit.sol
-    // ) public payable {
-    //     (, uint256[] memory distribution) = getExpectedReturn(
-    //         fromToken,
-    //         toToken,
-    //         amount,
-    //         parts,
-    //         featureFlags
-    //     );
-    //     swap(
-    //         fromToken,
-    //         toToken,
-    //         amount,
-    //         minReturn,
-    //         distribution,
-    //         featureFlags
-    //     );
-    // }
 }

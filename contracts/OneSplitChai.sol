@@ -4,15 +4,16 @@ import "./interface/IChai.sol";
 import "./OneSplitBase.sol";
 
 
-contract OneSplitChaiView is OneSplitBaseView {
+contract OneSplitChaiView is OneSplitViewWrapBase {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
-        internal
+        public
+        view
         returns(
             uint256 returnAmount,
             uint256[] memory distribution
@@ -22,14 +23,14 @@ contract OneSplitChaiView is OneSplitBaseView {
             return (amount, new uint256[](DEXES_COUNT));
         }
 
-        if (!disableFlags.check(FLAG_DISABLE_CHAI)) {
+        if (!flags.check(FLAG_DISABLE_CHAI)) {
             if (fromToken == IERC20(chai)) {
                 return super.getExpectedReturn(
                     dai,
                     toToken,
                     chai.chaiToDai(amount),
                     parts,
-                    disableFlags
+                    flags
                 );
             }
 
@@ -39,7 +40,7 @@ contract OneSplitChaiView is OneSplitBaseView {
                     dai,
                     amount,
                     parts,
-                    disableFlags
+                    flags
                 );
                 return (chai.daiToChai(returnAmount), distribution);
             }
@@ -50,25 +51,25 @@ contract OneSplitChaiView is OneSplitBaseView {
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
         );
     }
 }
 
 
-contract OneSplitChai is OneSplitBase {
+contract OneSplitChai is OneSplitBaseWrap {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) internal {
         if (fromToken == toToken) {
             return;
         }
 
-        if (!disableFlags.check(FLAG_DISABLE_CHAI)) {
+        if (!flags.check(FLAG_DISABLE_CHAI)) {
             if (fromToken == IERC20(chai)) {
                 chai.exit(address(this), amount);
 
@@ -77,7 +78,7 @@ contract OneSplitChai is OneSplitBase {
                     toToken,
                     dai.balanceOf(address(this)),
                     distribution,
-                    disableFlags
+                    flags
                 );
             }
 
@@ -87,7 +88,7 @@ contract OneSplitChai is OneSplitBase {
                     dai,
                     amount,
                     distribution,
-                    disableFlags
+                    flags
                 );
 
                 _infiniteApproveIfNeeded(dai, address(chai));
@@ -101,7 +102,7 @@ contract OneSplitChai is OneSplitBase {
             toToken,
             amount,
             distribution,
-            disableFlags
+            flags
         );
     }
 }
