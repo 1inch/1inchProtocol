@@ -49,6 +49,7 @@ contract IOneSplitConsts {
     uint256 public constant FLAG_ENABLE_UNISWAP_CHAI = 0x200000; // Works only when ETH<>DAI or FLAG_ENABLE_MULTI_PATH_ETH
     uint256 public constant FLAG_ENABLE_UNISWAP_AAVE = 0x400000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
     uint256 public constant FLAG_DISABLE_IDLE = 0x800000;
+    uint256 public constant FLAG_DISABLE_MOONISWAP = 0x1000000;
 }
 
 

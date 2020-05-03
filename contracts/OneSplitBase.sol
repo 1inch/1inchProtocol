@@ -18,6 +18,7 @@ import "./interface/ICurve.sol";
 import "./interface/IChai.sol";
 import "./interface/ICompound.sol";
 import "./interface/IAaveToken.sol";
+import "./interface/IMooniswap.sol";
 import "./IOneSplit.sol";
 import "./UniversalERC20.sol";
 
@@ -55,7 +56,7 @@ contract OneSplitRoot {
     using UniversalERC20 for IBancorEtherToken;
     using ChaiHelper for IChai;
 
-    uint256 constant public DEXES_COUNT = 12;
+    uint256 constant public DEXES_COUNT = 13;
     IERC20 constant public ETH_ADDRESS = IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
     IERC20 constant public dai = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
@@ -83,6 +84,7 @@ contract OneSplitRoot {
     IAaveLendingPool constant public aave = IAaveLendingPool(0x398eC7346DcD622eDc5ae82352F02bE94C62d119);
     ICompound constant public compound = ICompound(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
     ICompoundEther constant public cETH = ICompoundEther(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
+    IMooniswapRegistry constant public mooniswapRegistry = IMooniswapRegistry(0x7079E8517594e5b21d2B9a0D17cb33F5FE2bca70);
 
     function _buildBancorPath(
         IERC20 fromToken,
@@ -333,7 +335,8 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             flags.check(FLAG_DISABLE_CURVE_SYNTHETIX)  ? _calculateNoReturn : calculateCurveSynthetix,
             !flags.check(FLAG_ENABLE_UNISWAP_COMPOUND) ? _calculateNoReturn : calculateUniswapCompound,
             !flags.check(FLAG_ENABLE_UNISWAP_CHAI)     ? _calculateNoReturn : calculateUniswapChai,
-            !flags.check(FLAG_ENABLE_UNISWAP_AAVE)     ? _calculateNoReturn : calculateUniswapAave
+            !flags.check(FLAG_ENABLE_UNISWAP_AAVE)     ? _calculateNoReturn : calculateUniswapAave,
+            flags.check(FLAG_DISABLE_MOONISWAP)        ? _calculateNoReturn : calculateMooniswap
         ];
 
         uint256[DEXES_COUNT] memory rates;
@@ -762,6 +765,28 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return abi.decode(data, (uint256));
     }
 
+    function calculateMooniswap(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 /*flags*/
+    ) public view returns(uint256) {
+        IMooniswap mooniswap = mooniswapRegistry.target();
+        (bool success, bytes memory data) = address(mooniswap).staticcall.gas(500000)(
+            abi.encodeWithSelector(
+                mooniswap.getReturn.selector,
+                fromToken,
+                toToken,
+                amount
+            )
+        );
+        if (!success) {
+            return 0;
+        }
+
+        return abi.decode(data, (uint256));
+    }
+
     function _calculateNoReturn(
         IERC20 /*fromToken*/,
         IERC20 /*toToken*/,
@@ -863,7 +888,8 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             _swapOnCurveSynthetix,
             _swapOnUniswapCompound,
             _swapOnUniswapChai,
-            _swapOnUniswapAave
+            _swapOnUniswapAave,
+            _swapOnMooniswap
         ];
 
         require(distribution.length <= reserves.length, "OneSplit: Distribution array should not exceed reserves array size");
@@ -1081,6 +1107,20 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         }
 
         return 0;
+    }
+
+    function _swapOnMooniswap(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    ) internal returns(uint256) {
+        IMooniswap mooniswap = mooniswapRegistry.target();
+        return mooniswap.swap.value(fromToken.isETH() ? amount : 0)(
+            fromToken,
+            toToken,
+            amount,
+            0
+        );
     }
 
     function _swapOnKyber(
