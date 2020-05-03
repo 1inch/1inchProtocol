@@ -130,8 +130,10 @@ contract IOneSplitConsts {
     uint256 public constant FLAG_ENABLE_UNISWAP_CHAI = 0x200000; // Works only when ETH<>DAI or FLAG_ENABLE_MULTI_PATH_ETH
     uint256 public constant FLAG_ENABLE_UNISWAP_AAVE = 0x400000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
     uint256 public constant FLAG_DISABLE_IDLE = 0x800000;
+    uint256 public constant FLAG_DISABLE_UNISWAP_POOL_TOKEN = 0x1000000;
+    uint256 public constant FLAG_DISABLE_BALANCER_POOL_TOKEN = 0x2000000;
+    uint256 public constant FLAG_DISABLE_CURVE_ZAP = 0x4000000;
 }
-
 
 contract IOneSplit is IOneSplitConsts {
     function getExpectedReturn(
@@ -344,6 +346,10 @@ interface IUniswapExchange {
         uint256 deadline,
         address tokenAddr
     ) external returns (uint256 tokensBought);
+
+    function addLiquidity(uint256 min_liquidity, uint256 max_tokens, uint256 deadline) external payable returns (uint256);
+
+    function removeLiquidity(uint256 amount, uint256 min_eth, uint256 min_tokens, uint256 deadline) external returns (uint256, uint256);
 }
 
 // File: contracts/interface/IUniswapFactory.sol
@@ -354,6 +360,8 @@ pragma solidity ^0.5.0;
 
 interface IUniswapFactory {
     function getExchange(IERC20 token) external view returns (IUniswapExchange exchange);
+
+    function getToken(address exchange) external view returns (IERC20 token);
 }
 
 // File: contracts/interface/IKyberNetworkContract.sol
@@ -530,8 +538,14 @@ interface ICurve {
     // solium-disable-next-line mixedcase
     function get_dy_underlying(int128 i, int128 j, uint256 dx) external view returns(uint256 dy);
 
+    function get_virtual_price() external view returns(uint256);
+
     // solium-disable-next-line mixedcase
     function exchange_underlying(int128 i, int128 j, uint256 dx, uint256 minDy) external;
+
+    function coins(int128 arg0) external view returns (address);
+
+    function balances(int128 arg0) external view returns (uint256);
 }
 
 // File: contracts/interface/IChai.sol
@@ -996,6 +1010,13 @@ contract IOneSplitView is IOneSplitConsts {
             uint256 returnAmount,
             uint256[] memory distribution
         );
+
+    function _calculateBancorReturn(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 flags
+    ) external view returns(uint256);
 }
 
 
@@ -1254,6 +1275,13 @@ contract OneSplitViewWrapBase is IOneSplitView, OneSplitRoot {
             uint256 returnAmount,
             uint256[] memory distribution
         );
+
+    function _calculateBancorReturn(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 flags
+    ) public view returns(uint256);
 }
 
 
@@ -1282,18 +1310,18 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         }
 
         function(IERC20,IERC20,uint256,uint256) view returns(uint256)[DEXES_COUNT] memory reserves = [
-            flags.check(FLAG_DISABLE_UNISWAP)          ? _calculateNoReturn : calculateUniswapReturn,
-            flags.check(FLAG_DISABLE_KYBER)            ? _calculateNoReturn : calculateKyberReturn,
-            flags.check(FLAG_DISABLE_BANCOR)           ? _calculateNoReturn : calculateBancorReturn,
-            flags.check(FLAG_DISABLE_OASIS)            ? _calculateNoReturn : calculateOasisReturn,
-            flags.check(FLAG_DISABLE_CURVE_COMPOUND)   ? _calculateNoReturn : calculateCurveCompound,
-            flags.check(FLAG_DISABLE_CURVE_USDT)       ? _calculateNoReturn : calculateCurveUsdt,
-            flags.check(FLAG_DISABLE_CURVE_Y)          ? _calculateNoReturn : calculateCurveY,
-            flags.check(FLAG_DISABLE_CURVE_BINANCE)    ? _calculateNoReturn : calculateCurveBinance,
-            flags.check(FLAG_DISABLE_CURVE_SYNTHETIX)  ? _calculateNoReturn : calculateCurveSynthetix,
-            !flags.check(FLAG_ENABLE_UNISWAP_COMPOUND) ? _calculateNoReturn : calculateUniswapCompound,
-            !flags.check(FLAG_ENABLE_UNISWAP_CHAI)     ? _calculateNoReturn : calculateUniswapChai,
-            !flags.check(FLAG_ENABLE_UNISWAP_AAVE)     ? _calculateNoReturn : calculateUniswapAave
+            flags.check(FLAG_DISABLE_UNISWAP)          ? _calculateNoReturn : _calculateUniswapReturn,
+            flags.check(FLAG_DISABLE_KYBER)            ? _calculateNoReturn : _calculateKyberReturn,
+            flags.check(FLAG_DISABLE_BANCOR)           ? _calculateNoReturn : _calculateBancorReturn,
+            flags.check(FLAG_DISABLE_OASIS)            ? _calculateNoReturn : _calculateOasisReturn,
+            flags.check(FLAG_DISABLE_CURVE_COMPOUND)   ? _calculateNoReturn : _calculateCurveCompound,
+            flags.check(FLAG_DISABLE_CURVE_USDT)       ? _calculateNoReturn : _calculateCurveUsdt,
+            flags.check(FLAG_DISABLE_CURVE_Y)          ? _calculateNoReturn : _calculateCurveY,
+            flags.check(FLAG_DISABLE_CURVE_BINANCE)    ? _calculateNoReturn : _calculateCurveBinance,
+            flags.check(FLAG_DISABLE_CURVE_SYNTHETIX)  ? _calculateNoReturn : _calculateCurveSynthetix,
+            !flags.check(FLAG_ENABLE_UNISWAP_COMPOUND) ? _calculateNoReturn : _calculateUniswapCompound,
+            !flags.check(FLAG_ENABLE_UNISWAP_CHAI)     ? _calculateNoReturn : _calculateUniswapChai,
+            !flags.check(FLAG_ENABLE_UNISWAP_AAVE)     ? _calculateNoReturn : _calculateUniswapAave
         ];
 
         uint256[DEXES_COUNT] memory rates;
@@ -1341,7 +1369,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
 
     // View Helpers
 
-    function calculateCurveCompound(
+    function _calculateCurveCompound(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
@@ -1356,7 +1384,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return curveCompound.get_dy_underlying(i - 1, j - 1, amount);
     }
 
-    function calculateCurveUsdt(
+    function _calculateCurveUsdt(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
@@ -1375,7 +1403,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return curveUsdt.get_dy_underlying(i - 1, j - 1, amount);
     }
 
-    function calculateCurveY(
+    function _calculateCurveY(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
@@ -1396,7 +1424,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return curveY.get_dy_underlying(i - 1, j - 1, amount);
     }
 
-    function calculateCurveBinance(
+    function _calculateCurveBinance(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
@@ -1417,7 +1445,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return curveBinance.get_dy_underlying(i - 1, j - 1, amount);
     }
 
-    function calculateCurveSynthetix(
+    function _calculateCurveSynthetix(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
@@ -1438,7 +1466,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return curveSynthetix.get_dy_underlying(i - 1, j - 1, amount);
     }
 
-    function calculateUniswapReturn(
+    function _calculateUniswapReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
@@ -1487,7 +1515,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return returnAmount;
     }
 
-    function calculateUniswapCompound(
+    function _calculateUniswapCompound(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
@@ -1500,7 +1528,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         if (!fromToken.isETH()) {
             ICompoundToken fromCompound = _getCompoundToken(fromToken);
             if (fromCompound != ICompoundToken(0)) {
-                return calculateUniswapReturn(
+                return _calculateUniswapReturn(
                     fromCompound,
                     toToken,
                     amount.mul(1e18).div(fromCompound.exchangeRateStored()),
@@ -1510,7 +1538,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         } else {
             ICompoundToken toCompound = _getCompoundToken(toToken);
             if (toCompound != ICompoundToken(0)) {
-                return calculateUniswapReturn(
+                return _calculateUniswapReturn(
                     fromToken,
                     toCompound,
                     amount,
@@ -1522,14 +1550,14 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return 0;
     }
 
-    function calculateUniswapChai(
+    function _calculateUniswapChai(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 flags
     ) public view returns(uint256) {
         if (fromToken == dai && toToken.isETH()) {
-            return calculateUniswapReturn(
+            return _calculateUniswapReturn(
                 chai,
                 toToken,
                 chai.daiToChai(amount),
@@ -1538,7 +1566,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         }
 
         if (fromToken.isETH() && toToken == dai) {
-            return chai.chaiToDai(calculateUniswapReturn(
+            return chai.chaiToDai(_calculateUniswapReturn(
                 fromToken,
                 chai,
                 amount,
@@ -1549,7 +1577,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return 0;
     }
 
-    function calculateUniswapAave(
+    function _calculateUniswapAave(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
@@ -1562,7 +1590,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         if (!fromToken.isETH()) {
             IAaveToken fromAave = _getAaveToken(fromToken);
             if (fromAave != IAaveToken(0)) {
-                return calculateUniswapReturn(
+                return _calculateUniswapReturn(
                     fromAave,
                     toToken,
                     amount,
@@ -1572,7 +1600,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         } else {
             IAaveToken toAave = _getAaveToken(toToken);
             if (toAave != IAaveToken(0)) {
-                return calculateUniswapReturn(
+                return _calculateUniswapReturn(
                     fromToken,
                     toAave,
                     amount,
@@ -1584,7 +1612,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return 0;
     }
 
-    function calculateKyberReturn(
+    function _calculateKyberReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
@@ -1677,7 +1705,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             .div(1e18);
     }
 
-    function calculateBancorReturn(
+    function _calculateBancorReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
@@ -1701,7 +1729,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return returnAmount;
     }
 
-    function calculateOasisReturn(
+    function _calculateOasisReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
@@ -1761,6 +1789,12 @@ contract OneSplitBaseWrap is IOneSplit, OneSplitRoot {
         uint256[] memory distribution,
         uint256 /*flags*/ // See constants in IOneSplit.sol
     ) internal;
+
+    function _swapOnBancorSafe(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    ) external returns(uint256);
 }
 
 
@@ -2066,6 +2100,20 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         IERC20 toToken,
         uint256 amount
     ) internal returns(uint256) {
+        uint256 ret = _swapOnBancorSafe(
+            fromToken,
+            toToken,
+            amount
+        );
+        require(ret > 0);
+        return ret;
+    }
+
+    function _swapOnBancorSafe(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    ) internal returns(uint256) {
         if (fromToken.isETH()) {
             bancorEtherToken.deposit.value(amount)();
         }
@@ -2074,9 +2122,18 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         address[] memory path = _buildBancorPath(fromToken, toToken);
 
         _infiniteApproveIfNeeded(fromToken.isETH() ? bancorEtherToken : fromToken, address(bancorNetwork));
-        uint256 returnAmount = bancorNetwork.claimAndConvert(path, amount, 1);
+        (bool success, bytes memory data) = address(bancorNetwork).call.gas(1500000)(
+            abi.encodeWithSelector(
+                bancorNetwork.claimAndConvert.selector,
+                path,
+                amount,
+                1
+            )
+        );
 
-        if (toToken.isETH()) {
+        uint256 returnAmount = success ? abi.decode(data, (uint256)) : 0;
+
+        if (toToken.isETH() && returnAmount > 0) {
             bancorEtherToken.withdraw(bancorEtherToken.balanceOf(address(this)));
         }
 
@@ -3780,25 +3837,1439 @@ contract OneSplitWeth is OneSplitBaseWrap {
     }
 }
 
+// File: contracts/interface/IBFactory.sol
+
+pragma solidity ^0.5.0;
+
+interface IBFactory {
+    function isBPool(address b) external view returns (bool);
+}
+
+// File: contracts/interface/IBPool.sol
+
+pragma solidity ^0.5.0;
+
+
+contract BConst {
+    uint public constant EXIT_FEE = 0;
+}
+
+contract IBMath is BConst {
+    function calcPoolOutGivenSingleIn(
+        uint tokenBalanceIn,
+        uint tokenWeightIn,
+        uint poolSupply,
+        uint totalWeight,
+        uint tokenAmountIn,
+        uint swapFee
+    )
+        public
+        pure returns (uint poolAmountOut);
+}
+
+contract IBPool is IERC20, IBMath {
+    function joinPool(uint poolAmountOut, uint[] calldata maxAmountsIn) external;
+
+    function exitPool(uint poolAmountIn, uint[] calldata minAmountsOut) external;
+
+    function joinswapExternAmountIn(address tokenIn, uint tokenAmountIn, uint minPoolAmountOut) external returns (uint poolAmountOut);
+
+    function getCurrentTokens() external view returns (address[] memory tokens);
+
+    function getBalance(address token) external view returns (uint);
+
+    function getNormalizedWeight(address token) external view returns (uint);
+
+    function getDenormalizedWeight(address token) external view returns (uint);
+
+    function getTotalDenormalizedWeight() external view returns (uint);
+
+    function getSwapFee() external view returns (uint);
+}
+
+// File: contracts/OneSplitBalancerPoolToken.sol
+
+pragma solidity ^0.5.0;
+
+
+
+
+
+contract OneSplitBalancerPoolTokenBase {
+    using SafeMath for uint256;
+
+    // todo: factory for Bronze release
+    // may be changed in future
+    IBFactory bFactory = IBFactory(0x9424B1412450D0f8Fc2255FAf6046b98213B76Bd);
+
+    struct TokenWithWeight {
+        IERC20 token;
+        uint256 reserveBalance;
+        uint256 denormalizedWeight;
+    }
+
+    struct PoolTokenDetails {
+        TokenWithWeight[] tokens;
+        uint256 totalWeight;
+        uint256 totalSupply;
+    }
+
+    function _getPoolDetails(IBPool poolToken)
+        internal
+        view
+        returns(PoolTokenDetails memory details)
+    {
+        address[] memory currentTokens = poolToken.getCurrentTokens();
+        details.tokens = new TokenWithWeight[](currentTokens.length);
+        details.totalWeight = poolToken.getTotalDenormalizedWeight();
+        details.totalSupply = poolToken.totalSupply();
+        for (uint256 i = 0; i < details.tokens.length; i++) {
+            details.tokens[i].token = IERC20(currentTokens[i]);
+            details.tokens[i].denormalizedWeight = poolToken.getDenormalizedWeight(currentTokens[i]);
+            details.tokens[i].reserveBalance = poolToken.getBalance(currentTokens[i]);
+        }
+    }
+
+}
+
+contract OneSplitBalancerPoolTokenView is OneSplitViewWrapBase, OneSplitBalancerPoolTokenBase {
+
+    function getExpectedReturn(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags
+    )
+        public
+        view
+        returns (
+            uint256 returnAmount,
+            uint256[] memory distribution
+        )
+    {
+        if (fromToken == toToken) {
+            return (amount, new uint256[](DEXES_COUNT));
+        }
+
+
+        if (!flags.check(FLAG_DISABLE_BALANCER_POOL_TOKEN)) {
+            bool isPoolTokenFrom = bFactory.isBPool(address(fromToken));
+            bool isPoolTokenTo = bFactory.isBPool(address(toToken));
+
+            if (isPoolTokenFrom && isPoolTokenTo) {
+                (
+                uint256 returnETHAmount,
+                uint256[] memory poolTokenFromDistribution
+                ) = _getExpectedReturnFromBalancerPoolToken(
+                    fromToken,
+                    ETH_ADDRESS,
+                    amount,
+                    parts,
+                    FLAG_DISABLE_BALANCER_POOL_TOKEN
+                );
+
+                (
+                uint256 returnPoolTokenToAmount,
+                uint256[] memory poolTokenToDistribution
+                ) = _getExpectedReturnToBalancerPoolToken(
+                    ETH_ADDRESS,
+                    toToken,
+                    returnETHAmount,
+                    parts,
+                    FLAG_DISABLE_BALANCER_POOL_TOKEN
+                );
+
+                for (uint i = 0; i < poolTokenToDistribution.length; i++) {
+                    poolTokenFromDistribution[i] |= poolTokenToDistribution[i] << 128;
+                }
+
+                return (returnPoolTokenToAmount, poolTokenFromDistribution);
+            }
+
+            if (isPoolTokenFrom) {
+                return _getExpectedReturnFromBalancerPoolToken(
+                    fromToken,
+                    toToken,
+                    amount,
+                    parts,
+                    FLAG_DISABLE_BALANCER_POOL_TOKEN
+                );
+            }
+
+            if (isPoolTokenTo) {
+                return _getExpectedReturnToBalancerPoolToken(
+                    fromToken,
+                    toToken,
+                    amount,
+                    parts,
+                    FLAG_DISABLE_BALANCER_POOL_TOKEN
+                );
+            }
+        }
+
+        return super.getExpectedReturn(
+            fromToken,
+            toToken,
+            amount,
+            parts,
+            flags
+        );
+    }
+
+    function _getExpectedReturnFromBalancerPoolToken(
+        IERC20 poolToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags
+    )
+        private
+        view
+        returns (
+            uint256 returnAmount,
+            uint256[] memory distribution
+        )
+    {
+        distribution = new uint256[](DEXES_COUNT);
+
+        IBPool bToken = IBPool(address(poolToken));
+        address[] memory currentTokens = bToken.getCurrentTokens();
+
+        uint256 pAiAfterExitFee = amount.sub(
+            amount.mul(bToken.EXIT_FEE())
+        );
+        uint256 ratio = pAiAfterExitFee.mul(1e18).div(poolToken.totalSupply());
+        for (uint i = 0; i < currentTokens.length; i++) {
+            uint256 tokenAmountOut = bToken.getBalance(currentTokens[i]).mul(ratio).div(1e18);
+
+            if (currentTokens[i] == address(toToken)) {
+                returnAmount = returnAmount.add(tokenAmountOut);
+                continue;
+            }
+
+            (uint256 ret, uint256[] memory dist) = getExpectedReturn(
+                IERC20(currentTokens[i]),
+                toToken,
+                tokenAmountOut,
+                parts,
+                flags
+            );
+
+            returnAmount = returnAmount.add(ret);
+
+            for (uint j = 0; j < distribution.length; j++) {
+                distribution[j] |= dist[j] << (i * 8);
+            }
+        }
+
+        return (returnAmount, distribution);
+    }
+
+    function _getExpectedReturnToBalancerPoolToken(
+        IERC20 fromToken,
+        IERC20 poolToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags
+    )
+        private
+        view
+        returns (
+            uint256 minFundAmount,
+            uint256[] memory distribution
+        )
+    {
+        distribution = new uint256[](DEXES_COUNT);
+        minFundAmount = uint256(-1);
+
+        PoolTokenDetails memory details = _getPoolDetails(IBPool(address(poolToken)));
+
+        uint256[] memory tokenAmounts = new uint256[](details.tokens.length);
+        uint256[] memory dist;
+        uint256[] memory fundAmounts = new uint256[](details.tokens.length);
+
+        for (uint i = 0; i < details.tokens.length; i++) {
+            uint256 exchangeAmount = amount.mul(
+                details.tokens[i].denormalizedWeight
+            ).div(details.totalWeight);
+
+            if (details.tokens[i].token != fromToken) {
+                (tokenAmounts[i], dist) = getExpectedReturn(
+                    fromToken,
+                    details.tokens[i].token,
+                    exchangeAmount,
+                    parts,
+                    flags
+                );
+
+                for (uint j = 0; j < distribution.length; j++) {
+                    distribution[j] |= dist[j] << (i * 8);
+                }
+            } else {
+                tokenAmounts[i] = exchangeAmount;
+            }
+
+            fundAmounts[i] = tokenAmounts[i]
+                .mul(details.totalSupply)
+                .div(details.tokens[i].reserveBalance);
+
+            if (fundAmounts[i] < minFundAmount) {
+                minFundAmount = fundAmounts[i];
+            }
+        }
+
+//        uint256 _minFundAmount = minFundAmount;
+//        uint256 swapFee = IBPool(address(poolToken)).getSwapFee();
+        // Swap leftovers for PoolToken
+//        for (uint i = 0; i < details.tokens.length; i++) {
+//            if (_minFundAmount == fundAmounts[i]) {
+//                continue;
+//            }
+//
+//            uint256 leftover = tokenAmounts[i].sub(
+//                fundAmounts[i].mul(details.tokens[i].reserveBalance).div(details.totalSupply)
+//            );
+//
+//            uint256 tokenRet = IBPool(address(poolToken)).calcPoolOutGivenSingleIn(
+//                details.tokens[i].reserveBalance,
+//                details.tokens[i].denormalizedWeight,
+//                details.totalSupply,
+//                details.totalWeight,
+//                leftover,
+//                swapFee
+//            );
+//
+//            minFundAmount = minFundAmount.add(tokenRet);
+//        }
+
+        return (minFundAmount, distribution);
+    }
+
+}
+
+
+contract OneSplitBalancerPoolToken is OneSplitBaseWrap, OneSplitBalancerPoolTokenBase {
+    function _swap(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256[] memory distribution,
+        uint256 flags
+    ) internal {
+        if (fromToken == toToken) {
+            return;
+        }
+
+        if (!flags.check(FLAG_DISABLE_BALANCER_POOL_TOKEN)) {
+            bool isPoolTokenFrom = bFactory.isBPool(address(fromToken));
+            bool isPoolTokenTo = bFactory.isBPool(address(toToken));
+
+            if (isPoolTokenFrom && isPoolTokenTo) {
+                uint256[] memory dist = new uint256[](distribution.length);
+                for (uint i = 0; i < distribution.length; i++) {
+                    dist[i] = distribution[i] & ((1 << 128) - 1);
+                }
+
+                uint256 ethBalanceBefore = address(this).balance;
+
+                _swapFromBalancerPoolToken(
+                    fromToken,
+                    ETH_ADDRESS,
+                    amount,
+                    dist,
+                    FLAG_DISABLE_BALANCER_POOL_TOKEN
+                );
+
+                for (uint i = 0; i < distribution.length; i++) {
+                    dist[i] = distribution[i] >> 128;
+                }
+
+                uint256 ethBalanceAfter = address(this).balance;
+
+                return _swapToBalancerPoolToken(
+                    ETH_ADDRESS,
+                    toToken,
+                    ethBalanceAfter.sub(ethBalanceBefore),
+                    dist,
+                    FLAG_DISABLE_BALANCER_POOL_TOKEN
+                );
+            }
+
+            if (isPoolTokenFrom) {
+                return _swapFromBalancerPoolToken(
+                    fromToken,
+                    toToken,
+                    amount,
+                    distribution,
+                    FLAG_DISABLE_BALANCER_POOL_TOKEN
+                );
+            }
+
+            if (isPoolTokenTo) {
+                return _swapToBalancerPoolToken(
+                    fromToken,
+                    toToken,
+                    amount,
+                    distribution,
+                    FLAG_DISABLE_BALANCER_POOL_TOKEN
+                );
+            }
+        }
+
+        return super._swap(
+            fromToken,
+            toToken,
+            amount,
+            distribution,
+            flags
+        );
+    }
+
+    function _swapFromBalancerPoolToken(
+        IERC20 poolToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256[] memory distribution,
+        uint256 flags
+    ) private {
+
+        IBPool bToken = IBPool(address(poolToken));
+
+        address[] memory currentTokens = bToken.getCurrentTokens();
+
+        uint256 ratio = amount.sub(
+            amount.mul(bToken.EXIT_FEE())
+        ).mul(1e18).div(poolToken.totalSupply());
+
+        uint256[] memory minAmountsOut = new uint256[](currentTokens.length);
+        for (uint i = 0; i < currentTokens.length; i++) {
+            minAmountsOut[i] = bToken.getBalance(currentTokens[i]).mul(ratio).div(1e18).mul(995).div(1000); // 0.5% slippage;
+        }
+
+        bToken.exitPool(amount, minAmountsOut);
+
+        uint256[] memory dist = new uint256[](distribution.length);
+        for (uint i = 0; i < currentTokens.length; i++) {
+
+            if (currentTokens[i] == address(toToken)) {
+                continue;
+            }
+
+            for (uint j = 0; j < distribution.length; j++) {
+                dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
+            }
+
+            uint256 exchangeTokenAmount = IERC20(currentTokens[i]).balanceOf(address(this));
+
+            this.swap(
+                IERC20(currentTokens[i]),
+                toToken,
+                exchangeTokenAmount,
+                0,
+                dist,
+                flags
+            );
+        }
+
+    }
+
+    function _swapToBalancerPoolToken(
+        IERC20 fromToken,
+        IERC20 poolToken,
+        uint256 amount,
+        uint256[] memory distribution,
+        uint256 flags
+    ) private {
+        uint256[] memory dist = new uint256[](distribution.length);
+        uint256 minFundAmount = uint256(-1);
+
+        PoolTokenDetails memory details = _getPoolDetails(IBPool(address(poolToken)));
+
+        uint256[] memory maxAmountsIn = new uint256[](details.tokens.length);
+        uint256 curFundAmount;
+        for (uint i = 0; i < details.tokens.length; i++) {
+            uint256 exchangeAmount = amount
+                .mul(details.tokens[i].denormalizedWeight)
+                .div(details.totalWeight);
+
+            if (details.tokens[i].token != fromToken) {
+                uint256 tokenBalanceBefore = details.tokens[i].token.balanceOf(address(this));
+
+                for (uint j = 0; j < distribution.length; j++) {
+                    dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
+                }
+
+                this.swap(
+                    fromToken,
+                    details.tokens[i].token,
+                    exchangeAmount,
+                    0,
+                    dist,
+                    flags
+                );
+
+                uint256 tokenBalanceAfter = details.tokens[i].token.balanceOf(address(this));
+
+                curFundAmount = (
+                    tokenBalanceAfter.sub(tokenBalanceBefore)
+                ).mul(details.totalSupply).div(details.tokens[i].reserveBalance);
+            } else {
+                curFundAmount = (
+                    exchangeAmount
+                ).mul(details.totalSupply).div(details.tokens[i].reserveBalance);
+            }
+
+            if (curFundAmount < minFundAmount) {
+                minFundAmount = curFundAmount;
+            }
+
+            maxAmountsIn[i] = uint256(-1);
+            _infiniteApproveIfNeeded(details.tokens[i].token, address(poolToken));
+        }
+
+        // todo: check for vulnerability
+        IBPool(address(poolToken)).joinPool(minFundAmount, maxAmountsIn);
+
+        // Return leftovers
+        for (uint i = 0; i < details.tokens.length; i++) {
+            details.tokens[i].token.universalTransfer(msg.sender, details.tokens[i].token.balanceOf(address(this)));
+        }
+    }
+}
+
+// File: contracts/OneSplitUniswapPoolToken.sol
+
+pragma solidity ^0.5.0;
+
+
+
+
+
+contract OneSplitUniswapPoolTokenBase {
+    using SafeMath for uint256;
+
+    IUniswapFactory uniswapFactory = IUniswapFactory(0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95);
+
+    function isLiquidityPool(IERC20 token) internal view returns (bool) {
+        return address(uniswapFactory.getToken(address(token))) != address(0);
+    }
+
+    function getMaxPossibleFund(
+        IERC20 poolToken,
+        IERC20 uniswapToken,
+        uint256 tokenAmount,
+        uint256 existEthAmount
+    )
+        internal
+        view
+        returns (
+            uint256,
+            uint256
+        )
+    {
+        uint256 ethReserve = address(poolToken).balance;
+        uint256 totalLiquidity = poolToken.totalSupply();
+        uint256 tokenReserve = uniswapToken.balanceOf(address(poolToken));
+
+        uint256 possibleEthAmount = ethReserve.mul(
+            tokenAmount.sub(1)
+        ).div(tokenReserve);
+
+        if (existEthAmount > possibleEthAmount) {
+            return (
+                possibleEthAmount,
+                possibleEthAmount.mul(totalLiquidity).div(ethReserve)
+            );
+        }
+
+        return (
+            existEthAmount,
+            existEthAmount.mul(totalLiquidity).div(ethReserve)
+        );
+    }
+
+}
+
+contract OneSplitUniswapPoolTokenView is OneSplitViewWrapBase, OneSplitUniswapPoolTokenBase {
+
+    function getExpectedReturn(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags
+    )
+        public
+        view
+        returns(
+            uint256 returnAmount,
+            uint256[] memory distribution
+        )
+    {
+        if (fromToken == toToken) {
+            return (amount, new uint256[](DEXES_COUNT));
+        }
+
+
+        if (!flags.check(FLAG_DISABLE_UNISWAP_POOL_TOKEN)) {
+            bool isPoolTokenFrom = isLiquidityPool(fromToken);
+            bool isPoolTokenTo = isLiquidityPool(toToken);
+
+            if (isPoolTokenFrom && isPoolTokenTo) {
+                (
+                    uint256 returnETHAmount,
+                    uint256[] memory poolTokenFromDistribution
+                ) = _getExpectedReturnFromPoolToken(
+                    fromToken,
+                    ETH_ADDRESS,
+                    amount,
+                    parts,
+                    FLAG_DISABLE_UNISWAP_POOL_TOKEN
+                );
+
+                (
+                    uint256 returnPoolTokenToAmount,
+                    uint256[] memory poolTokenToDistribution
+                ) = _getExpectedReturnToPoolToken(
+                    ETH_ADDRESS,
+                    toToken,
+                    returnETHAmount,
+                    parts,
+                    FLAG_DISABLE_UNISWAP_POOL_TOKEN
+                );
+
+                for (uint i = 0; i < poolTokenToDistribution.length; i++) {
+                    poolTokenFromDistribution[i] |= poolTokenToDistribution[i] << 128;
+                }
+
+                return (returnPoolTokenToAmount, poolTokenFromDistribution);
+            }
+
+            if (isPoolTokenFrom) {
+                return _getExpectedReturnFromPoolToken(
+                    fromToken,
+                    toToken,
+                    amount,
+                    parts,
+                    FLAG_DISABLE_UNISWAP_POOL_TOKEN
+                );
+            }
+
+            if (isPoolTokenTo) {
+                return _getExpectedReturnToPoolToken(
+                    fromToken,
+                    toToken,
+                    amount,
+                    parts,
+                    FLAG_DISABLE_UNISWAP_POOL_TOKEN
+                );
+            }
+        }
+
+        return super.getExpectedReturn(
+            fromToken,
+            toToken,
+            amount,
+            parts,
+            flags
+        );
+    }
+
+    function _getExpectedReturnFromPoolToken(
+        IERC20 poolToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags
+    )
+        private
+        view
+        returns(
+            uint256 returnAmount,
+            uint256[] memory distribution
+        )
+    {
+
+        distribution = new uint256[](DEXES_COUNT);
+
+        IERC20 uniswapToken = uniswapFactory.getToken(address(poolToken));
+
+        uint256 totalSupply = poolToken.totalSupply();
+
+        uint256 ethReserve = address(poolToken).balance;
+        uint256 ethAmount = amount.mul(ethReserve).div(totalSupply);
+
+        if (!toToken.isETH()) {
+            (uint256 ret, uint256[] memory dist) = getExpectedReturn(
+                ETH_ADDRESS,
+                toToken,
+                ethAmount,
+                parts,
+                flags
+            );
+
+            returnAmount = returnAmount.add(ret);
+            for (uint j = 0; j < distribution.length; j++) {
+                distribution[j] |= dist[j];
+            }
+        } else {
+            returnAmount = returnAmount.add(ethAmount);
+        }
+
+        uint256 tokenReserve = uniswapToken.balanceOf(address(poolToken));
+        uint256 exchangeTokenAmount = amount.mul(tokenReserve).div(totalSupply);
+
+        if (toToken != uniswapToken) {
+            (uint256 ret, uint256[] memory dist) = getExpectedReturn(
+                uniswapToken,
+                toToken,
+                exchangeTokenAmount,
+                parts,
+                flags
+            );
+
+            returnAmount = returnAmount.add(ret);
+            for (uint j = 0; j < distribution.length; j++) {
+                distribution[j] |= dist[j] << 8;
+            }
+        } else {
+            returnAmount = returnAmount.add(exchangeTokenAmount);
+        }
+
+        return (returnAmount, distribution);
+    }
+
+    function _getExpectedReturnToPoolToken(
+        IERC20 fromToken,
+        IERC20 poolToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags
+    )
+        private
+        view
+        returns(
+            uint256 returnAmount,
+            uint256[] memory distribution
+        )
+    {
+
+        distribution = new uint256[](DEXES_COUNT);
+
+        uint256[] memory dist = new uint256[](DEXES_COUNT);
+
+        uint256 ethAmount;
+        uint256 partAmountForEth = amount.div(2);
+        if (!fromToken.isETH()) {
+            (ethAmount, dist) = super.getExpectedReturn(
+                fromToken,
+                ETH_ADDRESS,
+                partAmountForEth,
+                parts,
+                flags
+            );
+
+            for (uint j = 0; j < distribution.length; j++) {
+                distribution[j] |= dist[j];
+            }
+        } else {
+            ethAmount = partAmountForEth;
+        }
+
+        IERC20 uniswapToken = uniswapFactory.getToken(address(poolToken));
+
+        uint256 tokenAmount;
+        uint256 partAmountForToken = amount.sub(partAmountForEth);
+        if (fromToken != uniswapToken) {
+            (tokenAmount, dist) = super.getExpectedReturn(
+                fromToken,
+                uniswapToken,
+                partAmountForToken,
+                parts,
+                flags
+            );
+
+            for (uint j = 0; j < distribution.length; j++) {
+                distribution[j] |= dist[j] << 8;
+            }
+        } else {
+            tokenAmount = partAmountForToken;
+        }
+
+        (, returnAmount) = getMaxPossibleFund(
+            poolToken,
+            uniswapToken,
+            tokenAmount,
+            ethAmount
+        );
+
+        return (
+            returnAmount,
+            distribution
+        );
+    }
+
+}
+
+
+contract OneSplitUniswapPoolToken is OneSplitBaseWrap, OneSplitUniswapPoolTokenBase {
+    function _swap(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256[] memory distribution,
+        uint256 flags
+    ) internal {
+        if (fromToken == toToken) {
+            return;
+        }
+
+        if (!flags.check(FLAG_DISABLE_UNISWAP_POOL_TOKEN)) {
+            bool isPoolTokenFrom = isLiquidityPool(fromToken);
+            bool isPoolTokenTo = isLiquidityPool(toToken);
+
+            if (isPoolTokenFrom && isPoolTokenTo) {
+                uint256[] memory dist = new uint256[](distribution.length);
+                for (uint i = 0; i < distribution.length; i++) {
+                    dist[i] = distribution[i] & ((1 << 128) - 1);
+                }
+
+                uint256 ethBalanceBefore = address(this).balance;
+
+                _swapFromPoolToken(
+                    fromToken,
+                    ETH_ADDRESS,
+                    amount,
+                    dist,
+                    FLAG_DISABLE_UNISWAP_POOL_TOKEN
+                );
+
+                for (uint i = 0; i < distribution.length; i++) {
+                    dist[i] = distribution[i] >> 128;
+                }
+
+                uint256 ethBalanceAfter = address(this).balance;
+
+                return _swapToPoolToken(
+                    ETH_ADDRESS,
+                    toToken,
+                    ethBalanceAfter.sub(ethBalanceBefore),
+                    dist,
+                    FLAG_DISABLE_UNISWAP_POOL_TOKEN
+                );
+            }
+
+            if (isPoolTokenFrom) {
+                return _swapFromPoolToken(
+                    fromToken,
+                    toToken,
+                    amount,
+                    distribution,
+                    FLAG_DISABLE_UNISWAP_POOL_TOKEN
+                );
+            }
+
+            if (isPoolTokenTo) {
+                return _swapToPoolToken(
+                    fromToken,
+                    toToken,
+                    amount,
+                    distribution,
+                    FLAG_DISABLE_UNISWAP_POOL_TOKEN
+                );
+            }
+        }
+
+        return super._swap(
+            fromToken,
+            toToken,
+            amount,
+            distribution,
+            flags
+        );
+    }
+
+    function _swapFromPoolToken(
+        IERC20 poolToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256[] memory distribution,
+        uint256 flags
+    ) private {
+
+        uint256[] memory dist = new uint256[](distribution.length);
+
+        (
+            uint256 ethAmount,
+            uint256 exchangeTokenAmount
+        ) = IUniswapExchange(address(poolToken)).removeLiquidity(
+            amount,
+            1,
+            1,
+            now.add(1800)
+        );
+
+        if (!toToken.isETH()) {
+            for (uint j = 0; j < distribution.length; j++) {
+                dist[j] = (distribution[j]) & 0xFF;
+            }
+
+            super._swap(
+                ETH_ADDRESS,
+                toToken,
+                ethAmount,
+                dist,
+                flags
+            );
+        }
+
+        IERC20 uniswapToken = uniswapFactory.getToken(address(poolToken));
+
+        if (toToken != uniswapToken) {
+            for (uint j = 0; j < distribution.length; j++) {
+                dist[j] = (distribution[j] >> 8) & 0xFF;
+            }
+
+            super._swap(
+                uniswapToken,
+                toToken,
+                exchangeTokenAmount,
+                dist,
+                flags
+            );
+        }
+    }
+
+    function _swapToPoolToken(
+        IERC20 fromToken,
+        IERC20 poolToken,
+        uint256 amount,
+        uint256[] memory distribution,
+        uint256 flags
+    ) private {
+        uint256[] memory dist = new uint256[](distribution.length);
+
+        uint256 partAmountForEth = amount.div(2);
+        if (!fromToken.isETH()) {
+            for (uint j = 0; j < distribution.length; j++) {
+                dist[j] = (distribution[j]) & 0xFF;
+            }
+
+            super._swap(
+                fromToken,
+                ETH_ADDRESS,
+                partAmountForEth,
+                dist,
+                flags
+            );
+        }
+
+        IERC20 uniswapToken = uniswapFactory.getToken(address(poolToken));
+
+        uint256 partAmountForToken = amount.sub(partAmountForEth);
+        if (fromToken != uniswapToken) {
+            for (uint j = 0; j < distribution.length; j++) {
+                dist[j] = (distribution[j] >> 8) & 0xFF;
+            }
+
+            super._swap(
+                fromToken,
+                uniswapToken,
+                partAmountForToken,
+                dist,
+                flags
+            );
+
+            _infiniteApproveIfNeeded(uniswapToken, address(poolToken));
+        }
+
+        uint256 ethBalance = address(this).balance;
+        uint256 tokenBalance = uniswapToken.balanceOf(address(this));
+
+        (uint256 ethAmount, uint256 returnAmount) = getMaxPossibleFund(
+            poolToken,
+            uniswapToken,
+            tokenBalance,
+            ethBalance
+        );
+
+        IUniswapExchange(address(poolToken)).addLiquidity.value(ethAmount)(
+            returnAmount.mul(995).div(1000), // 0.5% slippage
+            uint256(-1),                     // todo: think about another value
+            now.add(1800)
+        );
+
+        // todo: do we need to check difference between balance before and balance after?
+        uniswapToken.universalTransfer(msg.sender, uniswapToken.balanceOf(address(this)));
+        ETH_ADDRESS.universalTransfer(msg.sender, address(this).balance);
+    }
+}
+
+// File: contracts/OneSplitCurvePoolToken.sol
+
+pragma solidity ^0.5.0;
+
+
+
+
+contract OneSplitCurvePoolTokenBase {
+    using SafeMath for uint256;
+    using UniversalERC20 for IERC20;
+
+    IERC20 constant curveSusdToken = IERC20(0xC25a3A3b969415c80451098fa907EC722572917F);
+    IERC20 constant curveIearnToken = IERC20(0xdF5e0e81Dff6FAF3A7e52BA697820c5e32D806A8);
+    IERC20 constant curveCompoundToken = IERC20(0x845838DF265Dcd2c412A1Dc9e959c7d08537f8a2);
+    IERC20 constant curveUsdtToken = IERC20(0x9fC689CCaDa600B6DF723D9E47D84d76664a1F23);
+    IERC20 constant curveBinanceToken = IERC20(0x3B3Ac5386837Dc563660FB6a0937DFAa5924333B);
+
+    ICurve constant curveSusd = ICurve(0xA5407eAE9Ba41422680e2e00537571bcC53efBfD);
+    ICurve constant curveIearn = ICurve(0x45F783CCE6B7FF23B2ab2D70e416cdb7D6055f51);
+    ICurve constant curveCompound = ICurve(0xA2B47E3D5c44877cca798226B7B8118F9BFb7A56);
+    ICurve constant curveUsdt = ICurve(0x52EA46506B9CC5Ef470C5bf89f17Dc28bB35D85C);
+    ICurve constant curveBinance = ICurve(0x79a8C46DeA5aDa233ABaFFD40F3A0A2B1e5A4F27);
+
+    struct CurveTokenInfo {
+        IERC20 token;
+        uint256 weightedReserveBalance;
+    }
+
+    struct CurveInfo {
+        ICurve curve;
+        uint256 tokenCount;
+    }
+
+    struct CurvePoolTokenDetails {
+        CurveTokenInfo[] tokens;
+        uint256 totalWeightedBalance;
+    }
+
+    function _isPoolToken(IERC20 token)
+        internal
+        pure
+        returns (bool)
+    {
+        if (
+            token == curveSusdToken ||
+            token == curveIearnToken ||
+            token == curveCompoundToken ||
+            token == curveUsdtToken ||
+            token == curveBinanceToken
+        ) {
+            return true;
+        }
+        return false;
+    }
+
+    function _getCurve(IERC20 poolToken)
+        internal
+        pure
+        returns (CurveInfo memory curveInfo)
+    {
+        if (poolToken == curveSusdToken) {
+            curveInfo.curve = curveSusd;
+            curveInfo.tokenCount = 4;
+            return curveInfo;
+        }
+
+        if (poolToken == curveIearnToken) {
+            curveInfo.curve = curveIearn;
+            curveInfo.tokenCount = 4;
+            return curveInfo;
+        }
+
+        if (poolToken == curveCompoundToken) {
+            curveInfo.curve = curveCompound;
+            curveInfo.tokenCount = 2;
+            return curveInfo;
+        }
+
+        if (poolToken == curveUsdtToken) {
+            curveInfo.curve = curveUsdt;
+            curveInfo.tokenCount = 3;
+            return curveInfo;
+        }
+
+        if (poolToken == curveBinanceToken) {
+            curveInfo.curve = curveBinance;
+            curveInfo.tokenCount = 4;
+            return curveInfo;
+        }
+
+        revert();
+    }
+
+    function _getCurveCalcTokenAmountSelector(uint256 tokenCount)
+        internal
+        pure
+        returns (bytes4)
+    {
+        return bytes4(keccak256(abi.encodePacked(
+            "calc_token_amount(uint256[", uint8(48 + tokenCount) ,"],bool)"
+        )));
+    }
+
+    function _getCurveRemoveLiquiditySelector(uint256 tokenCount)
+        internal
+        pure
+        returns (bytes4)
+    {
+        return bytes4(keccak256(abi.encodePacked(
+            "remove_liquidity(uint256,uint256[", uint8(48 + tokenCount) ,"])"
+        )));
+    }
+
+    function _getCurveAddLiquiditySelector(uint256 tokenCount)
+        internal
+        pure
+        returns (bytes4)
+    {
+        return bytes4(keccak256(abi.encodePacked(
+            "add_liquidity(uint256[", uint8(48 + tokenCount) ,"],uint256)"
+        )));
+    }
+
+    function _getPoolDetails(ICurve curve, uint256 tokenCount)
+        internal
+        view
+        returns(CurvePoolTokenDetails memory details)
+    {
+        details.tokens = new CurveTokenInfo[](tokenCount);
+        for (uint256 i = 0; i < tokenCount; i++) {
+            details.tokens[i].token = IERC20(curve.coins(int128(i)));
+            details.tokens[i].weightedReserveBalance = curve.balances(int128(i))
+                .mul(1e18).div(10 ** details.tokens[i].token.universalDecimals());
+            details.totalWeightedBalance = details.totalWeightedBalance.add(
+                details.tokens[i].weightedReserveBalance
+            );
+        }
+    }
+}
+
+
+contract OneSplitCurvePoolTokenView is OneSplitViewWrapBase, OneSplitCurvePoolTokenBase {
+    function getExpectedReturn(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags
+    )
+        public
+        view
+        returns (
+            uint256 returnAmount,
+            uint256[] memory distribution
+        )
+    {
+        if (fromToken == toToken) {
+            return (amount, new uint256[](DEXES_COUNT));
+        }
+
+
+        if (!flags.check(FLAG_DISABLE_CURVE_ZAP)) {
+            if (_isPoolToken(fromToken)) {
+                return _getExpectedReturnFromCurvePoolToken(
+                    fromToken,
+                    toToken,
+                    amount,
+                    parts,
+                    FLAG_DISABLE_CURVE_ZAP
+                );
+            }
+
+            if (_isPoolToken(toToken)) {
+                return _getExpectedReturnToCurvePoolToken(
+                    fromToken,
+                    toToken,
+                    amount,
+                    parts,
+                    FLAG_DISABLE_CURVE_ZAP
+                );
+            }
+        }
+
+        return super.getExpectedReturn(
+            fromToken,
+            toToken,
+            amount,
+            parts,
+            flags
+        );
+    }
+
+    function _getExpectedReturnFromCurvePoolToken(
+        IERC20 poolToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags
+    )
+        private
+        view
+        returns (
+            uint256 returnAmount,
+            uint256[] memory distribution
+        )
+    {
+        distribution = new uint256[](DEXES_COUNT);
+
+        CurveInfo memory curveInfo = _getCurve(poolToken);
+        uint256 totalSupply = poolToken.totalSupply();
+        for (uint i = 0; i < curveInfo.tokenCount; i++) {
+            IERC20 coin = IERC20(curveInfo.curve.coins(int128(i)));
+
+            uint256 tokenAmountOut = curveInfo.curve.balances(int128(i))
+                .mul(amount)
+                .div(totalSupply);
+
+            if (coin == toToken) {
+                returnAmount = returnAmount.add(tokenAmountOut);
+                continue;
+            }
+
+            (uint256 ret, uint256[] memory dist) = this.getExpectedReturn(
+                coin,
+                toToken,
+                tokenAmountOut,
+                parts,
+                flags
+            );
+
+            returnAmount = returnAmount.add(ret);
+
+            for (uint j = 0; j < distribution.length; j++) {
+                distribution[j] |= dist[j] << (i * 8);
+            }
+        }
+
+        return (returnAmount, distribution);
+    }
+
+    function _getExpectedReturnToCurvePoolToken(
+        IERC20 fromToken,
+        IERC20 poolToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags
+    )
+        private
+        view
+        returns (
+            uint256 returnAmount,
+            uint256[] memory distribution
+        )
+    {
+        distribution = new uint256[](DEXES_COUNT);
+
+        CurveInfo memory curveInfo = _getCurve(poolToken);
+        CurvePoolTokenDetails memory details = _getPoolDetails(
+            curveInfo.curve,
+            curveInfo.tokenCount
+        );
+
+        bytes memory tokenAmounts;
+        for (uint i = 0; i < curveInfo.tokenCount; i++) {
+            uint256 exchangeAmount = amount
+                .mul(details.tokens[i].weightedReserveBalance)
+                .div(details.totalWeightedBalance);
+
+            if (details.tokens[i].token == fromToken) {
+                tokenAmounts = abi.encodePacked(tokenAmounts, exchangeAmount);
+                continue;
+            }
+
+            (uint256 tokenAmount, uint256[] memory dist) = this.getExpectedReturn(
+                fromToken,
+                details.tokens[i].token,
+                exchangeAmount,
+                parts,
+                flags
+            );
+
+            tokenAmounts = abi.encodePacked(tokenAmounts, tokenAmount);
+
+            for (uint j = 0; j < distribution.length; j++) {
+                distribution[j] |= dist[j] << (i * 8);
+            }
+        }
+
+        (bool success, bytes memory data) = address(curveInfo.curve).staticcall(
+            abi.encodePacked(
+                _getCurveCalcTokenAmountSelector(curveInfo.tokenCount),
+                tokenAmounts,
+                uint256(1)
+            )
+        );
+
+        require(success, 'calc_token_amount failed');
+
+        return (abi.decode(data, (uint256)), distribution);
+    }
+}
+
+
+contract OneSplitCurvePoolToken is OneSplitBaseWrap, OneSplitCurvePoolTokenBase {
+    function _swap(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256[] memory distribution,
+        uint256 flags
+    ) internal {
+        if (fromToken == toToken) {
+            return;
+        }
+
+        if (!flags.check(FLAG_DISABLE_CURVE_ZAP)) {
+            if (_isPoolToken(fromToken)) {
+                return _swapFromCurvePoolToken(
+                    fromToken,
+                    toToken,
+                    amount,
+                    distribution,
+                    FLAG_DISABLE_CURVE_ZAP
+                );
+            }
+
+            if (_isPoolToken(toToken)) {
+                return _swapToCurvePoolToken(
+                    fromToken,
+                    toToken,
+                    amount,
+                    distribution,
+                    FLAG_DISABLE_CURVE_ZAP
+                );
+            }
+        }
+
+        return super._swap(
+            fromToken,
+            toToken,
+            amount,
+            distribution,
+            flags
+        );
+    }
+
+    function _swapFromCurvePoolToken(
+        IERC20 poolToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256[] memory distribution,
+        uint256 flags
+    ) private {
+        CurveInfo memory curveInfo = _getCurve(poolToken);
+
+        bytes memory minAmountsOut;
+        for (uint i = 0; i < curveInfo.tokenCount; i++) {
+            minAmountsOut = abi.encodePacked(minAmountsOut, uint256(1));
+        }
+
+        (bool success,) = address(curveInfo.curve).call(
+            abi.encodePacked(
+                _getCurveRemoveLiquiditySelector(curveInfo.tokenCount),
+                amount,
+                minAmountsOut
+            )
+        );
+
+        require(success, 'remove_liquidity failed');
+
+        uint256[] memory dist = new uint256[](distribution.length);
+        for (uint i = 0; i < curveInfo.tokenCount; i++) {
+            IERC20 coin = IERC20(curveInfo.curve.coins(int128(i)));
+
+            if (coin == toToken) {
+                continue;
+            }
+
+            for (uint j = 0; j < distribution.length; j++) {
+                dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
+            }
+
+            uint256 exchangeTokenAmount = coin.universalBalanceOf(address(this));
+
+            this.swap(
+                coin,
+                toToken,
+                exchangeTokenAmount,
+                0,
+                dist,
+                flags
+            );
+        }
+    }
+
+    function _swapToCurvePoolToken(
+        IERC20 fromToken,
+        IERC20 poolToken,
+        uint256 amount,
+        uint256[] memory distribution,
+        uint256 flags
+    ) private {
+        uint256[] memory dist = new uint256[](distribution.length);
+
+        CurveInfo memory curveInfo = _getCurve(poolToken);
+        CurvePoolTokenDetails memory details = _getPoolDetails(
+            curveInfo.curve,
+            curveInfo.tokenCount
+        );
+
+        bytes memory tokenAmounts;
+        for (uint i = 0; i < curveInfo.tokenCount; i++) {
+            uint256 exchangeAmount = amount
+                .mul(details.tokens[i].weightedReserveBalance)
+                .div(details.totalWeightedBalance);
+
+            _infiniteApproveIfNeeded(details.tokens[i].token, address(curveInfo.curve));
+
+            if (details.tokens[i].token == fromToken) {
+                tokenAmounts = abi.encodePacked(tokenAmounts, exchangeAmount);
+                continue;
+            }
+
+            for (uint j = 0; j < distribution.length; j++) {
+                dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
+            }
+
+            this.swap(
+                fromToken,
+                details.tokens[i].token,
+                exchangeAmount,
+                0,
+                dist,
+                flags
+            );
+
+            tokenAmounts = abi.encodePacked(
+                tokenAmounts,
+                details.tokens[i].token.universalBalanceOf(address(this))
+            );
+        }
+
+        (bool success,) = address(curveInfo.curve).call(
+            abi.encodePacked(
+                _getCurveAddLiquiditySelector(curveInfo.tokenCount),
+                tokenAmounts,
+                uint256(0)
+            )
+        );
+
+        require(success, 'add_liquidity failed');
+    }
+}
+
 // File: contracts/interface/ISmartTokenConverter.sol
 
 pragma solidity ^0.5.0;
-//pragma experimental ABIEncoderV2;
 
 
 interface ISmartTokenConverter {
 
-    struct Reserve {
-        uint256 virtualBalance;         // reserve virtual balance
-        uint32 ratio;                   // reserve ratio, represented in ppm, 1-1000000
-        bool isVirtualBalanceEnabled;   // true if virtual balance is enabled, false if not
-        bool isSaleEnabled;             // is sale of the reserve token enabled, can be set by the owner
-        bool isSet;                     // used to tell if the mapping element is defined
-    }
-
     function version() external view returns (uint16);
 
-    function reserves(address) external view returns (Reserve memory);
+    function connectors(address) external view returns (uint256, uint32, bool, bool, bool);
 
     function getReserveRatio(IERC20 token) external view returns (uint256);
 
@@ -3844,14 +5315,14 @@ pragma solidity ^0.5.0;
 
 
 interface ISmartTokenFormula {
-    function calculateLiquidateReturn(
+    function _calculateLiquidateReturn(
         uint256 supply,
         uint256 reserveBalance,
         uint32 totalRatio,
         uint256 amount
     ) external view returns (uint256);
 
-    function calculatePurchaseReturn(
+    function _calculatePurchaseReturn(
         uint256 supply,
         uint256 reserveBalance,
         uint32 totalRatio,
@@ -3862,7 +5333,7 @@ interface ISmartTokenFormula {
 // File: contracts/OneSplitSmartToken.sol
 
 pragma solidity ^0.5.0;
-//pragma experimental ABIEncoderV2;
+
 
 
 
@@ -3874,6 +5345,11 @@ contract OneSplitSmartTokenBase {
 
     ISmartTokenRegistry smartTokenRegistry = ISmartTokenRegistry(0xf6E2D7F616B67E46D708e4410746E9AAb3a4C518);
     ISmartTokenFormula smartTokenFormula = ISmartTokenFormula(0x524619EB9b4cdFFa7DA13029b33f24635478AFc0);
+    IERC20 bntToken = IERC20(0x1F573D6Fb3F13d689FF844B4cE37794d79a7FF1C);
+    IERC20 usdbToken = IERC20(0x309627af60F0926daa6041B8279484312f2bf060);
+
+    IERC20 public susd = IERC20(0x57Ab1ec28D129707052df4dF418D58a2D46d5f51);
+    IERC20 public acientSUSD = IERC20(0x57Ab1E02fEE23774580C119740129eAC7081e9D3);
 
     struct TokenWithRatio {
         IERC20 token;
@@ -3881,36 +5357,25 @@ contract OneSplitSmartTokenBase {
     }
 
     struct SmartTokenDetails {
-        TokenWithRatio[] reserveTokenList;
+        TokenWithRatio[] tokens;
         address converter;
-        uint256 totalReserveTokensRatio;
+        uint256 totalRatio;
     }
 
-    function _getSmartTokenDetails(ISmartToken smartToken) internal view returns (SmartTokenDetails memory details) {
-        ISmartTokenConverter converter = smartToken.owner();
-        (TokenWithRatio[] memory reserveTokenList, uint256 totalReserveTokensRatio) = _getTokens(converter);
-
-        details.reserveTokenList = reserveTokenList;
-        details.converter = address(converter);
-        details.totalReserveTokensRatio = totalReserveTokensRatio;
-
-        return details;
-    }
-
-    function _getTokens(
-        ISmartTokenConverter converter
-    )
+    function _getSmartTokenDetails(ISmartToken smartToken)
         internal
         view
-        returns(TokenWithRatio[] memory reserveTokenList, uint256 totalRatio)
+        returns(SmartTokenDetails memory details)
     {
-        reserveTokenList = new TokenWithRatio[](converter.connectorTokenCount());
-        for (uint256 i = 0; i < reserveTokenList.length; i++) {
-            reserveTokenList[i].token = converter.connectorTokens(i);
-            reserveTokenList[i].ratio = _getReserveRatio(converter, reserveTokenList[i].token);
-            totalRatio = totalRatio.add(reserveTokenList[i].ratio);
+        ISmartTokenConverter converter = smartToken.owner();
+        details.converter = address(converter);
+        details.tokens = new TokenWithRatio[](converter.connectorTokenCount());
+
+        for (uint256 i = 0; i < details.tokens.length; i++) {
+            details.tokens[i].token = converter.connectorTokens(i);
+            details.tokens[i].ratio = _getReserveRatio(converter, details.tokens[i].token);
+            details.totalRatio = details.totalRatio.add(details.tokens[i].ratio);
         }
-        return (reserveTokenList, totalRatio);
     }
 
     function _getReserveRatio(
@@ -3921,28 +5386,35 @@ contract OneSplitSmartTokenBase {
         view
         returns (uint256)
     {
-        if (converter.version() >= 22) {
-            return converter.getReserveRatio(token);
+        (bool success, bytes memory data) = address(converter).staticcall.gas(10000)(
+            abi.encodeWithSelector(
+                converter.getReserveRatio.selector,
+                token
+            )
+        );
+
+        if (success) {
+            return abi.decode(data, (uint256));
         }
 
-        return uint256(converter.reserves(address(token)).ratio);
+        (, uint32 ratio, , ,) = converter.connectors(address(token));
+
+        return uint256(ratio);
     }
 
-    function _calcExchangeAmount(uint256 amount, uint256 ratio, uint256 totalRatio) internal pure returns (uint256) {
-        return amount.mul(ratio).div(totalRatio);
+    function _canonicalSUSD(IERC20 token) internal view returns(IERC20) {
+        return token == acientSUSD ? susd : token;
     }
-
 }
 
 
-contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
-
+contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase {
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         public
         view
@@ -3951,35 +5423,62 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
             uint256[] memory
         )
     {
-
         if (fromToken == toToken) {
-            return (amount, new uint256[](9));
+            return (amount, new uint256[](DEXES_COUNT));
         }
 
-        if (!disableFlags.check(FLAG_DISABLE_SMART_TOKEN)) {
+        if (!flags.check(FLAG_DISABLE_SMART_TOKEN)) {
+            bool isSmartTokenFrom = smartTokenRegistry.isSmartToken(fromToken);
+            bool isSmartTokenTo = smartTokenRegistry.isSmartToken(toToken);
 
-            if (smartTokenRegistry.isSmartToken(fromToken)) {
+            if (isSmartTokenFrom && isSmartTokenTo) {
+                (
+                    uint256 returnBntAmount,
+                    uint256[] memory smartTokenFromDistribution
+                ) = _getExpectedReturnFromSmartToken(
+                    fromToken,
+                    bntToken,
+                    amount,
+                    parts,
+                    0
+                );
 
+                (
+                    uint256 returnSmartTokenToAmount,
+                    uint256[] memory smartTokenToDistribution
+                ) = _getExpectedReturnToSmartToken(
+                    bntToken,
+                    toToken,
+                    returnBntAmount,
+                    parts,
+                    0
+                );
+
+                for (uint i = 0; i < smartTokenToDistribution.length; i++) {
+                    smartTokenFromDistribution[i] |= smartTokenToDistribution[i] << 128;
+                }
+
+                return (returnSmartTokenToAmount, smartTokenFromDistribution);
+            }
+
+            if (isSmartTokenFrom) {
                 return _getExpectedReturnFromSmartToken(
                     fromToken,
                     toToken,
                     amount,
                     parts,
-                    disableFlags
+                    0
                 );
-
             }
 
-            if (smartTokenRegistry.isSmartToken(toToken)) {
-
+            if (isSmartTokenTo) {
                 return _getExpectedReturnToSmartToken(
                     fromToken,
                     toToken,
                     amount,
                     parts,
-                    disableFlags
+                    0
                 );
-
             }
         }
 
@@ -3988,16 +5487,16 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
             toToken,
             amount,
             parts,
-            disableFlags
+            flags
         );
     }
 
     function _getExpectedReturnFromSmartToken(
-        IERC20 fromToken,
+        IERC20 smartToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         private
         view
@@ -4006,40 +5505,46 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
             uint256[] memory distribution
         )
     {
-        distribution = new uint256[](9);
+        distribution = new uint256[](DEXES_COUNT);
 
-        SmartTokenDetails memory smartTokenDetails = _getSmartTokenDetails(ISmartToken(address(fromToken)));
+        SmartTokenDetails memory details = _getSmartTokenDetails(ISmartToken(address(smartToken)));
 
-        for (uint16 i = 0; i < smartTokenDetails.reserveTokenList.length; i++) {
-            uint256 srcAmount = smartTokenFormula.calculateLiquidateReturn(
-                fromToken.totalSupply(),
-                smartTokenDetails.reserveTokenList[i].token.balanceOf(smartTokenDetails.converter),
-                uint32(smartTokenDetails.totalReserveTokensRatio),
+        for (uint i = 0; i < details.tokens.length; i++) {
+            uint256 srcAmount = smartTokenFormula._calculateLiquidateReturn(
+                smartToken.totalSupply(),
+                _canonicalSUSD(details.tokens[i].token).balanceOf(details.converter),
+                uint32(details.totalRatio),
                 amount
             );
 
-            (uint256 ret, uint256[] memory dist) = super.getExpectedReturn(
-                smartTokenDetails.reserveTokenList[i].token,
+            if (details.tokens[i].token == toToken) {
+                returnAmount = returnAmount.add(srcAmount);
+                continue;
+            }
+
+            (uint256 ret, uint256[] memory dist) = getExpectedReturn(
+                _canonicalSUSD(details.tokens[i].token),
                 toToken,
                 srcAmount,
                 parts,
-                disableFlags
+                flags
             );
 
             returnAmount = returnAmount.add(ret);
             for (uint j = 0; j < distribution.length; j++) {
-                distribution[j] = distribution[j].add(dist[j] << (i * 8));
+                distribution[j] |= dist[j] << (i * 8);
             }
         }
+
         return (returnAmount, distribution);
     }
 
     function _getExpectedReturnToSmartToken(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 smartToken,
         uint256 amount,
         uint256 parts,
-        uint256 disableFlags
+        uint256 flags
     )
         private
         view
@@ -4048,108 +5553,148 @@ contract OneSplitSmartTokenView is OneSplitBaseView, OneSplitSmartTokenBase {
             uint256[] memory distribution
         )
     {
-        distribution = new uint256[](9);
+        distribution = new uint256[](DEXES_COUNT);
         minFundAmount = uint256(-1);
 
-        SmartTokenDetails memory smartTokenDetails = _getSmartTokenDetails(ISmartToken(address(toToken)));
+        SmartTokenDetails memory details = _getSmartTokenDetails(ISmartToken(address(smartToken)));
 
-        uint256[] memory fundAmounts = new uint256[](smartTokenDetails.reserveTokenList.length);
-        for (uint16 i = 0; i < smartTokenDetails.reserveTokenList.length; i++) {
+        uint256[] memory tokenAmounts = new uint256[](details.tokens.length);
+        uint256[] memory dist;
+        uint256[] memory fundAmounts = new uint256[](details.tokens.length);
 
-            uint256 exchangeAmount = _calcExchangeAmount(
-                amount,
-                smartTokenDetails.reserveTokenList[i].ratio,
-                smartTokenDetails.totalReserveTokensRatio
-            );
+        for (uint i = 0; i < details.tokens.length; i++) {
+            uint256 exchangeAmount = amount
+                .mul(details.tokens[i].ratio)
+                .div(details.totalRatio);
 
-            (uint256 tokenAmount, uint256[] memory dist) = super.getExpectedReturn(
-                fromToken,
-                smartTokenDetails.reserveTokenList[i].token,
-                exchangeAmount,
-                parts,
-                disableFlags | FLAG_DISABLE_BANCOR
-            );
+            if (details.tokens[i].token != fromToken) {
+                (tokenAmounts[i], dist) = getExpectedReturn(
+                    fromToken,
+                    _canonicalSUSD(details.tokens[i].token),
+                    exchangeAmount,
+                    parts,
+                    flags
+                );
 
-            for (uint j = 0; j < distribution.length; j++) {
-                distribution[j] = distribution[j].add(dist[j] << (i * 8));
+                for (uint j = 0; j < distribution.length; j++) {
+                    distribution[j] |= dist[j] << (i * 8);
+                }
+            } else {
+                tokenAmounts[i] = exchangeAmount;
             }
 
-            fundAmounts[i] = toToken.totalSupply()
-                .mul(tokenAmount)
-                .div(smartTokenDetails.reserveTokenList[i].token.balanceOf(smartTokenDetails.converter));
+            fundAmounts[i] = smartTokenFormula._calculatePurchaseReturn(
+                smartToken.totalSupply(),
+                _canonicalSUSD(details.tokens[i].token).balanceOf(details.converter),
+                uint32(details.totalRatio),
+                tokenAmounts[i]
+            );
 
             if (fundAmounts[i] < minFundAmount) {
                 minFundAmount = fundAmounts[i];
             }
         }
 
+        uint256 _minFundAmount = minFundAmount;
+        IERC20 _smartToken = smartToken;
+
         // Swap leftovers for SmartToken
-        for (uint16 i = 0; i < smartTokenDetails.reserveTokenList.length; i++) {
-            uint256 reserveBalance = smartTokenDetails.reserveTokenList[i].token.balanceOf(smartTokenDetails.converter);
-
-            uint256 leftover = fundAmounts[i].sub(minFundAmount)
-                .mul(reserveBalance)
-                .div(toToken.totalSupply());
-
-            if (leftover > 0) {
-                minFundAmount = minFundAmount.add(
-                    smartTokenFormula.calculatePurchaseReturn(
-                        toToken.totalSupply(),
-                        reserveBalance,
-                        uint32(smartTokenDetails.totalReserveTokensRatio),
-                        leftover
-                    )
-                );
+        for (uint i = 0; i < details.tokens.length; i++) {
+            if (_minFundAmount == fundAmounts[i]) {
+                continue;
             }
+
+            uint256 leftover = tokenAmounts[i].sub(
+                smartTokenFormula._calculateLiquidateReturn(
+                    _smartToken.totalSupply().add(_minFundAmount),
+                    _canonicalSUSD(details.tokens[i].token).balanceOf(details.converter).add(tokenAmounts[i]),
+                    uint32(details.totalRatio),
+                    _minFundAmount
+                )
+            );
+
+            uint256 tokenRet = _calculateBancorReturn(
+                _canonicalSUSD(details.tokens[i].token),
+                _smartToken,
+                leftover,
+                flags
+            );
+
+            minFundAmount = minFundAmount.add(tokenRet);
         }
 
         return (minFundAmount, distribution);
     }
-
 }
 
 
-contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
-
-    // todo: think about smart tokens with one token in reserve
-    // todo: think about the case when toToken == reserveToken
-    // todo: think about the case when fromToken == reserveToken
-    // todo: think about the case when fromToken == smartToken1, toToken == smartToken2
+contract OneSplitSmartToken is OneSplitBaseWrap, OneSplitSmartTokenBase {
     function _swap(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) internal {
+
         if (fromToken == toToken) {
             return;
         }
 
-        if (!disableFlags.check(FLAG_DISABLE_SMART_TOKEN)) {
+        if (!flags.check(FLAG_DISABLE_SMART_TOKEN)) {
 
-            if (smartTokenRegistry.isSmartToken(fromToken)) {
+            bool isSmartTokenFrom = smartTokenRegistry.isSmartToken(fromToken);
+            bool isSmartTokenTo = smartTokenRegistry.isSmartToken(toToken);
 
+            if (isSmartTokenFrom && isSmartTokenTo) {
+                uint256[] memory dist = new uint256[](distribution.length);
+                for (uint i = 0; i < distribution.length; i++) {
+                    dist[i] = distribution[i] & ((1 << 128) - 1);
+                }
+
+                uint256 bntBalanceBefore = bntToken.balanceOf(address(this));
+
+                _swapFromSmartToken(
+                    fromToken,
+                    bntToken,
+                    amount,
+                    dist,
+                    0
+                );
+
+                for (uint i = 0; i < distribution.length; i++) {
+                    dist[i] = distribution[i] >> 128;
+                }
+
+                uint256 bntBalanceAfter = bntToken.balanceOf(address(this));
+
+                return _swapToSmartToken(
+                    bntToken,
+                    toToken,
+                    bntBalanceAfter.sub(bntBalanceBefore),
+                    dist,
+                    0
+                );
+            }
+
+            if (isSmartTokenFrom) {
                 return _swapFromSmartToken(
                     fromToken,
                     toToken,
                     amount,
                     distribution,
-                    disableFlags
+                    0
                 );
-
             }
 
-            if (smartTokenRegistry.isSmartToken(toToken)) {
-
+            if (isSmartTokenTo) {
                 return _swapToSmartToken(
                     fromToken,
                     toToken,
                     amount,
                     distribution,
-                    disableFlags
+                    0
                 );
-
             }
         }
 
@@ -4158,155 +5703,157 @@ contract OneSplitSmartToken is OneSplitBase, OneSplitSmartTokenBase {
             toToken,
             amount,
             distribution,
-            disableFlags
+            flags
         );
     }
 
     function _swapFromSmartToken(
-        IERC20 fromToken,
+        IERC20 smartToken,
         IERC20 toToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) private {
+        SmartTokenDetails memory details = _getSmartTokenDetails(ISmartToken(address(smartToken)));
 
-        SmartTokenDetails memory smartTokenDetails = _getSmartTokenDetails(ISmartToken(address(fromToken)));
+        ISmartTokenConverter(details.converter).liquidate(amount);
 
-        uint256[] memory tokenBalanceBefore = new uint256[](smartTokenDetails.reserveTokenList.length);
-        uint256[][] memory dist = new uint256[][](smartTokenDetails.reserveTokenList.length);
-        for (uint16 i = 0; i < smartTokenDetails.reserveTokenList.length; i++) {
-            dist[i] = new uint256[](distribution.length);
+        uint256[] memory dist = new uint256[](distribution.length);
 
-            tokenBalanceBefore[i] = smartTokenDetails.reserveTokenList[i].token.balanceOf(msg.sender);
+        for (uint i = 0; i < details.tokens.length; i++) {
+            if (details.tokens[i].token == toToken) {
+                continue;
+            }
 
             for (uint j = 0; j < distribution.length; j++) {
-                dist[i][j] = (distribution[j] >> (i * 8)) & 0xFF;
+                dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
             }
-        }
 
-        ISmartTokenConverter(smartTokenDetails.converter).liquidate(amount);
-
-        for (uint16 i = 0; i < smartTokenDetails.reserveTokenList.length; i++) {
-            uint256 tokenBalanceAfter = smartTokenDetails.reserveTokenList[i].token.balanceOf(msg.sender);
-
-            return super._swap(
-                smartTokenDetails.reserveTokenList[i].token,
+            this.swap(
+                _canonicalSUSD(details.tokens[i].token),
                 toToken,
-                tokenBalanceAfter.sub(tokenBalanceBefore[i]), 
-                dist[i],
-                disableFlags
+                _canonicalSUSD(details.tokens[i].token).balanceOf(address(this)),
+                0,
+                dist,
+                flags
             );
         }
-
     }
 
     function _swapToSmartToken(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 smartToken,
         uint256 amount,
         uint256[] memory distribution,
-        uint256 disableFlags
+        uint256 flags
     ) private {
 
+        uint256[] memory dist = new uint256[](distribution.length);
         uint256 minFundAmount = uint256(-1);
 
-        SmartTokenDetails memory smartTokenDetails = _getSmartTokenDetails(ISmartToken(address(toToken)));
+        SmartTokenDetails memory details = _getSmartTokenDetails(ISmartToken(address(smartToken)));
 
-        uint256[] memory fundAmounts = new uint256[](smartTokenDetails.reserveTokenList.length);
-        for (uint16 i = 0; i < smartTokenDetails.reserveTokenList.length; i++) {
+        uint256 curFundAmount;
+        for (uint i = 0; i < details.tokens.length; i++) {
+            uint256 exchangeAmount = amount
+                .mul(details.tokens[i].ratio)
+                .div(details.totalRatio);
 
-            uint256 exchangeAmount = _calcExchangeAmount(
-                amount,
-                smartTokenDetails.reserveTokenList[i].ratio,
-                smartTokenDetails.totalReserveTokensRatio
-            );
+            if (details.tokens[i].token != fromToken) {
 
-            uint256 tokenBalanceBefore = smartTokenDetails.reserveTokenList[i].token.balanceOf(msg.sender);
+                uint256 tokenBalanceBefore = _canonicalSUSD(details.tokens[i].token).balanceOf(address(this));
 
-            for (uint j = 0; j < distribution.length; j++) {
-                distribution[j] = (distribution[j] >> (i * 8)) & 0xFF;
-            }
+                for (uint j = 0; j < distribution.length; j++) {
+                    dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
+                }
 
-            super._swap(
-                fromToken,
-                smartTokenDetails.reserveTokenList[i].token,
-                exchangeAmount,
-                distribution,
-                disableFlags
-            );
-
-            uint256 tokenBalanceAfter = smartTokenDetails.reserveTokenList[i].token.balanceOf(msg.sender);
-
-            fundAmounts[i] = toToken.totalSupply()
-                .mul(tokenBalanceAfter.sub(tokenBalanceBefore))
-                .div(smartTokenDetails.reserveTokenList[i].token.balanceOf(smartTokenDetails.converter));
-
-            if (fundAmounts[i] < minFundAmount) {
-                minFundAmount = fundAmounts[i];
-            }
-
-            _infiniteApproveIfNeeded(smartTokenDetails.reserveTokenList[i].token, smartTokenDetails.converter);
-        }
-
-        ISmartTokenConverter(smartTokenDetails.converter).fund(minFundAmount);
-
-        // Swap leftovers for SmartToken
-        for (uint16 i = 0; i < smartTokenDetails.reserveTokenList.length; i++) {
-            uint256 reserveBalance = smartTokenDetails.reserveTokenList[i].token.balanceOf(smartTokenDetails.converter);
-
-            uint256 leftover = fundAmounts[i].sub(minFundAmount)
-                .mul(reserveBalance)
-                .div(toToken.totalSupply());
-
-            if (leftover > 0) {
-
-                convert(
-                    ISmartTokenConverter(smartTokenDetails.converter),
-                    smartTokenDetails.reserveTokenList[i].token,
-                    toToken,
-                    leftover
+                super._swap(
+                    fromToken,
+                    _canonicalSUSD(details.tokens[i].token),
+                    exchangeAmount,
+                    dist,
+                    flags
                 );
 
+                uint256 tokenBalanceAfter = _canonicalSUSD(details.tokens[i].token).balanceOf(address(this));
+
+                curFundAmount = smartTokenFormula._calculatePurchaseReturn(
+                    smartToken.totalSupply(),
+                    _canonicalSUSD(details.tokens[i].token).balanceOf(details.converter),
+                    uint32(details.totalRatio),
+                    tokenBalanceAfter.sub(tokenBalanceBefore)
+                );
+            } else {
+                curFundAmount = smartTokenFormula._calculatePurchaseReturn(
+                    smartToken.totalSupply(),
+                    _canonicalSUSD(details.tokens[i].token).balanceOf(details.converter),
+                    uint32(details.totalRatio),
+                    exchangeAmount
+                );
+            }
+
+            if (curFundAmount < minFundAmount) {
+                minFundAmount = curFundAmount;
+            }
+
+            _infiniteApproveIfNeeded(_canonicalSUSD(details.tokens[i].token), details.converter);
+        }
+
+        ISmartTokenConverter(details.converter).fund(minFundAmount);
+
+        // Swap leftovers for SmartToken
+        for (uint i = 0; i < details.tokens.length; i++) {
+            IERC20 reserveToken = _canonicalSUSD(details.tokens[i].token);
+
+            uint256 leftover = _canonicalSUSD(details.tokens[i].token).balanceOf(address(this));
+
+            uint256 ret = this._swapOnBancorSafe(
+                reserveToken,
+                smartToken,
+                leftover
+            );
+
+            if (ret == 0) {
+                reserveToken.universalTransfer(msg.sender, leftover);
             }
         }
-
     }
-
-    function convert(
-        ISmartTokenConverter converter,
-        IERC20 _fromToken,
-        IERC20 _toToken,
-        uint256 _amount
-    )
-        private
-        returns (uint256)
-    {
-        // todo: think about minReturn, affiliateAccount, affiliateFee
-        if (converter.version() >= 16) {
-            return converter.convert2(_fromToken, _toToken, _amount, 0, address(0), 0);
-        }
-
-        return converter.convert(_fromToken, _toToken, _amount, 0);
-    }
-
 }
 
 // File: contracts/OneSplit.sol
 
 pragma solidity ^0.5.0;
-pragma experimental ABIEncoderV2;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 contract OneSplitViewWrap is
     OneSplitViewWrapBase,
-    OneSplitMultiPathView,
-    OneSplitChaiView,
-    OneSplitBdaiView,
-    OneSplitAaveView,
-    OneSplitFulcrumView,
+    //OneSplitMultiPathView,
+    //OneSplitChaiView,
+    //OneSplitBdaiView,
+    //OneSplitAaveView,
+    //OneSplitFulcrumView,
     OneSplitCompoundView,
     OneSplitIearnView,
-    OneSplitIdleView,
-    OneSplitWethView
+    //OneSplitIdleView,
+    OneSplitWethView,
+    OneSplitBalancerPoolTokenView,
+    OneSplitUniswapPoolTokenView,
+    OneSplitCurvePoolTokenView,
     OneSplitSmartTokenView
 {
     IOneSplitView public oneSplitView;
@@ -4364,20 +5911,37 @@ contract OneSplitViewWrap is
             flags
         );
     }
+
+    function _calculateBancorReturn(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 flags
+    ) public view returns(uint256) {
+        return oneSplitView._calculateBancorReturn(
+            fromToken,
+            toToken,
+            amount,
+            flags
+        );
+    }
 }
 
 
 contract OneSplitWrap is
     OneSplitBaseWrap,
-    OneSplitMultiPath,
-    OneSplitChai,
-    OneSplitBdai,
-    OneSplitAave,
-    OneSplitFulcrum,
+    //OneSplitMultiPath,
+    //OneSplitChai,
+    //OneSplitBdai,
+    //OneSplitAave,
+    //OneSplitFulcrum,
     OneSplitCompound,
     OneSplitIearn,
-    OneSplitIdle,
-    OneSplitWeth
+    //OneSplitIdle,
+    OneSplitWeth,
+    //OneSplitBalancerPoolToken,
+    OneSplitUniswapPoolToken,
+    OneSplitCurvePoolToken,
     OneSplitSmartToken
 {
     IOneSplitView public oneSplitView;
@@ -4424,14 +5988,19 @@ contract OneSplitWrap is
         uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
         uint256 flags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
     ) public payable {
-        fromToken.universalTransferFrom(msg.sender, address(this), amount);
+        if (msg.sender != address(this)) {
+            fromToken.universalTransferFrom(msg.sender, address(this), amount);
+        }
 
         _swap(fromToken, toToken, amount, distribution, flags);
 
         uint256 returnAmount = toToken.universalBalanceOf(address(this));
         require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
-        toToken.universalTransfer(msg.sender, returnAmount);
-        fromToken.universalTransfer(msg.sender, fromToken.universalBalanceOf(address(this)));
+
+        if (msg.sender != address(this)) {
+            toToken.universalTransfer(msg.sender, returnAmount);
+            fromToken.universalTransfer(msg.sender, fromToken.universalBalanceOf(address(this)));
+        }
     }
 
     function _swapFloor(
@@ -4457,6 +6026,28 @@ contract OneSplitWrap is
             switch success
                 // delegatecall returns 0 on error.
                 case 0 { revert(add(data, 32), returndatasize) }
+        }
+    }
+
+    function _swapOnBancorSafe(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    ) external returns(uint256) {
+        (bool success, bytes memory data) = address(oneSplit).delegatecall(
+            abi.encodeWithSelector(
+                this._swapOnBancorSafe.selector,
+                fromToken,
+                toToken,
+                amount
+            )
+        );
+
+        assembly {
+            switch success
+                // delegatecall returns 0 on error.
+                case 0 { revert(add(data, 32), returndatasize) }
+                case 1 { return(add(data, 32), returndatasize) }
         }
     }
 }
