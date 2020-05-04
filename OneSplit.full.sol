@@ -1765,7 +1765,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         uint256 /*flags*/
     ) public view returns(uint256) {
         IMooniswap mooniswap = mooniswapRegistry.target();
-        (bool success, bytes memory data) = address(mooniswap).staticcall.gas(500000)(
+        (bool success, bytes memory data) = address(mooniswap).staticcall.gas(1000000)(
             abi.encodeWithSelector(
                 mooniswap.getReturn.selector,
                 fromToken,
@@ -2108,6 +2108,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         uint256 amount
     ) internal returns(uint256) {
         IMooniswap mooniswap = mooniswapRegistry.target();
+        _infiniteApproveIfNeeded(fromToken, address(mooniswap));
         return mooniswap.swap.value(fromToken.isETH() ? amount : 0)(
             fromToken,
             toToken,
