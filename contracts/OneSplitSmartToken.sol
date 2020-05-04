@@ -107,7 +107,7 @@ contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase 
                     bntToken,
                     amount,
                     parts,
-                    0
+                    FLAG_DISABLE_SMART_TOKEN
                 );
 
                 (
@@ -118,7 +118,7 @@ contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase 
                     toToken,
                     returnBntAmount,
                     parts,
-                    0
+                    FLAG_DISABLE_SMART_TOKEN
                 );
 
                 for (uint i = 0; i < smartTokenToDistribution.length; i++) {
@@ -134,7 +134,7 @@ contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase 
                     toToken,
                     amount,
                     parts,
-                    0
+                    FLAG_DISABLE_SMART_TOKEN
                 );
             }
 
@@ -144,7 +144,7 @@ contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase 
                     toToken,
                     amount,
                     parts,
-                    0
+                    FLAG_DISABLE_SMART_TOKEN
                 );
             }
         }
@@ -189,7 +189,7 @@ contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase 
                 continue;
             }
 
-            (uint256 ret, uint256[] memory dist) = getExpectedReturn(
+            (uint256 ret, uint256[] memory dist) = this.getExpectedReturn(
                 _canonicalSUSD(details.tokens[i].token),
                 toToken,
                 srcAmount,
@@ -235,7 +235,7 @@ contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase 
                 .div(details.totalRatio);
 
             if (details.tokens[i].token != fromToken) {
-                (tokenAmounts[i], dist) = getExpectedReturn(
+                (tokenAmounts[i], dist) = this.getExpectedReturn(
                     fromToken,
                     _canonicalSUSD(details.tokens[i].token),
                     exchangeAmount,
@@ -303,7 +303,6 @@ contract OneSplitSmartToken is OneSplitBaseWrap, OneSplitSmartTokenBase {
         uint256[] memory distribution,
         uint256 flags
     ) internal {
-
         if (fromToken == toToken) {
             return;
         }
@@ -326,7 +325,7 @@ contract OneSplitSmartToken is OneSplitBaseWrap, OneSplitSmartTokenBase {
                     bntToken,
                     amount,
                     dist,
-                    0
+                    FLAG_DISABLE_SMART_TOKEN
                 );
 
                 for (uint i = 0; i < distribution.length; i++) {
@@ -340,7 +339,7 @@ contract OneSplitSmartToken is OneSplitBaseWrap, OneSplitSmartTokenBase {
                     toToken,
                     bntBalanceAfter.sub(bntBalanceBefore),
                     dist,
-                    0
+                    FLAG_DISABLE_SMART_TOKEN
                 );
             }
 
@@ -350,7 +349,7 @@ contract OneSplitSmartToken is OneSplitBaseWrap, OneSplitSmartTokenBase {
                     toToken,
                     amount,
                     distribution,
-                    0
+                    FLAG_DISABLE_SMART_TOKEN
                 );
             }
 
@@ -360,7 +359,7 @@ contract OneSplitSmartToken is OneSplitBaseWrap, OneSplitSmartTokenBase {
                     toToken,
                     amount,
                     distribution,
-                    0
+                    FLAG_DISABLE_SMART_TOKEN
                 );
             }
         }
@@ -434,10 +433,11 @@ contract OneSplitSmartToken is OneSplitBaseWrap, OneSplitSmartTokenBase {
                     dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
                 }
 
-                super._swap(
+                this.swap(
                     fromToken,
                     _canonicalSUSD(details.tokens[i].token),
                     exchangeAmount,
+                    0,
                     dist,
                     flags
                 );
