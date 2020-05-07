@@ -8,7 +8,7 @@ import "./OneSplitBase.sol";
 contract OneSplitUniswapPoolTokenBase {
     using SafeMath for uint256;
 
-    IUniswapFactory uniswapFactory = IUniswapFactory(0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95);
+    IUniswapFactory constant uniswapFactory = IUniswapFactory(0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95);
 
     function isLiquidityPool(IERC20 token) internal view returns (bool) {
         return address(uniswapFactory.getToken(address(token))) != address(0);

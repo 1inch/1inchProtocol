@@ -15,6 +15,7 @@ import "./OneSplitBalancerPoolToken.sol";
 import "./OneSplitUniswapPoolToken.sol";
 import "./OneSplitCurvePoolToken.sol";
 import "./OneSplitSmartToken.sol";
+import "./OneSplitUniswapV2PoolToken.sol";
 
 
 contract OneSplitViewWrap is
@@ -31,7 +32,8 @@ contract OneSplitViewWrap is
     OneSplitBalancerPoolTokenView,
     OneSplitUniswapPoolTokenView,
     OneSplitCurvePoolTokenView,
-    OneSplitSmartTokenView
+    OneSplitSmartTokenView,
+    OneSplitUniswapV2PoolTokenView
 {
     IOneSplitView public oneSplitView;
 
@@ -119,7 +121,8 @@ contract OneSplitWrap is
     OneSplitBalancerPoolToken,
     OneSplitUniswapPoolToken,
     OneSplitCurvePoolToken,
-    OneSplitSmartToken
+    OneSplitSmartToken,
+    OneSplitUniswapV2PoolToken
 {
     IOneSplitView public oneSplitView;
     IOneSplit public oneSplit;
