@@ -6,17 +6,16 @@ import "./interface/ISmartTokenConverter.sol";
 import "./interface/ISmartTokenFormula.sol";
 import "./OneSplitBase.sol";
 
-
 contract OneSplitSmartTokenBase {
     using SafeMath for uint256;
 
-    ISmartTokenRegistry smartTokenRegistry = ISmartTokenRegistry(0xf6E2D7F616B67E46D708e4410746E9AAb3a4C518);
-    ISmartTokenFormula smartTokenFormula = ISmartTokenFormula(0x524619EB9b4cdFFa7DA13029b33f24635478AFc0);
-    IERC20 bntToken = IERC20(0x1F573D6Fb3F13d689FF844B4cE37794d79a7FF1C);
-    IERC20 usdbToken = IERC20(0x309627af60F0926daa6041B8279484312f2bf060);
+    ISmartTokenRegistry constant smartTokenRegistry = ISmartTokenRegistry(0xf6E2D7F616B67E46D708e4410746E9AAb3a4C518);
+    ISmartTokenFormula constant smartTokenFormula = ISmartTokenFormula(0x524619EB9b4cdFFa7DA13029b33f24635478AFc0);
+    IERC20 constant bntToken = IERC20(0x1F573D6Fb3F13d689FF844B4cE37794d79a7FF1C);
+    IERC20 constant usdbToken = IERC20(0x309627af60F0926daa6041B8279484312f2bf060);
 
-    IERC20 public susd = IERC20(0x57Ab1ec28D129707052df4dF418D58a2D46d5f51);
-    IERC20 public acientSUSD = IERC20(0x57Ab1E02fEE23774580C119740129eAC7081e9D3);
+    IERC20 constant susd = IERC20(0x57Ab1ec28D129707052df4dF418D58a2D46d5f51);
+    IERC20 constant acientSUSD = IERC20(0x57Ab1E02fEE23774580C119740129eAC7081e9D3);
 
     struct TokenWithRatio {
         IERC20 token;
@@ -60,16 +59,16 @@ contract OneSplitSmartTokenBase {
             )
         );
 
-        if (success) {
-            return abi.decode(data, (uint256));
+        if (!success) {
+            (, uint32 ratio, , ,) = converter.connectors(address(token));
+
+            return uint256(ratio);
         }
 
-        (, uint32 ratio, , ,) = converter.connectors(address(token));
-
-        return uint256(ratio);
+        return abi.decode(data, (uint256));
     }
 
-    function _canonicalSUSD(IERC20 token) internal view returns(IERC20) {
+    function _canonicalSUSD(IERC20 token) internal pure returns(IERC20) {
         return token == acientSUSD ? susd : token;
     }
 }
@@ -262,34 +261,6 @@ contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase 
             }
         }
 
-        uint256 _minFundAmount = minFundAmount;
-        IERC20 _smartToken = smartToken;
-
-        // Swap leftovers for SmartToken
-        for (uint i = 0; i < details.tokens.length; i++) {
-            if (_minFundAmount == fundAmounts[i]) {
-                continue;
-            }
-
-            uint256 leftover = tokenAmounts[i].sub(
-                smartTokenFormula._calculateLiquidateReturn(
-                    _smartToken.totalSupply().add(_minFundAmount),
-                    _canonicalSUSD(details.tokens[i].token).balanceOf(details.converter).add(tokenAmounts[i]),
-                    uint32(details.totalRatio),
-                    _minFundAmount
-                )
-            );
-
-            uint256 tokenRet = _calculateBancorReturn(
-                _canonicalSUSD(details.tokens[i].token),
-                _smartToken,
-                leftover,
-                flags
-            );
-
-            minFundAmount = minFundAmount.add(tokenRet);
-        }
-
         return (minFundAmount, distribution);
     }
 }
@@ -468,21 +439,12 @@ contract OneSplitSmartToken is OneSplitBaseWrap, OneSplitSmartTokenBase {
 
         ISmartTokenConverter(details.converter).fund(minFundAmount);
 
-        // Swap leftovers for SmartToken
         for (uint i = 0; i < details.tokens.length; i++) {
             IERC20 reserveToken = _canonicalSUSD(details.tokens[i].token);
-
-            uint256 leftover = _canonicalSUSD(details.tokens[i].token).balanceOf(address(this));
-
-            uint256 ret = this._swapOnBancorSafe(
-                reserveToken,
-                smartToken,
-                leftover
+            reserveToken.universalTransfer(
+                msg.sender,
+                reserveToken.universalBalanceOf(address(this))
             );
-
-            if (ret == 0) {
-                reserveToken.universalTransfer(msg.sender, leftover);
-            }
         }
     }
 }

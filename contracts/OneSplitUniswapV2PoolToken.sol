@@ -11,7 +11,17 @@ contract OneSplitUniswapV2PoolTokenBase {
     IUniswapV2Pool constant uniswapPool = IUniswapV2Pool(0x3f6CDd93e4A1c2Df9934Cb90D09040CcFc155F93);
 
     function isLiquidityPool(IERC20 token) internal view returns (bool) {
-        return IUniswapV2Pair(address(token)).factory() == 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
+        (bool success, bytes memory data) = address(token).staticcall.gas(2000)(
+            abi.encode(IUniswapV2Pair(address(token)).factory.selector)
+        );
+        if (!success) {
+            return false;
+        }
+        bytes memory emptyBytes;
+        if (keccak256(data) == keccak256(emptyBytes)) {
+            return false;
+        }
+        return abi.decode(data, (address)) == 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
     }
 
     struct TokenInfo {
@@ -154,7 +164,7 @@ contract OneSplitUniswapV2PoolTokenView is OneSplitViewWrapBase, OneSplitUniswap
                 continue;
             }
 
-            (uint256 ret, uint256[] memory dist) = super.getExpectedReturn(
+            (uint256 ret, uint256[] memory dist) = this.getExpectedReturn(
                 details.tokens[i].token,
                 toToken,
                 exchangeAmount,
@@ -200,7 +210,7 @@ contract OneSplitUniswapV2PoolTokenView is OneSplitViewWrapBase, OneSplitUniswap
                 continue;
             }
 
-            (uint256 ret, uint256[] memory dist) = super.getExpectedReturn(
+            (uint256 ret, uint256[] memory dist) = this.getExpectedReturn(
                 fromToken,
                 details.tokens[i].token,
                 amounts[i],
