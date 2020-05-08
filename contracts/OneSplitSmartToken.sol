@@ -176,7 +176,7 @@ contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase 
         SmartTokenDetails memory details = _getSmartTokenDetails(ISmartToken(address(smartToken)));
 
         for (uint i = 0; i < details.tokens.length; i++) {
-            uint256 srcAmount = smartTokenFormula._calculateLiquidateReturn(
+            uint256 srcAmount = smartTokenFormula.calculateLiquidateReturn(
                 smartToken.totalSupply(),
                 _canonicalSUSD(details.tokens[i].token).balanceOf(details.converter),
                 uint32(details.totalRatio),
@@ -249,7 +249,7 @@ contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase 
                 tokenAmounts[i] = exchangeAmount;
             }
 
-            fundAmounts[i] = smartTokenFormula._calculatePurchaseReturn(
+            fundAmounts[i] = smartTokenFormula.calculatePurchaseReturn(
                 smartToken.totalSupply(),
                 _canonicalSUSD(details.tokens[i].token).balanceOf(details.converter),
                 uint32(details.totalRatio),
@@ -415,14 +415,14 @@ contract OneSplitSmartToken is OneSplitBaseWrap, OneSplitSmartTokenBase {
 
                 uint256 tokenBalanceAfter = _canonicalSUSD(details.tokens[i].token).balanceOf(address(this));
 
-                curFundAmount = smartTokenFormula._calculatePurchaseReturn(
+                curFundAmount = smartTokenFormula.calculatePurchaseReturn(
                     smartToken.totalSupply(),
                     _canonicalSUSD(details.tokens[i].token).balanceOf(details.converter),
                     uint32(details.totalRatio),
                     tokenBalanceAfter.sub(tokenBalanceBefore)
                 );
             } else {
-                curFundAmount = smartTokenFormula._calculatePurchaseReturn(
+                curFundAmount = smartTokenFormula.calculatePurchaseReturn(
                     smartToken.totalSupply(),
                     _canonicalSUSD(details.tokens[i].token).balanceOf(details.converter),
                     uint32(details.totalRatio),
