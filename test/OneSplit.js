@@ -1,4 +1,4 @@
-// const { expectRevert } = require('openzeppelin-test-helpers');
+// const { expectRevert } = require('@openzeppelin/test-helpers');
 // const { expect } = require('chai');
 const assert = require('assert');
 
@@ -8,6 +8,7 @@ const OneSplit = artifacts.require('OneSplit');
 const OneSplitWrap = artifacts.require('OneSplitWrap');
 
 contract('OneSplit', function ([_, addr1]) {
+
     describe('OneSplit', async function () {
         beforeEach('should be ok', async function () {
             const subSplitView = await OneSplitView.new();

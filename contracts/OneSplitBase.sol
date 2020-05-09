@@ -36,6 +36,13 @@ contract IOneSplitView is IOneSplitConsts {
             uint256 returnAmount,
             uint256[] memory distribution
         );
+
+    function _calculateBancorReturn(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 flags
+    ) external view returns(uint256);
 }
 
 
@@ -294,6 +301,13 @@ contract OneSplitViewWrapBase is IOneSplitView, OneSplitRoot {
             uint256 returnAmount,
             uint256[] memory distribution
         );
+
+    function _calculateBancorReturn(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 flags
+    ) public view returns(uint256);
 }
 
 
@@ -322,18 +336,18 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         }
 
         function(IERC20,IERC20,uint256,uint256) view returns(uint256)[DEXES_COUNT] memory reserves = [
-            flags.check(FLAG_DISABLE_UNISWAP)          ? _calculateNoReturn : calculateUniswapReturn,
-            flags.check(FLAG_DISABLE_KYBER)            ? _calculateNoReturn : calculateKyberReturn,
-            flags.check(FLAG_DISABLE_BANCOR)           ? _calculateNoReturn : calculateBancorReturn,
-            flags.check(FLAG_DISABLE_OASIS)            ? _calculateNoReturn : calculateOasisReturn,
-            flags.check(FLAG_DISABLE_CURVE_COMPOUND)   ? _calculateNoReturn : calculateCurveCompound,
-            flags.check(FLAG_DISABLE_CURVE_USDT)       ? _calculateNoReturn : calculateCurveUsdt,
-            flags.check(FLAG_DISABLE_CURVE_Y)          ? _calculateNoReturn : calculateCurveY,
-            flags.check(FLAG_DISABLE_CURVE_BINANCE)    ? _calculateNoReturn : calculateCurveBinance,
-            flags.check(FLAG_DISABLE_CURVE_SYNTHETIX)  ? _calculateNoReturn : calculateCurveSynthetix,
-            !flags.check(FLAG_ENABLE_UNISWAP_COMPOUND) ? _calculateNoReturn : calculateUniswapCompound,
-            !flags.check(FLAG_ENABLE_UNISWAP_CHAI)     ? _calculateNoReturn : calculateUniswapChai,
-            !flags.check(FLAG_ENABLE_UNISWAP_AAVE)     ? _calculateNoReturn : calculateUniswapAave
+            flags.check(FLAG_DISABLE_UNISWAP)          ? _calculateNoReturn : _calculateUniswapReturn,
+            flags.check(FLAG_DISABLE_KYBER)            ? _calculateNoReturn : _calculateKyberReturn,
+            flags.check(FLAG_DISABLE_BANCOR)           ? _calculateNoReturn : _calculateBancorReturn,
+            flags.check(FLAG_DISABLE_OASIS)            ? _calculateNoReturn : _calculateOasisReturn,
+            flags.check(FLAG_DISABLE_CURVE_COMPOUND)   ? _calculateNoReturn : _calculateCurveCompound,
+            flags.check(FLAG_DISABLE_CURVE_USDT)       ? _calculateNoReturn : _calculateCurveUsdt,
+            flags.check(FLAG_DISABLE_CURVE_Y)          ? _calculateNoReturn : _calculateCurveY,
+            flags.check(FLAG_DISABLE_CURVE_BINANCE)    ? _calculateNoReturn : _calculateCurveBinance,
+            flags.check(FLAG_DISABLE_CURVE_SYNTHETIX)  ? _calculateNoReturn : _calculateCurveSynthetix,
+            !flags.check(FLAG_ENABLE_UNISWAP_COMPOUND) ? _calculateNoReturn : _calculateUniswapCompound,
+            !flags.check(FLAG_ENABLE_UNISWAP_CHAI)     ? _calculateNoReturn : _calculateUniswapChai,
+            !flags.check(FLAG_ENABLE_UNISWAP_AAVE)     ? _calculateNoReturn : _calculateUniswapAave
         ];
 
         uint256[DEXES_COUNT] memory rates;
@@ -381,7 +395,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
 
     // View Helpers
 
-    function calculateCurveCompound(
+    function _calculateCurveCompound(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
@@ -396,7 +410,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return curveCompound.get_dy_underlying(i - 1, j - 1, amount);
     }
 
-    function calculateCurveUsdt(
+    function _calculateCurveUsdt(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
@@ -415,7 +429,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return curveUsdt.get_dy_underlying(i - 1, j - 1, amount);
     }
 
-    function calculateCurveY(
+    function _calculateCurveY(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
@@ -436,7 +450,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return curveY.get_dy_underlying(i - 1, j - 1, amount);
     }
 
-    function calculateCurveBinance(
+    function _calculateCurveBinance(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
@@ -457,7 +471,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return curveBinance.get_dy_underlying(i - 1, j - 1, amount);
     }
 
-    function calculateCurveSynthetix(
+    function _calculateCurveSynthetix(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
@@ -478,7 +492,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return curveSynthetix.get_dy_underlying(i - 1, j - 1, amount);
     }
 
-    function calculateUniswapReturn(
+    function _calculateUniswapReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
@@ -527,7 +541,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return returnAmount;
     }
 
-    function calculateUniswapCompound(
+    function _calculateUniswapCompound(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
@@ -540,7 +554,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         if (!fromToken.isETH()) {
             ICompoundToken fromCompound = _getCompoundToken(fromToken);
             if (fromCompound != ICompoundToken(0)) {
-                return calculateUniswapReturn(
+                return _calculateUniswapReturn(
                     fromCompound,
                     toToken,
                     amount.mul(1e18).div(fromCompound.exchangeRateStored()),
@@ -550,7 +564,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         } else {
             ICompoundToken toCompound = _getCompoundToken(toToken);
             if (toCompound != ICompoundToken(0)) {
-                return calculateUniswapReturn(
+                return _calculateUniswapReturn(
                     fromToken,
                     toCompound,
                     amount,
@@ -562,14 +576,14 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return 0;
     }
 
-    function calculateUniswapChai(
+    function _calculateUniswapChai(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 flags
     ) public view returns(uint256) {
         if (fromToken == dai && toToken.isETH()) {
-            return calculateUniswapReturn(
+            return _calculateUniswapReturn(
                 chai,
                 toToken,
                 chai.daiToChai(amount),
@@ -578,7 +592,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         }
 
         if (fromToken.isETH() && toToken == dai) {
-            return chai.chaiToDai(calculateUniswapReturn(
+            return chai.chaiToDai(_calculateUniswapReturn(
                 fromToken,
                 chai,
                 amount,
@@ -589,7 +603,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return 0;
     }
 
-    function calculateUniswapAave(
+    function _calculateUniswapAave(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
@@ -602,7 +616,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         if (!fromToken.isETH()) {
             IAaveToken fromAave = _getAaveToken(fromToken);
             if (fromAave != IAaveToken(0)) {
-                return calculateUniswapReturn(
+                return _calculateUniswapReturn(
                     fromAave,
                     toToken,
                     amount,
@@ -612,7 +626,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         } else {
             IAaveToken toAave = _getAaveToken(toToken);
             if (toAave != IAaveToken(0)) {
-                return calculateUniswapReturn(
+                return _calculateUniswapReturn(
                     fromToken,
                     toAave,
                     amount,
@@ -624,7 +638,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return 0;
     }
 
-    function calculateKyberReturn(
+    function _calculateKyberReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
@@ -717,7 +731,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             .div(1e18);
     }
 
-    function calculateBancorReturn(
+    function _calculateBancorReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
@@ -741,7 +755,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return returnAmount;
     }
 
-    function calculateOasisReturn(
+    function _calculateOasisReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
@@ -801,6 +815,12 @@ contract OneSplitBaseWrap is IOneSplit, OneSplitRoot {
         uint256[] memory distribution,
         uint256 /*flags*/ // See constants in IOneSplit.sol
     ) internal;
+
+    function _swapOnBancorSafe(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    ) external returns(uint256);
 }
 
 
@@ -1106,6 +1126,20 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         IERC20 toToken,
         uint256 amount
     ) internal returns(uint256) {
+        uint256 ret = _swapOnBancorSafe(
+            fromToken,
+            toToken,
+            amount
+        );
+        require(ret > 0);
+        return ret;
+    }
+
+    function _swapOnBancorSafe(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    ) internal returns(uint256) {
         if (fromToken.isETH()) {
             bancorEtherToken.deposit.value(amount)();
         }
@@ -1114,9 +1148,18 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         address[] memory path = _buildBancorPath(fromToken, toToken);
 
         _infiniteApproveIfNeeded(fromToken.isETH() ? bancorEtherToken : fromToken, address(bancorNetwork));
-        uint256 returnAmount = bancorNetwork.claimAndConvert(path, amount, 1);
+        (bool success, bytes memory data) = address(bancorNetwork).call.gas(1500000)(
+            abi.encodeWithSelector(
+                bancorNetwork.claimAndConvert.selector,
+                path,
+                amount,
+                1
+            )
+        );
 
-        if (toToken.isETH()) {
+        uint256 returnAmount = success ? abi.decode(data, (uint256)) : 0;
+
+        if (toToken.isETH() && returnAmount > 0) {
             bancorEtherToken.withdraw(bancorEtherToken.balanceOf(address(this)));
         }
 
