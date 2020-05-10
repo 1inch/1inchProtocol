@@ -47,11 +47,11 @@ contract OneSplitWethView is OneSplitViewWrapBase {
         }
 
         if (!flags.check(FLAG_DISABLE_WETH)) {
-            if (fromToken == wethToken || fromToken == bancorEtherToken) {
+            if (fromToken == weth || fromToken == bancorEtherToken) {
                 return super.getExpectedReturn(ETH_ADDRESS, toToken, amount, parts, flags);
             }
 
-            if (toToken == wethToken || toToken == bancorEtherToken) {
+            if (toToken == weth || toToken == bancorEtherToken) {
                 return super.getExpectedReturn(fromToken, ETH_ADDRESS, amount, parts, flags);
             }
         }
@@ -96,8 +96,8 @@ contract OneSplitWeth is OneSplitBaseWrap {
         }
 
         if (!flags.check(FLAG_DISABLE_WETH)) {
-            if (fromToken == wethToken) {
-                wethToken.withdraw(wethToken.balanceOf(address(this)));
+            if (fromToken == weth) {
+                weth.withdraw(weth.balanceOf(address(this)));
                 super._swap(
                     ETH_ADDRESS,
                     toToken,
@@ -120,7 +120,7 @@ contract OneSplitWeth is OneSplitBaseWrap {
                 return;
             }
 
-            if (toToken == wethToken) {
+            if (toToken == weth) {
                 _wethSwap(
                     fromToken,
                     ETH_ADDRESS,
@@ -128,7 +128,7 @@ contract OneSplitWeth is OneSplitBaseWrap {
                     distribution,
                     flags
                 );
-                wethToken.deposit.value(address(this).balance)();
+                weth.deposit.value(address(this).balance)();
                 return;
             }
 
