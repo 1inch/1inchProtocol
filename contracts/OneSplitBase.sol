@@ -65,6 +65,7 @@ contract OneSplitRoot {
     IERC20 constant public tusd = IERC20(0x0000000000085d4780B73119b644AE5ecd22b376);
     IERC20 constant public busd = IERC20(0x4Fabb145d64652a948d72533023f6E7A623C7C53);
     IERC20 constant public susd = IERC20(0x57Ab1ec28D129707052df4dF418D58a2D46d5f51);
+    IERC20 constant public pax = IERC20(0x8E870D67F660D95d5be530380D0eC0bd388289E1);
     IWETH constant public wethToken = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IBancorEtherToken constant public bancorEtherToken = IBancorEtherToken(0xc0829421C1d260BD3cB3E0F06cfE2D52db2cE315);
     IChai constant public chai = IChai(0x06AF07097C9Eeb7fD685c692751D5C66dB49c215);
@@ -80,6 +81,7 @@ contract OneSplitRoot {
     ICurve constant public curveY = ICurve(0x45F783CCE6B7FF23B2ab2D70e416cdb7D6055f51);
     ICurve constant public curveBinance = ICurve(0x79a8C46DeA5aDa233ABaFFD40F3A0A2B1e5A4F27);
     ICurve constant public curveSynthetix = ICurve(0xA5407eAE9Ba41422680e2e00537571bcC53efBfD);
+    ICurve constant public curvePax = ICurve(0x06364f10B501e868329afBc005b3492902d6C763);
     IAaveLendingPool constant public aave = IAaveLendingPool(0x398eC7346DcD622eDc5ae82352F02bE94C62d119);
     ICompound constant public compound = ICompound(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
     ICompoundEther constant public cETH = ICompoundEther(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
@@ -331,6 +333,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             flags.check(FLAG_DISABLE_CURVE_Y)          ? _calculateNoReturn : calculateCurveY,
             flags.check(FLAG_DISABLE_CURVE_BINANCE)    ? _calculateNoReturn : calculateCurveBinance,
             flags.check(FLAG_DISABLE_CURVE_SYNTHETIX)  ? _calculateNoReturn : calculateCurveSynthetix,
+            flags.check(FLAG_DISABLE_CURVE_PAX)        ? _calculateNoReturn : calculateCurvePax,
             !flags.check(FLAG_ENABLE_UNISWAP_COMPOUND) ? _calculateNoReturn : calculateUniswapCompound,
             !flags.check(FLAG_ENABLE_UNISWAP_CHAI)     ? _calculateNoReturn : calculateUniswapChai,
             !flags.check(FLAG_ENABLE_UNISWAP_AAVE)     ? _calculateNoReturn : calculateUniswapAave
@@ -471,6 +474,27 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             (destToken == usdc ? 2 : 0) +
             (destToken == usdt ? 3 : 0) +
             (destToken == susd ? 4 : 0);
+        if (i == 0 || j == 0) {
+            return 0;
+        }
+
+        return curveSynthetix.get_dy_underlying(i - 1, j - 1, amount);
+    }
+
+    function calculateCurvePax(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 /*flags*/
+    ) public view returns(uint256) {
+        int128 i = (fromToken == dai ? 1 : 0) +
+            (fromToken == usdc ? 2 : 0) +
+            (fromToken == usdt ? 3 : 0) +
+            (fromToken == pax ? 4 : 0);
+        int128 j = (destToken == dai ? 1 : 0) +
+            (destToken == usdc ? 2 : 0) +
+            (destToken == usdt ? 3 : 0) +
+            (destToken == pax ? 4 : 0);
         if (i == 0 || j == 0) {
             return 0;
         }
@@ -861,6 +885,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             _swapOnCurveY,
             _swapOnCurveBinance,
             _swapOnCurveSynthetix,
+            _swapOnCurvePax,
             _swapOnUniswapCompound,
             _swapOnUniswapChai,
             _swapOnUniswapAave
@@ -991,6 +1016,27 @@ contract OneSplit is IOneSplit, OneSplitRoot {
 
         _infiniteApproveIfNeeded(fromToken, address(curveSynthetix));
         curveSynthetix.exchange_underlying(i - 1, j - 1, amount, 0);
+    }
+
+    function _swapOnCurvePax(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount
+    ) internal returns(uint256) {
+        int128 i = (fromToken == dai ? 1 : 0) +
+            (fromToken == usdc ? 2 : 0) +
+            (fromToken == usdt ? 3 : 0) +
+            (fromToken == pax ? 4 : 0);
+        int128 j = (destToken == dai ? 1 : 0) +
+            (destToken == usdc ? 2 : 0) +
+            (destToken == usdt ? 3 : 0) +
+            (destToken == pax ? 4 : 0);
+        if (i == 0 || j == 0) {
+            return 0;
+        }
+
+        _infiniteApproveIfNeeded(fromToken, address(curvePax));
+        curvePax.exchange_underlying(i - 1, j - 1, amount, 0);
     }
 
     function _swapOnUniswap(

@@ -130,6 +130,7 @@ contract IOneSplitConsts {
     uint256 public constant FLAG_ENABLE_UNISWAP_CHAI = 0x200000; // Works only when ETH<>DAI or FLAG_ENABLE_MULTI_PATH_ETH
     uint256 public constant FLAG_ENABLE_UNISWAP_AAVE = 0x400000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
     uint256 public constant FLAG_DISABLE_IDLE = 0x800000;
+    uint256 public constant FLAG_DISABLE_CURVE_PAX = 0x1000000;
 }
 
 
@@ -1040,6 +1041,7 @@ contract OneSplitRoot {
     ICurve constant public curveY = ICurve(0x45F783CCE6B7FF23B2ab2D70e416cdb7D6055f51);
     ICurve constant public curveBinance = ICurve(0x79a8C46DeA5aDa233ABaFFD40F3A0A2B1e5A4F27);
     ICurve constant public curveSynthetix = ICurve(0xA5407eAE9Ba41422680e2e00537571bcC53efBfD);
+    ICurve constant public curvePax = ICurve(0x06364f10B501e868329afBc005b3492902d6C763);
     IAaveLendingPool constant public aave = IAaveLendingPool(0x398eC7346DcD622eDc5ae82352F02bE94C62d119);
     ICompound constant public compound = ICompound(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
     ICompoundEther constant public cETH = ICompoundEther(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
@@ -1291,6 +1293,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             flags.check(FLAG_DISABLE_CURVE_Y)          ? _calculateNoReturn : calculateCurveY,
             flags.check(FLAG_DISABLE_CURVE_BINANCE)    ? _calculateNoReturn : calculateCurveBinance,
             flags.check(FLAG_DISABLE_CURVE_SYNTHETIX)  ? _calculateNoReturn : calculateCurveSynthetix,
+            flags.check(FLAG_DISABLE_CURVE_PAX)        ? _calculateNoReturn : calculateCurvePax,
             !flags.check(FLAG_ENABLE_UNISWAP_COMPOUND) ? _calculateNoReturn : calculateUniswapCompound,
             !flags.check(FLAG_ENABLE_UNISWAP_CHAI)     ? _calculateNoReturn : calculateUniswapChai,
             !flags.check(FLAG_ENABLE_UNISWAP_AAVE)     ? _calculateNoReturn : calculateUniswapAave
@@ -1431,6 +1434,27 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             (destToken == usdc ? 2 : 0) +
             (destToken == usdt ? 3 : 0) +
             (destToken == susd ? 4 : 0);
+        if (i == 0 || j == 0) {
+            return 0;
+        }
+
+        return curveSynthetix.get_dy_underlying(i - 1, j - 1, amount);
+    }
+
+    function calculateCurvePax(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 /*flags*/
+    ) public view returns(uint256) {
+        int128 i = (fromToken == dai ? 1 : 0) +
+            (fromToken == usdc ? 2 : 0) +
+            (fromToken == usdt ? 3 : 0) +
+            (fromToken == pax ? 4 : 0);
+        int128 j = (destToken == dai ? 1 : 0) +
+            (destToken == usdc ? 2 : 0) +
+            (destToken == usdt ? 3 : 0) +
+            (destToken == pax ? 4 : 0);
         if (i == 0 || j == 0) {
             return 0;
         }
@@ -1821,6 +1845,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             _swapOnCurveY,
             _swapOnCurveBinance,
             _swapOnCurveSynthetix,
+            _swapOnCurvePax,
             _swapOnUniswapCompound,
             _swapOnUniswapChai,
             _swapOnUniswapAave
@@ -1951,6 +1976,27 @@ contract OneSplit is IOneSplit, OneSplitRoot {
 
         _infiniteApproveIfNeeded(fromToken, address(curveSynthetix));
         curveSynthetix.exchange_underlying(i - 1, j - 1, amount, 0);
+    }
+
+    function _swapOnCurvePax(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount
+    ) internal returns(uint256) {
+        int128 i = (fromToken == dai ? 1 : 0) +
+            (fromToken == usdc ? 2 : 0) +
+            (fromToken == usdt ? 3 : 0) +
+            (fromToken == pax ? 4 : 0);
+        int128 j = (destToken == dai ? 1 : 0) +
+            (destToken == usdc ? 2 : 0) +
+            (destToken == usdt ? 3 : 0) +
+            (destToken == pax ? 4 : 0);
+        if (i == 0 || j == 0) {
+            return 0;
+        }
+
+        _infiniteApproveIfNeeded(fromToken, address(curvePax));
+        curvePax.exchange_underlying(i - 1, j - 1, amount, 0);
     }
 
     function _swapOnUniswap(
@@ -2139,7 +2185,7 @@ contract OneSplitMultiPathView is OneSplitViewWrapBase {
                 ETH_ADDRESS,
                 amount,
                 parts,
-                flags | FLAG_DISABLE_BANCOR | FLAG_DISABLE_CURVE_COMPOUND | FLAG_DISABLE_CURVE_USDT | FLAG_DISABLE_CURVE_Y | FLAG_DISABLE_CURVE_BINANCE
+                flags | FLAG_DISABLE_BANCOR | FLAG_DISABLE_CURVE_COMPOUND | FLAG_DISABLE_CURVE_USDT | FLAG_DISABLE_CURVE_Y | FLAG_DISABLE_CURVE_BINANCE | FLAG_DISABLE_CURVE_PAX
             );
 
             uint256[] memory dist;
@@ -2148,7 +2194,7 @@ contract OneSplitMultiPathView is OneSplitViewWrapBase {
                 toToken,
                 returnAmount,
                 parts,
-                flags | FLAG_DISABLE_BANCOR | FLAG_DISABLE_CURVE_COMPOUND | FLAG_DISABLE_CURVE_USDT | FLAG_DISABLE_CURVE_Y | FLAG_DISABLE_CURVE_BINANCE
+                flags | FLAG_DISABLE_BANCOR | FLAG_DISABLE_CURVE_COMPOUND | FLAG_DISABLE_CURVE_USDT | FLAG_DISABLE_CURVE_Y | FLAG_DISABLE_CURVE_BINANCE | FLAG_DISABLE_CURVE_PAX
             );
             for (uint i = 0; i < distribution.length; i++) {
                 distribution[i] = distribution[i].add(dist[i] << 8);
