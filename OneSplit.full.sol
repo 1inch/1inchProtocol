@@ -131,6 +131,7 @@ contract IOneSplitConsts {
     uint256 public constant FLAG_ENABLE_UNISWAP_AAVE = 0x400000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
     uint256 public constant FLAG_DISABLE_IDLE = 0x800000;
     uint256 public constant FLAG_DISABLE_MOONISWAP = 0x1000000;
+    uint256 public constant FLAG_DISABLE_UNISWAP_V2_ALL = 0x1E000000;
     uint256 public constant FLAG_DISABLE_UNISWAP_V2 = 0x2000000;
     uint256 public constant FLAG_DISABLE_UNISWAP_V2_ETH = 0x4000000;
     uint256 public constant FLAG_DISABLE_UNISWAP_V2_DAI = 0x8000000;
@@ -2341,9 +2342,9 @@ contract OneSplit is IOneSplit, OneSplitRoot {
 
         fromTokenReal.universalTransfer(address(exchange), amount);
         if (uint256(address(fromTokenReal)) < uint256(address(toTokenReal))) {
-            exchange.swap(0, returnAmount, address(0), "");
+            exchange.swap(0, returnAmount, address(this), "");
         } else {
-            exchange.swap(returnAmount, 0, address(0), "");
+            exchange.swap(returnAmount, 0, address(this), "");
         }
 
         if (toToken.isETH()) {

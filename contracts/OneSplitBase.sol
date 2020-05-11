@@ -1299,9 +1299,9 @@ contract OneSplit is IOneSplit, OneSplitRoot {
 
         fromTokenReal.universalTransfer(address(exchange), amount);
         if (uint256(address(fromTokenReal)) < uint256(address(toTokenReal))) {
-            exchange.swap(0, returnAmount, address(0), "");
+            exchange.swap(0, returnAmount, address(this), "");
         } else {
-            exchange.swap(returnAmount, 0, address(0), "");
+            exchange.swap(returnAmount, 0, address(this), "");
         }
 
         if (toToken.isETH()) {
