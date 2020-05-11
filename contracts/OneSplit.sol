@@ -11,7 +11,10 @@ import "./OneSplitIearn.sol";
 import "./OneSplitIdle.sol";
 import "./OneSplitAave.sol";
 import "./OneSplitWeth.sol";
-//import "./OneSplitSmartToken.sol";
+import "./OneSplitBalancerPoolToken.sol";
+import "./OneSplitUniswapPoolToken.sol";
+import "./OneSplitCurveSusdPoolToken.sol";
+import "./OneSplitSmartToken.sol";
 
 
 contract OneSplitViewWrap is
@@ -24,8 +27,11 @@ contract OneSplitViewWrap is
     OneSplitCompoundView,
     OneSplitIearnView,
     OneSplitIdleView,
-    OneSplitWethView
-    //OneSplitSmartTokenView
+    OneSplitWethView,
+    OneSplitBalancerPoolTokenView,
+    OneSplitUniswapPoolTokenView,
+    OneSplitCurveSusdPoolTokenView
+    OneSplitSmartTokenView
 {
     IOneSplitView public oneSplitView;
 
@@ -95,8 +101,11 @@ contract OneSplitWrap is
     OneSplitCompound,
     OneSplitIearn,
     OneSplitIdle,
-    OneSplitWeth
-    //OneSplitSmartToken
+    OneSplitWeth,
+    OneSplitBalancerPoolToken,
+    OneSplitUniswapPoolToken,
+    OneSplitCurveSusdPoolToken
+    OneSplitSmartToken
 {
     IOneSplitView public oneSplitView;
     IOneSplit public oneSplit;
@@ -142,14 +151,19 @@ contract OneSplitWrap is
         uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
         uint256 flags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
     ) public payable {
-        fromToken.universalTransferFrom(msg.sender, address(this), amount);
+        if (msg.sender != address(this)) {
+            fromToken.universalTransferFrom(msg.sender, address(this), amount);
+        }
 
         _swap(fromToken, toToken, amount, distribution, flags);
 
         uint256 returnAmount = toToken.universalBalanceOf(address(this));
         require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
-        toToken.universalTransfer(msg.sender, returnAmount);
-        fromToken.universalTransfer(msg.sender, fromToken.universalBalanceOf(address(this)));
+
+        if (msg.sender != address(this)) {
+            toToken.universalTransfer(msg.sender, returnAmount);
+            fromToken.universalTransfer(msg.sender, fromToken.universalBalanceOf(address(this)));
+        }
     }
 
     function _swapFloor(
