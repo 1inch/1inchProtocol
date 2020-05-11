@@ -499,7 +499,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             return 0;
         }
 
-        return curveSynthetix.get_dy_underlying(i - 1, j - 1, amount);
+        return curvePax.get_dy_underlying(i - 1, j - 1, amount);
     }
 
     function calculateUniswapReturn(
