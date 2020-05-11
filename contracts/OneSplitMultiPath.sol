@@ -28,7 +28,7 @@ contract OneSplitMultiPathView is OneSplitViewWrapBase {
                 ETH_ADDRESS,
                 amount,
                 parts,
-                flags | FLAG_DISABLE_BANCOR | FLAG_DISABLE_CURVE_COMPOUND | FLAG_DISABLE_CURVE_USDT | FLAG_DISABLE_CURVE_Y | FLAG_DISABLE_CURVE_BINANCE
+                flags | FLAG_DISABLE_BANCOR | FLAG_DISABLE_CURVE_COMPOUND | FLAG_DISABLE_CURVE_USDT | FLAG_DISABLE_CURVE_Y | FLAG_DISABLE_CURVE_BINANCE | FLAG_DISABLE_CURVE_PAX
             );
 
             uint256[] memory dist;
@@ -37,7 +37,7 @@ contract OneSplitMultiPathView is OneSplitViewWrapBase {
                 toToken,
                 returnAmount,
                 parts,
-                flags | FLAG_DISABLE_BANCOR | FLAG_DISABLE_CURVE_COMPOUND | FLAG_DISABLE_CURVE_USDT | FLAG_DISABLE_CURVE_Y | FLAG_DISABLE_CURVE_BINANCE
+                flags | FLAG_DISABLE_BANCOR | FLAG_DISABLE_CURVE_COMPOUND | FLAG_DISABLE_CURVE_USDT | FLAG_DISABLE_CURVE_Y | FLAG_DISABLE_CURVE_BINANCE | FLAG_DISABLE_CURVE_PAX
             );
             for (uint i = 0; i < distribution.length; i++) {
                 distribution[i] = distribution[i].add(dist[i] << 8);
