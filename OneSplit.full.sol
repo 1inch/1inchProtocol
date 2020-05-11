@@ -130,6 +130,14 @@ contract IOneSplitConsts {
     uint256 public constant FLAG_ENABLE_UNISWAP_CHAI = 0x200000; // Works only when ETH<>DAI or FLAG_ENABLE_MULTI_PATH_ETH
     uint256 public constant FLAG_ENABLE_UNISWAP_AAVE = 0x400000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
     uint256 public constant FLAG_DISABLE_IDLE = 0x800000;
+    uint256 public constant FLAG_DISABLE_MOONISWAP = 0x1000000;
+    uint256 public constant FLAG_DISABLE_UNISWAP_V2_ALL = 0x1E000000;
+    uint256 public constant FLAG_DISABLE_UNISWAP_V2 = 0x2000000;
+    uint256 public constant FLAG_DISABLE_UNISWAP_V2_ETH = 0x4000000;
+    uint256 public constant FLAG_DISABLE_UNISWAP_V2_DAI = 0x8000000;
+    uint256 public constant FLAG_DISABLE_UNISWAP_V2_USDC = 0x10000000;
+    uint256 public constant FLAG_DISABLE_ALL_SPLIT_SOURCES = 0x20000000;
+    uint256 public constant FLAG_DISABLE_ALL_WRAP_SOURCES = 0x40000000;
 }
 
 
@@ -705,6 +713,38 @@ interface IAaveLendingPool {
     function deposit(IERC20 token, uint256 amount, uint16 refCode) external payable;
 }
 
+// File: contracts/interface/IMooniswap.sol
+
+pragma solidity ^0.5.0;
+
+
+
+interface IMooniswapRegistry {
+    function target() external view returns(IMooniswap);
+}
+
+
+interface IMooniswap {
+    function getReturn(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    )
+        external
+        view
+        returns(uint256 returnAmount);
+
+    function swap(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 minReturn
+    )
+        external
+        payable
+        returns(uint256 returnAmount);
+}
+
 // File: @openzeppelin/contracts/utils/Address.sol
 
 pragma solidity ^0.5.5;
@@ -957,6 +997,49 @@ library UniversalERC20 {
     }
 }
 
+// File: contracts/interface/IUniswapV2Exchange.sol
+
+pragma solidity ^0.5.0;
+
+
+
+
+
+interface IUniswapV2Exchange {
+    function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external;
+}
+
+
+library UniswapV2ExchangeLib {
+    using SafeMath for uint256;
+    using UniversalERC20 for IERC20;
+
+    function getReturn(
+        IUniswapV2Exchange exchange,
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint amountIn
+    ) internal view returns (uint256) {
+        uint256 reserveIn = fromToken.universalBalanceOf(address(exchange));
+        uint256 reserveOut = toToken.universalBalanceOf(address(exchange));
+
+        uint256 amountInWithFee = amountIn.mul(997);
+        uint256 numerator = amountInWithFee.mul(reserveOut);
+        uint256 denominator = reserveIn.mul(1000).add(amountInWithFee);
+        return (denominator == 0) ? 0 : numerator.div(denominator);
+    }
+}
+
+// File: contracts/interface/IUniswapV2Factory.sol
+
+pragma solidity ^0.5.0;
+
+
+
+interface IUniswapV2Factory {
+    function getPair(IERC20 tokenA, IERC20 tokenB) external view returns (IUniswapV2Exchange pair);
+}
+
 // File: contracts/OneSplitBase.sol
 
 pragma solidity ^0.5.0;
@@ -970,6 +1053,8 @@ pragma solidity ^0.5.0;
 
 
 //import "./interface/IBancorNetworkPathFinder.sol";
+
+
 
 
 
@@ -1013,9 +1098,10 @@ contract OneSplitRoot {
     using UniversalERC20 for IERC20;
     using UniversalERC20 for IWETH;
     using UniversalERC20 for IBancorEtherToken;
+    using UniswapV2ExchangeLib for IUniswapV2Exchange;
     using ChaiHelper for IChai;
 
-    uint256 constant public DEXES_COUNT = 12;
+    uint256 constant public DEXES_COUNT = 17;
     IERC20 constant public ETH_ADDRESS = IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
     IERC20 constant public dai = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
@@ -1025,7 +1111,7 @@ contract OneSplitRoot {
     IERC20 constant public tusd = IERC20(0x0000000000085d4780B73119b644AE5ecd22b376);
     IERC20 constant public busd = IERC20(0x4Fabb145d64652a948d72533023f6E7A623C7C53);
     IERC20 constant public susd = IERC20(0x57Ab1ec28D129707052df4dF418D58a2D46d5f51);
-    IWETH constant public wethToken = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+    IWETH constant public weth = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IBancorEtherToken constant public bancorEtherToken = IBancorEtherToken(0xc0829421C1d260BD3cB3E0F06cfE2D52db2cE315);
     IChai constant public chai = IChai(0x06AF07097C9Eeb7fD685c692751D5C66dB49c215);
 
@@ -1043,6 +1129,8 @@ contract OneSplitRoot {
     IAaveLendingPool constant public aave = IAaveLendingPool(0x398eC7346DcD622eDc5ae82352F02bE94C62d119);
     ICompound constant public compound = ICompound(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
     ICompoundEther constant public cETH = ICompoundEther(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
+    IMooniswapRegistry constant public mooniswapRegistry = IMooniswapRegistry(0x7079E8517594e5b21d2B9a0D17cb33F5FE2bca70);
+    IUniswapV2Factory constant public uniswapV2 = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
 
     function _buildBancorPath(
         IERC20 fromToken,
@@ -1281,19 +1369,25 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             return (amount, distribution);
         }
 
+        bool invert = flags.check(FLAG_DISABLE_ALL_SPLIT_SOURCES);
         function(IERC20,IERC20,uint256,uint256) view returns(uint256)[DEXES_COUNT] memory reserves = [
-            flags.check(FLAG_DISABLE_UNISWAP)          ? _calculateNoReturn : calculateUniswapReturn,
-            flags.check(FLAG_DISABLE_KYBER)            ? _calculateNoReturn : calculateKyberReturn,
-            flags.check(FLAG_DISABLE_BANCOR)           ? _calculateNoReturn : calculateBancorReturn,
-            flags.check(FLAG_DISABLE_OASIS)            ? _calculateNoReturn : calculateOasisReturn,
-            flags.check(FLAG_DISABLE_CURVE_COMPOUND)   ? _calculateNoReturn : calculateCurveCompound,
-            flags.check(FLAG_DISABLE_CURVE_USDT)       ? _calculateNoReturn : calculateCurveUsdt,
-            flags.check(FLAG_DISABLE_CURVE_Y)          ? _calculateNoReturn : calculateCurveY,
-            flags.check(FLAG_DISABLE_CURVE_BINANCE)    ? _calculateNoReturn : calculateCurveBinance,
-            flags.check(FLAG_DISABLE_CURVE_SYNTHETIX)  ? _calculateNoReturn : calculateCurveSynthetix,
-            !flags.check(FLAG_ENABLE_UNISWAP_COMPOUND) ? _calculateNoReturn : calculateUniswapCompound,
-            !flags.check(FLAG_ENABLE_UNISWAP_CHAI)     ? _calculateNoReturn : calculateUniswapChai,
-            !flags.check(FLAG_ENABLE_UNISWAP_AAVE)     ? _calculateNoReturn : calculateUniswapAave
+            invert != flags.check(FLAG_DISABLE_UNISWAP)          ? _calculateNoReturn : calculateUniswapReturn,
+            invert != flags.check(FLAG_DISABLE_KYBER)            ? _calculateNoReturn : calculateKyberReturn,
+            invert != flags.check(FLAG_DISABLE_BANCOR)           ? _calculateNoReturn : calculateBancorReturn,
+            invert != flags.check(FLAG_DISABLE_OASIS)            ? _calculateNoReturn : calculateOasisReturn,
+            invert != flags.check(FLAG_DISABLE_CURVE_COMPOUND)   ? _calculateNoReturn : calculateCurveCompound,
+            invert != flags.check(FLAG_DISABLE_CURVE_USDT)       ? _calculateNoReturn : calculateCurveUsdt,
+            invert != flags.check(FLAG_DISABLE_CURVE_Y)          ? _calculateNoReturn : calculateCurveY,
+            invert != flags.check(FLAG_DISABLE_CURVE_BINANCE)    ? _calculateNoReturn : calculateCurveBinance,
+            invert != flags.check(FLAG_DISABLE_CURVE_SYNTHETIX)  ? _calculateNoReturn : calculateCurveSynthetix,
+            (true) != flags.check(FLAG_ENABLE_UNISWAP_COMPOUND)  ? _calculateNoReturn : calculateUniswapCompound,
+            (true) != flags.check(FLAG_ENABLE_UNISWAP_CHAI)      ? _calculateNoReturn : calculateUniswapChai,
+            (true) != flags.check(FLAG_ENABLE_UNISWAP_AAVE)      ? _calculateNoReturn : calculateUniswapAave,
+            invert != flags.check(FLAG_DISABLE_MOONISWAP)        ? _calculateNoReturn : calculateMooniswap,
+            invert != flags.check(FLAG_DISABLE_UNISWAP_V2)       ? _calculateNoReturn : calculateUniswapV2,
+            invert != flags.check(FLAG_DISABLE_UNISWAP_V2_ETH)   ? _calculateNoReturn : calculateUniswapV2ETH,
+            invert != flags.check(FLAG_DISABLE_UNISWAP_V2_DAI)   ? _calculateNoReturn : calculateUniswapV2DAI,
+            invert != flags.check(FLAG_DISABLE_UNISWAP_V2_USDC)  ? _calculateNoReturn : calculateUniswapV2USDC
         ];
 
         uint256[DEXES_COUNT] memory rates;
@@ -1710,8 +1804,8 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         (bool success, bytes memory data) = address(oasisExchange).staticcall.gas(500000)(
             abi.encodeWithSelector(
                 oasisExchange.getBuyAmount.selector,
-                toToken.isETH() ? wethToken : toToken,
-                fromToken.isETH() ? wethToken : fromToken,
+                toToken.isETH() ? weth : toToken,
+                fromToken.isETH() ? weth : fromToken,
                 amount
             )
         );
@@ -1720,6 +1814,111 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         }
 
         return abi.decode(data, (uint256));
+    }
+
+    function calculateMooniswap(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 /*flags*/
+    ) public view returns(uint256) {
+        IMooniswap mooniswap = mooniswapRegistry.target();
+        (bool success, bytes memory data) = address(mooniswap).staticcall.gas(1000000)(
+            abi.encodeWithSelector(
+                mooniswap.getReturn.selector,
+                fromToken,
+                toToken,
+                amount
+            )
+        );
+        if (!success) {
+            return 0;
+        }
+
+        return abi.decode(data, (uint256));
+    }
+
+    function calculateUniswapV2(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 /*flags*/
+    ) public view returns(uint256) {
+        IERC20 fromTokenReal = fromToken.isETH() ? weth : fromToken;
+        IERC20 toTokenReal = toToken.isETH() ? weth : toToken;
+        IUniswapV2Exchange fromExchange = uniswapV2.getPair(fromTokenReal, toTokenReal);
+        if (fromExchange != IUniswapV2Exchange(0)) {
+            return fromExchange.getReturn(fromTokenReal, toTokenReal, amount);
+        }
+    }
+
+    function calculateUniswapV2ETH(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 flags
+    ) public view returns(uint256) {
+        if (fromToken.isETH() || fromToken == weth || toToken.isETH() || toToken == weth) {
+            return 0;
+        }
+        return calculateUniswapV2OverMidToken(
+            fromToken,
+            weth,
+            toToken,
+            amount,
+            flags
+        );
+    }
+
+    function calculateUniswapV2DAI(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 flags
+    ) public view returns(uint256) {
+        if (fromToken == dai || toToken == dai) {
+            return 0;
+        }
+        return calculateUniswapV2OverMidToken(
+            fromToken,
+            dai,
+            toToken,
+            amount,
+            flags
+        );
+    }
+
+    function calculateUniswapV2USDC(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 flags
+    ) public view returns(uint256) {
+        if (fromToken == usdc || toToken == usdc) {
+            return 0;
+        }
+        return calculateUniswapV2OverMidToken(
+            fromToken,
+            usdc,
+            toToken,
+            amount,
+            flags
+        );
+    }
+
+    function calculateUniswapV2OverMidToken(
+        IERC20 fromToken,
+        IERC20 midToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 flags
+    ) public view returns(uint256) {
+        return calculateUniswapV2(
+            midToken,
+            toToken,
+            calculateUniswapV2(fromToken, midToken, amount, flags),
+            flags
+        );
     }
 
     function _calculateNoReturn(
@@ -1823,7 +2022,12 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             _swapOnCurveSynthetix,
             _swapOnUniswapCompound,
             _swapOnUniswapChai,
-            _swapOnUniswapAave
+            _swapOnUniswapAave,
+            _swapOnMooniswap,
+            _swapOnUniswapV2,
+            _swapOnUniswapV2ETH,
+            _swapOnUniswapV2DAI,
+            _swapOnUniswapV2USDC
         ];
 
         require(distribution.length <= reserves.length, "OneSplit: Distribution array should not exceed reserves array size");
@@ -2043,6 +2247,21 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         return 0;
     }
 
+    function _swapOnMooniswap(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    ) internal returns(uint256) {
+        IMooniswap mooniswap = mooniswapRegistry.target();
+        _infiniteApproveIfNeeded(fromToken, address(mooniswap));
+        return mooniswap.swap.value(fromToken.isETH() ? amount : 0)(
+            fromToken,
+            toToken,
+            amount,
+            0
+        );
+    }
+
     function _swapOnKyber(
         IERC20 fromToken,
         IERC20 toToken,
@@ -2089,22 +2308,116 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         uint256 amount
     ) internal returns(uint256) {
         if (fromToken.isETH()) {
-            wethToken.deposit.value(amount)();
+            weth.deposit.value(amount)();
         }
 
-        _infiniteApproveIfNeeded(fromToken.isETH() ? wethToken : fromToken, address(oasisExchange));
+        _infiniteApproveIfNeeded(fromToken.isETH() ? weth : fromToken, address(oasisExchange));
         uint256 returnAmount = oasisExchange.sellAllAmount(
-            fromToken.isETH() ? wethToken : fromToken,
+            fromToken.isETH() ? weth : fromToken,
             amount,
-            toToken.isETH() ? wethToken : toToken,
+            toToken.isETH() ? weth : toToken,
             1
         );
 
         if (toToken.isETH()) {
-            wethToken.withdraw(wethToken.balanceOf(address(this)));
+            weth.withdraw(weth.balanceOf(address(this)));
         }
 
         return returnAmount;
+    }
+
+    function _swapOnUniswapV2Internal(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    ) internal returns(uint256 returnAmount) {
+        if (fromToken.isETH()) {
+            weth.deposit.value(amount)();
+        }
+
+        IERC20 fromTokenReal = fromToken.isETH() ? weth : fromToken;
+        IERC20 toTokenReal = toToken.isETH() ? weth : toToken;
+        IUniswapV2Exchange exchange = uniswapV2.getPair(fromTokenReal, toTokenReal);
+        returnAmount = exchange.getReturn(fromTokenReal, toTokenReal, amount);
+
+        fromTokenReal.universalTransfer(address(exchange), amount);
+        if (uint256(address(fromTokenReal)) < uint256(address(toTokenReal))) {
+            exchange.swap(0, returnAmount, address(this), "");
+        } else {
+            exchange.swap(returnAmount, 0, address(this), "");
+        }
+
+        if (toToken.isETH()) {
+            weth.withdraw(weth.balanceOf(address(this)));
+        }
+    }
+
+    function _swapOnUniswapV2OverMid(
+        IERC20 fromToken,
+        IERC20 midToken,
+        IERC20 toToken,
+        uint256 amount
+    ) internal returns(uint256) {
+        return _swapOnUniswapV2Internal(
+            midToken,
+            toToken,
+            _swapOnUniswapV2Internal(
+                fromToken,
+                midToken,
+                amount
+            )
+        );
+    }
+
+    function _swapOnUniswapV2(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    ) internal returns(uint256) {
+        return _swapOnUniswapV2Internal(
+            fromToken,
+            toToken,
+            amount
+        );
+    }
+
+    function _swapOnUniswapV2ETH(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    ) internal returns(uint256) {
+        return _swapOnUniswapV2OverMid(
+            fromToken,
+            weth,
+            toToken,
+            amount
+        );
+    }
+
+    function _swapOnUniswapV2DAI(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    ) internal returns(uint256) {
+        return _swapOnUniswapV2OverMid(
+            fromToken,
+            dai,
+            toToken,
+            amount
+        );
+    }
+
+    function _swapOnUniswapV2USDC(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    ) internal returns(uint256) {
+        return _swapOnUniswapV2OverMid(
+            fromToken,
+            usdc,
+            toToken,
+            amount
+        );
     }
 }
 
@@ -3672,11 +3985,11 @@ contract OneSplitWethView is OneSplitViewWrapBase {
         }
 
         if (!flags.check(FLAG_DISABLE_WETH)) {
-            if (fromToken == wethToken || fromToken == bancorEtherToken) {
+            if (fromToken == weth || fromToken == bancorEtherToken) {
                 return super.getExpectedReturn(ETH_ADDRESS, toToken, amount, parts, flags);
             }
 
-            if (toToken == wethToken || toToken == bancorEtherToken) {
+            if (toToken == weth || toToken == bancorEtherToken) {
                 return super.getExpectedReturn(fromToken, ETH_ADDRESS, amount, parts, flags);
             }
         }
@@ -3721,8 +4034,8 @@ contract OneSplitWeth is OneSplitBaseWrap {
         }
 
         if (!flags.check(FLAG_DISABLE_WETH)) {
-            if (fromToken == wethToken) {
-                wethToken.withdraw(wethToken.balanceOf(address(this)));
+            if (fromToken == weth) {
+                weth.withdraw(weth.balanceOf(address(this)));
                 super._swap(
                     ETH_ADDRESS,
                     toToken,
@@ -3745,7 +4058,7 @@ contract OneSplitWeth is OneSplitBaseWrap {
                 return;
             }
 
-            if (toToken == wethToken) {
+            if (toToken == weth) {
                 _wethSwap(
                     fromToken,
                     ETH_ADDRESS,
@@ -3753,7 +4066,7 @@ contract OneSplitWeth is OneSplitBaseWrap {
                     distribution,
                     flags
                 );
-                wethToken.deposit.value(address(this).balance)();
+                weth.deposit.value(address(this).balance)();
                 return;
             }
 
