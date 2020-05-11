@@ -5,7 +5,7 @@ import "./OneSplitBase.sol";
 
 
 contract OneSplitIearnBase {
-    function _yTokens() internal pure returns(IIearn[10] memory) {
+    function _yTokens() internal pure returns(IIearn[13] memory) {
         return [
             IIearn(0x16de59092dAE5CcF4A1E6439D611fd0653f0Bd01),
             IIearn(0x04Aa51bbcB46541455cCF1B8bef2ebc5d3787EC9),
@@ -17,8 +17,6 @@ contract OneSplitIearnBase {
             IIearn(0xC2cB1040220768554cf699b0d863A3cd4324ce32),
             IIearn(0xE6354ed5bC4b393a5Aad09f21c46E101e692d447),
             IIearn(0x26EA744E5B887E5205727f55dFBE8685e3b21951),
-
-            //ycTokens
             IIearn(0x99d1Fa417f94dcD62BfE781a1213c092a47041Bc),
             IIearn(0x9777d7E2b60bB01759D0E2f8be2095df444cb07E),
             IIearn(0x1bE5d71F2dA660BFdee8012dDc58D024448A0A59)
@@ -66,7 +64,7 @@ contract OneSplitIearnView is OneSplitViewWrapBase, OneSplitIearnBase {
             return (amount, new uint256[](DEXES_COUNT));
         }
 
-        IIearn[10] memory yTokens = _yTokens();
+        IIearn[13] memory yTokens = _yTokens();
 
         if (!flags.check(FLAG_DISABLE_IEARN)) {
             for (uint i = 0; i < yTokens.length; i++) {
@@ -142,7 +140,7 @@ contract OneSplitIearn is OneSplitBaseWrap, OneSplitIearnBase {
             return;
         }
 
-        IIearn[10] memory yTokens = _yTokens();
+        IIearn[13] memory yTokens = _yTokens();
 
         if (!flags.check(FLAG_DISABLE_IEARN)) {
             for (uint i = 0; i < yTokens.length; i++) {
