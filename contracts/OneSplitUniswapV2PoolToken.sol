@@ -14,11 +14,7 @@ contract OneSplitUniswapV2PoolTokenBase {
         (bool success, bytes memory data) = address(token).staticcall.gas(2000)(
             abi.encode(IUniswapV2Pair(address(token)).factory.selector)
         );
-        if (!success) {
-            return false;
-        }
-        bytes memory emptyBytes;
-        if (keccak256(data) == keccak256(emptyBytes)) {
+        if (!success || data.length == 0) {
             return false;
         }
         return abi.decode(data, (address)) == 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
@@ -343,10 +339,11 @@ contract OneSplitUniswapV2PoolToken is OneSplitBaseWrap, OneSplitUniswapV2PoolTo
                 dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
             }
 
-            super._swap(
+            this.swap(
                 details.tokens[i].token,
                 toToken,
                 amounts[i],
+                0,
                 dist,
                 flags
             );
@@ -360,16 +357,13 @@ contract OneSplitUniswapV2PoolToken is OneSplitBaseWrap, OneSplitUniswapV2PoolTo
         uint256[] memory distribution,
         uint256 flags
     ) private {
-        uint256[] memory dist = new uint256[](distribution.length);
-
-        distribution = new uint256[](DEXES_COUNT);
-
         PoolDetails memory details = _getPoolDetails(IUniswapV2Pair(address(poolToken)));
 
         // will overwritten to liquidity amounts
         uint256[2] memory amounts;
         amounts[0] = amount.div(2);
         amounts[1] = amount.sub(amounts[0]);
+        uint256[] memory dist = new uint256[](distribution.length);
         for (uint i = 0; i < 2; i++) {
 
             _infiniteApproveIfNeeded(details.tokens[i].token, address(uniswapPool));
@@ -382,10 +376,11 @@ contract OneSplitUniswapV2PoolToken is OneSplitBaseWrap, OneSplitUniswapV2PoolTo
                 dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
             }
 
-            super._swap(
+            this.swap(
                 fromToken,
                 details.tokens[i].token,
                 amounts[i],
+                0,
                 dist,
                 flags
             );
