@@ -78,7 +78,7 @@ contract OneSplitUniswapV2PoolTokenView is OneSplitViewWrapBase, OneSplitUniswap
                     uint256[] memory poolTokenFromDistribution
                 ) = _getExpectedReturnFromUniswapV2PoolToken(
                     fromToken,
-                    wethToken,
+                    weth,
                     amount,
                     parts,
                     FLAG_DISABLE_UNISWAP_V2_POOL_TOKEN
@@ -88,7 +88,7 @@ contract OneSplitUniswapV2PoolTokenView is OneSplitViewWrapBase, OneSplitUniswap
                     uint256 returnPoolTokenToAmount,
                     uint256[] memory poolTokenToDistribution
                 ) = _getExpectedReturnToUniswapV2PoolToken(
-                    wethToken,
+                    weth,
                     toToken,
                     returnWETHAmount,
                     parts,
@@ -253,11 +253,11 @@ contract OneSplitUniswapV2PoolToken is OneSplitBaseWrap, OneSplitUniswapV2PoolTo
                     dist[i] = distribution[i] & ((1 << 128) - 1);
                 }
 
-                uint256 wEthBalanceBefore = wethToken.balanceOf(address(this));
+                uint256 wEthBalanceBefore = weth.balanceOf(address(this));
 
                 _swapFromUniswapV2PoolToken(
                     fromToken,
-                    wethToken,
+                    weth,
                     amount,
                     dist,
                     FLAG_DISABLE_UNISWAP_V2_POOL_TOKEN
@@ -267,10 +267,10 @@ contract OneSplitUniswapV2PoolToken is OneSplitBaseWrap, OneSplitUniswapV2PoolTo
                     dist[i] = distribution[i] >> 128;
                 }
 
-                uint256 wEthBalanceAfter = wethToken.balanceOf(address(this));
+                uint256 wEthBalanceAfter = weth.balanceOf(address(this));
 
                 return _swapToUniswapV2PoolToken(
-                    wethToken,
+                    weth,
                     toToken,
                     wEthBalanceAfter.sub(wEthBalanceBefore),
                     dist,

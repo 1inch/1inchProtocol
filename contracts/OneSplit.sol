@@ -90,20 +90,6 @@ contract OneSplitViewWrap is
             flags
         );
     }
-
-    function _calculateBancorReturn(
-        IERC20 fromToken,
-        IERC20 toToken,
-        uint256 amount,
-        uint256 flags
-    ) public view returns(uint256) {
-        return oneSplitView._calculateBancorReturn(
-            fromToken,
-            toToken,
-            amount,
-            flags
-        );
-    }
 }
 
 
@@ -206,28 +192,6 @@ contract OneSplitWrap is
             switch success
                 // delegatecall returns 0 on error.
                 case 0 { revert(add(data, 32), returndatasize) }
-        }
-    }
-
-    function _swapOnBancorSafe(
-        IERC20 fromToken,
-        IERC20 toToken,
-        uint256 amount
-    ) external returns(uint256) {
-        (bool success, bytes memory data) = address(oneSplit).delegatecall(
-            abi.encodeWithSelector(
-                this._swapOnBancorSafe.selector,
-                fromToken,
-                toToken,
-                amount
-            )
-        );
-
-        assembly {
-            switch success
-                // delegatecall returns 0 on error.
-                case 0 { revert(add(data, 32), returndatasize) }
-                case 1 { return(add(data, 32), returndatasize) }
         }
     }
 }
