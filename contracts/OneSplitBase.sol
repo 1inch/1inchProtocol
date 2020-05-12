@@ -1001,7 +1001,6 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             _swapOnCurveY,
             _swapOnCurveBinance,
             _swapOnCurveSynthetix,
-            _swapOnCurvePax,
             _swapOnUniswapCompound,
             _swapOnUniswapChai,
             _swapOnUniswapAave,
@@ -1009,7 +1008,8 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             _swapOnUniswapV2,
             _swapOnUniswapV2ETH,
             _swapOnUniswapV2DAI,
-            _swapOnUniswapV2USDC
+            _swapOnUniswapV2USDC,
+            _swapOnCurvePax
         ];
 
         require(distribution.length <= reserves.length, "OneSplit: Distribution array should not exceed reserves array size");
