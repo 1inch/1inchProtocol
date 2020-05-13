@@ -13,12 +13,14 @@ contract OneSplitCurvePoolTokenBase {
     IERC20 constant curveCompoundToken = IERC20(0x845838DF265Dcd2c412A1Dc9e959c7d08537f8a2);
     IERC20 constant curveUsdtToken = IERC20(0x9fC689CCaDa600B6DF723D9E47D84d76664a1F23);
     IERC20 constant curveBinanceToken = IERC20(0x3B3Ac5386837Dc563660FB6a0937DFAa5924333B);
+    IERC20 constant curvePaxToken = IERC20(0xD905e2eaeBe188fc92179b6350807D8bd91Db0D8);
 
     ICurve constant curveSusd = ICurve(0xA5407eAE9Ba41422680e2e00537571bcC53efBfD);
     ICurve constant curveIearn = ICurve(0x45F783CCE6B7FF23B2ab2D70e416cdb7D6055f51);
     ICurve constant curveCompound = ICurve(0xA2B47E3D5c44877cca798226B7B8118F9BFb7A56);
     ICurve constant curveUsdt = ICurve(0x52EA46506B9CC5Ef470C5bf89f17Dc28bB35D85C);
     ICurve constant curveBinance = ICurve(0x79a8C46DeA5aDa233ABaFFD40F3A0A2B1e5A4F27);
+    ICurve constant curvePax = ICurve(0x06364f10B501e868329afBc005b3492902d6C763);
 
     struct CurveTokenInfo {
         IERC20 token;
@@ -45,7 +47,8 @@ contract OneSplitCurvePoolTokenBase {
             token == curveIearnToken ||
             token == curveCompoundToken ||
             token == curveUsdtToken ||
-            token == curveBinanceToken
+            token == curveBinanceToken ||
+            token == curvePaxToken
         ) {
             return true;
         }
@@ -83,6 +86,12 @@ contract OneSplitCurvePoolTokenBase {
 
         if (poolToken == curveBinanceToken) {
             curveInfo.curve = curveBinance;
+            curveInfo.tokenCount = 4;
+            return curveInfo;
+        }
+
+        if (poolToken == curvePaxToken) {
+            curveInfo.curve = curvePax;
             curveInfo.tokenCount = 4;
             return curveInfo;
         }
