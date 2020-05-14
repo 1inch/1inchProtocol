@@ -139,6 +139,7 @@ contract IOneSplitConsts {
     uint256 public constant FLAG_DISABLE_ALL_SPLIT_SOURCES = 0x20000000;
     uint256 public constant FLAG_DISABLE_ALL_WRAP_SOURCES = 0x40000000;
     uint256 public constant FLAG_DISABLE_CURVE_PAX = 0x80000000;
+    uint256 public constant FLAG_DISABLE_CURVE_BTC = 0x100000000;
 }
 
 
@@ -1102,7 +1103,7 @@ contract OneSplitRoot {
     using UniswapV2ExchangeLib for IUniswapV2Exchange;
     using ChaiHelper for IChai;
 
-    uint256 constant public DEXES_COUNT = 18;
+    uint256 constant public DEXES_COUNT = 19;
     IERC20 constant public ETH_ADDRESS = IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
     IERC20 constant public dai = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
@@ -1116,6 +1117,8 @@ contract OneSplitRoot {
     IWETH constant public weth = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IBancorEtherToken constant public bancorEtherToken = IBancorEtherToken(0xc0829421C1d260BD3cB3E0F06cfE2D52db2cE315);
     IChai constant public chai = IChai(0x06AF07097C9Eeb7fD685c692751D5C66dB49c215);
+    IERC20 constant public renbtc = IERC20(0xEB4C2781e4ebA804CE9a9803C67d0893436bB27D);
+    IERC20 constant public wbtc = IERC20(0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599);
 
     IKyberNetworkProxy constant public kyberNetworkProxy = IKyberNetworkProxy(0x818E6FECD516Ecc3849DAf6845e3EC868087B755);
     IUniswapFactory constant public uniswapFactory = IUniswapFactory(0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95);
@@ -1129,6 +1132,7 @@ contract OneSplitRoot {
     ICurve constant public curveBinance = ICurve(0x79a8C46DeA5aDa233ABaFFD40F3A0A2B1e5A4F27);
     ICurve constant public curveSynthetix = ICurve(0xA5407eAE9Ba41422680e2e00537571bcC53efBfD);
     ICurve constant public curvePax = ICurve(0x06364f10B501e868329afBc005b3492902d6C763);
+    ICurve constant public curveBtc = ICurve(0xB527C418c3EFf31a88a6818c7953014fF9Ec5A0B);
     IAaveLendingPool constant public aave = IAaveLendingPool(0x398eC7346DcD622eDc5ae82352F02bE94C62d119);
     ICompound constant public compound = ICompound(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
     ICompoundEther constant public cETH = ICompoundEther(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
@@ -1391,7 +1395,8 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             invert != flags.check(FLAG_DISABLE_UNISWAP_V2_ETH)   ? _calculateNoReturn : calculateUniswapV2ETH,
             invert != flags.check(FLAG_DISABLE_UNISWAP_V2_DAI)   ? _calculateNoReturn : calculateUniswapV2DAI,
             invert != flags.check(FLAG_DISABLE_UNISWAP_V2_USDC)  ? _calculateNoReturn : calculateUniswapV2USDC,
-            invert != flags.check(FLAG_DISABLE_CURVE_PAX)        ? _calculateNoReturn : calculateCurvePax
+            invert != flags.check(FLAG_DISABLE_CURVE_PAX)        ? _calculateNoReturn : calculateCurvePax,
+            invert != flags.check(FLAG_DISABLE_CURVE_BTC)        ? _calculateNoReturn : calculateCurveBtc
         ];
 
         uint256[DEXES_COUNT] memory rates;
@@ -1555,6 +1560,23 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         }
 
         return curvePax.get_dy_underlying(i - 1, j - 1, amount);
+    }
+
+    function calculateCurveBtc(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 /*flags*/
+    ) public view returns(uint256) {
+        int128 i = (fromToken == renbtc ? 1 : 0) +
+            (fromToken == wbtc ? 2 : 0);
+        int128 j = (destToken == renbtc ? 1 : 0) +
+            (destToken == wbtc ? 2 : 0);
+        if (i == 0 || j == 0) {
+            return 0;
+        }
+
+        return curveBtc.get_dy_underlying(i - 1, j - 1, amount);
     }
 
     function calculateUniswapReturn(
@@ -2053,7 +2075,8 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             _swapOnUniswapV2ETH,
             _swapOnUniswapV2DAI,
             _swapOnUniswapV2USDC,
-            _swapOnCurvePax
+            _swapOnCurvePax,
+            _swapOnCurveBtc
         ];
 
         require(distribution.length <= reserves.length, "OneSplit: Distribution array should not exceed reserves array size");
@@ -2202,6 +2225,23 @@ contract OneSplit is IOneSplit, OneSplitRoot {
 
         _infiniteApproveIfNeeded(fromToken, address(curvePax));
         curvePax.exchange_underlying(i - 1, j - 1, amount, 0);
+    }
+
+    function _swapOnCurveBtc(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount
+    ) internal returns(uint256) {
+        int128 i = (fromToken == renbtc ? 1 : 0) +
+            (fromToken == wbtc ? 2 : 0);
+        int128 j = (destToken == renbtc ? 1 : 0) +
+            (destToken == wbtc ? 2 : 0);
+        if (i == 0 || j == 0) {
+            return 0;
+        }
+
+        _infiniteApproveIfNeeded(fromToken, address(curveBtc));
+        curveBtc.exchange_underlying(i - 1, j - 1, amount, 0);
     }
 
     function _swapOnUniswap(

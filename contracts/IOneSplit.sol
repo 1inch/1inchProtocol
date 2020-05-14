@@ -58,6 +58,7 @@ contract IOneSplitConsts {
     uint256 public constant FLAG_DISABLE_ALL_SPLIT_SOURCES = 0x20000000;
     uint256 public constant FLAG_DISABLE_ALL_WRAP_SOURCES = 0x40000000;
     uint256 public constant FLAG_DISABLE_CURVE_PAX = 0x80000000;
+    uint256 public constant FLAG_DISABLE_CURVE_BTC = 0x100000000;
 }
 
 
