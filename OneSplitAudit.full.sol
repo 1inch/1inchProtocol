@@ -239,6 +239,15 @@ contract IOneSplitConsts {
     uint256 public constant FLAG_ENABLE_UNISWAP_CHAI = 0x200000; // Works only when ETH<>DAI or FLAG_ENABLE_MULTI_PATH_ETH
     uint256 public constant FLAG_ENABLE_UNISWAP_AAVE = 0x400000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
     uint256 public constant FLAG_DISABLE_IDLE = 0x800000;
+    uint256 public constant FLAG_DISABLE_MOONISWAP = 0x1000000;
+    uint256 public constant FLAG_DISABLE_UNISWAP_V2_ALL = 0x1E000000;
+    uint256 public constant FLAG_DISABLE_UNISWAP_V2 = 0x2000000;
+    uint256 public constant FLAG_DISABLE_UNISWAP_V2_ETH = 0x4000000;
+    uint256 public constant FLAG_DISABLE_UNISWAP_V2_DAI = 0x8000000;
+    uint256 public constant FLAG_DISABLE_UNISWAP_V2_USDC = 0x10000000;
+    uint256 public constant FLAG_DISABLE_ALL_SPLIT_SOURCES = 0x20000000;
+    uint256 public constant FLAG_DISABLE_ALL_WRAP_SOURCES = 0x40000000;
+    uint256 public constant FLAG_DISABLE_CURVE_PAX = 0x80000000;
 }
 
 
@@ -723,13 +732,13 @@ contract OneSplitAudit is IOneSplit, Ownable {
     /// @param parts (uint256) Number of pieces source volume could be splitted,
     /// works like granularity, higly affects gas usage. Should be called offchain,
     /// but could be called onchain if user swaps not his own funds, but this is still considered as not safe.
-    /// @param featureFlags (uint256) Flags for enabling and disabling some features, default 0
+    /// @param flags (uint256) Flags for enabling and disabling some features, default 0
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 featureFlags // See contants in IOneSplit.sol
+        uint256 flags // See contants in IOneSplit.sol
     )
         public
         view
@@ -743,7 +752,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
             toToken,
             amount,
             parts,
-            featureFlags
+            flags
         );
     }
 
@@ -753,17 +762,49 @@ contract OneSplitAudit is IOneSplit, Ownable {
     /// @param amount (uint256) Amount for `fromToken`
     /// @param minReturn (uint256) Minimum expected return, else revert
     /// @param distribution (uint256[]) Array of weights for volume distribution returned by `getExpectedReturn`
-    /// @param featureFlags (uint256) Flags for enabling and disabling some features, default 0
+    /// @param flags (uint256) Flags for enabling and disabling some features, default 0
     function swap(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 minReturn,
         uint256[] memory distribution,
-        uint256 featureFlags // See contants in IOneSplit.sol
+        uint256 flags // See contants in IOneSplit.sol
+    ) public payable {
+        swapWithReferral(
+            fromToken,
+            toToken,
+            amount,
+            minReturn,
+            distribution,
+            flags,
+            address(0),
+            0
+        );
+    }
+
+    /// @notice Swap `amount` of `fromToken` to `toToken`
+    /// @param fromToken (IERC20) Address of token or `address(0)` for Ether
+    /// @param toToken (IERC20) Address of token or `address(0)` for Ether
+    /// @param amount (uint256) Amount for `fromToken`
+    /// @param minReturn (uint256) Minimum expected return, else revert
+    /// @param distribution (uint256[]) Array of weights for volume distribution returned by `getExpectedReturn`
+    /// @param flags (uint256) Flags for enabling and disabling some features, default 0
+    /// @param referral (address) Address of referral
+    /// @param feePercent (uint256) Fees percents normalized to 1e18, limited to 0.03e18 (3%)
+    function swapWithReferral(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 minReturn,
+        uint256[] memory distribution,
+        uint256 flags, // See contants in IOneSplit.sol
+        address referral,
+        uint256 feePercent
     ) public payable {
         require(fromToken != toToken && amount > 0, "OneSplit: swap makes no sense");
         require((msg.value != 0) == fromToken.isETH(), "OneSplit: msg.value shoule be used only for ETH swap");
+        require(feePercent <= 0.03e18, "OneSplit: feePercent out of range");
 
         uint256 fromTokenBalanceBefore = fromToken.universalBalanceOf(address(this)).sub(msg.value);
         uint256 toTokenBalanceBefore = toToken.universalBalanceOf(address(this));
@@ -777,7 +818,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
             amount,
             minReturn,
             distribution,
-            featureFlags
+            flags
         );
 
         uint256 fromTokenBalanceAfter = fromToken.universalBalanceOf(address(this));
@@ -785,7 +826,8 @@ contract OneSplitAudit is IOneSplit, Ownable {
 
         uint256 returnAmount = toTokenBalanceAfter.sub(toTokenBalanceBefore);
         require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
-        toToken.universalTransfer(msg.sender, returnAmount);
+        toToken.universalTransfer(referral, returnAmount.mul(feePercent).div(1e18));
+        toToken.universalTransfer(msg.sender, returnAmount.sub(returnAmount.mul(feePercent).div(1e18)));
 
         if (fromTokenBalanceAfter > fromTokenBalanceBefore) {
             fromToken.universalTransfer(msg.sender, fromTokenBalanceAfter.sub(fromTokenBalanceBefore));
