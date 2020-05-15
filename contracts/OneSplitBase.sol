@@ -85,6 +85,7 @@ contract OneSplitRoot {
     ICurve constant public curveBinance = ICurve(0x79a8C46DeA5aDa233ABaFFD40F3A0A2B1e5A4F27);
     ICurve constant public curveSynthetix = ICurve(0xA5407eAE9Ba41422680e2e00537571bcC53efBfD);
     ICurve constant public curvePax = ICurve(0x06364f10B501e868329afBc005b3492902d6C763);
+    IShell constant public shell = IShell()
     IAaveLendingPool constant public aave = IAaveLendingPool(0x398eC7346DcD622eDc5ae82352F02bE94C62d119);
     ICompound constant public compound = ICompound(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
     ICompoundEther constant public cETH = ICompoundEther(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
@@ -347,7 +348,8 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             invert != flags.check(FLAG_DISABLE_UNISWAP_V2_ETH)   ? _calculateNoReturn : calculateUniswapV2ETH,
             invert != flags.check(FLAG_DISABLE_UNISWAP_V2_DAI)   ? _calculateNoReturn : calculateUniswapV2DAI,
             invert != flags.check(FLAG_DISABLE_UNISWAP_V2_USDC)  ? _calculateNoReturn : calculateUniswapV2USDC,
-            invert != flags.check(FLAG_DISABLE_CURVE_PAX)        ? _calculateNoReturn : calculateCurvePax
+            invert != flags.check(FLAG_DISABLE_CURVE_PAX)        ? _calculateNoReturn : calculateCurvePax,
+            invert != flags.check(FLAG_DISABLE_SHELL)            ? _calculateNoReturn : calculateShell
         ];
 
         uint256[DEXES_COUNT] memory rates;
@@ -511,6 +513,17 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         }
 
         return curvePax.get_dy_underlying(i - 1, j - 1, amount);
+    }
+
+    function calculateShell(
+        IERC20 originToken, // equivalent of "fromToken"
+        IERC20 destToken, // equivalent of "destToken"
+        uint256 amount,
+        uint256 /*flags*/
+    ) public view returns (uint256) {
+
+        return shell.viewOriginTrade(address(originToken), address(targetToken), amount);
+
     }
 
     function calculateUniswapReturn(
@@ -1009,7 +1022,8 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             _swapOnUniswapV2ETH,
             _swapOnUniswapV2DAI,
             _swapOnUniswapV2USDC,
-            _swapOnCurvePax
+            _swapOnCurvePax,
+            _swapOnShell
         ];
 
         require(distribution.length <= reserves.length, "OneSplit: Distribution array should not exceed reserves array size");
@@ -1158,6 +1172,23 @@ contract OneSplit is IOneSplit, OneSplitRoot {
 
         _infiniteApproveIfNeeded(fromToken, address(curvePax));
         curvePax.exchange_underlying(i - 1, j - 1, amount, 0);
+    }
+
+    function _swapOnShell(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount
+    ) internal returns (uint256) {
+
+        uint256 returnAmount = shell.swapByOrigin(
+            address(fromToken),
+            address(toToken),
+            amount,
+            0,
+            now + 50
+        );
+
+        return returnAmount;
     }
 
     function _swapOnUniswap(
