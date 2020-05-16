@@ -60,6 +60,10 @@ contract IOneSplitConsts {
     uint256 public constant FLAG_DISABLE_CURVE_PAX = 0x80000000;
     uint256 public constant FLAG_DISABLE_CURVE_RENBTC = 0x100000000;
     uint256 public constant FLAG_DISABLE_CURVE_TBTC = 0x200000000;
+    uint256 public constant FLAG_ENABLE_MULTI_PATH_USDT = 0x400000000; // Turned off by default
+    uint256 public constant FLAG_ENABLE_MULTI_PATH_WBTC = 0x800000000; // Turned off by default
+    uint256 public constant FLAG_ENABLE_MULTI_PATH_TBTC = 0x1000000000; // Turned off by default
+    uint256 public constant FLAG_ENABLE_MULTI_PATH_RENBTC = 0x2000000000; // Turned off by default
 }
 
 

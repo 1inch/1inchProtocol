@@ -89,7 +89,7 @@ contract OneSplitRoot {
     ICurve constant public curveBinance = ICurve(0x79a8C46DeA5aDa233ABaFFD40F3A0A2B1e5A4F27);
     ICurve constant public curveSynthetix = ICurve(0xA5407eAE9Ba41422680e2e00537571bcC53efBfD);
     ICurve constant public curvePax = ICurve(0x06364f10B501e868329afBc005b3492902d6C763);
-    ICurve constant public curveRetBtc = ICurve(0x8474c1236F0Bc23830A23a41aBB81B2764bA9f4F);
+    ICurve constant public curveRenBtc = ICurve(0x8474c1236F0Bc23830A23a41aBB81B2764bA9f4F);
     ICurve constant public curveTBtc = ICurve(0x9726e9314eF1b96E45f40056bEd61A088897313E);
     IAaveLendingPool constant public aave = IAaveLendingPool(0x398eC7346DcD622eDc5ae82352F02bE94C62d119);
     ICompound constant public compound = ICompound(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
@@ -354,7 +354,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             invert != flags.check(FLAG_DISABLE_UNISWAP_V2_DAI)   ? _calculateNoReturn : calculateUniswapV2DAI,
             invert != flags.check(FLAG_DISABLE_UNISWAP_V2_USDC)  ? _calculateNoReturn : calculateUniswapV2USDC,
             invert != flags.check(FLAG_DISABLE_CURVE_PAX)        ? _calculateNoReturn : calculateCurvePax,
-            invert != flags.check(FLAG_DISABLE_CURVE_RENBTC)     ? _calculateNoReturn : calculateCurveRetBtc,
+            invert != flags.check(FLAG_DISABLE_CURVE_RENBTC)     ? _calculateNoReturn : calculateCurveRenBtc,
             invert != flags.check(FLAG_DISABLE_CURVE_TBTC)       ? _calculateNoReturn : calculateCurveTBtc
         ];
 
@@ -521,7 +521,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return curvePax.get_dy_underlying(i - 1, j - 1, amount);
     }
 
-    function calculateCurveRetBtc(
+    function calculateCurveRenBtc(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
@@ -535,7 +535,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             return 0;
         }
 
-        return curveRetBtc.get_dy_underlying(i - 1, j - 1, amount);
+        return curveRenBtc.get_dy_underlying(i - 1, j - 1, amount);
     }
 
     function calculateCurveTBtc(
@@ -1054,7 +1054,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             _swapOnUniswapV2DAI,
             _swapOnUniswapV2USDC,
             _swapOnCurvePax,
-            _swapOnCurveRetBtc,
+            _swapOnCurveRenBtc,
             _swapOnCurveTBtc
         ];
 
@@ -1206,7 +1206,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         curvePax.exchange_underlying(i - 1, j - 1, amount, 0);
     }
 
-    function _swapOnCurveRetBtc(
+    function _swapOnCurveRenBtc(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount
@@ -1219,8 +1219,8 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             return 0;
         }
 
-        _infiniteApproveIfNeeded(fromToken, address(curveRetBtc));
-        curveRetBtc.exchange_underlying(i - 1, j - 1, amount, 0);
+        _infiniteApproveIfNeeded(fromToken, address(curveRenBtc));
+        curveRenBtc.exchange_underlying(i - 1, j - 1, amount, 0);
     }
 
     function _swapOnCurveTBtc(
