@@ -14,6 +14,8 @@ contract OneSplitCurvePoolTokenBase {
     IERC20 constant curveUsdtToken = IERC20(0x9fC689CCaDa600B6DF723D9E47D84d76664a1F23);
     IERC20 constant curveBinanceToken = IERC20(0x3B3Ac5386837Dc563660FB6a0937DFAa5924333B);
     IERC20 constant curvePaxToken = IERC20(0xD905e2eaeBe188fc92179b6350807D8bd91Db0D8);
+    IERC20 constant curveRenBtcToken = IERC20(0x7771F704490F9C0C3B06aFe8960dBB6c58CBC812);
+    IERC20 constant curveTBtcToken = IERC20(0x1f2a662FB513441f06b8dB91ebD9a1466462b275);
 
     ICurve constant curveSusd = ICurve(0xA5407eAE9Ba41422680e2e00537571bcC53efBfD);
     ICurve constant curveIearn = ICurve(0x45F783CCE6B7FF23B2ab2D70e416cdb7D6055f51);
@@ -21,6 +23,8 @@ contract OneSplitCurvePoolTokenBase {
     ICurve constant curveUsdt = ICurve(0x52EA46506B9CC5Ef470C5bf89f17Dc28bB35D85C);
     ICurve constant curveBinance = ICurve(0x79a8C46DeA5aDa233ABaFFD40F3A0A2B1e5A4F27);
     ICurve constant curvePax = ICurve(0x06364f10B501e868329afBc005b3492902d6C763);
+    ICurve constant curveRenBtc = ICurve(0x8474c1236F0Bc23830A23a41aBB81B2764bA9f4F);
+    ICurve constant curveTBtc = ICurve(0x9726e9314eF1b96E45f40056bEd61A088897313E);
 
     struct CurveTokenInfo {
         IERC20 token;
@@ -48,7 +52,9 @@ contract OneSplitCurvePoolTokenBase {
             token == curveCompoundToken ||
             token == curveUsdtToken ||
             token == curveBinanceToken ||
-            token == curvePaxToken
+            token == curvePaxToken ||
+            token == curveRenBtcToken ||
+            token == curveTBtcToken
         ) {
             return true;
         }
@@ -93,6 +99,18 @@ contract OneSplitCurvePoolTokenBase {
         if (poolToken == curvePaxToken) {
             curveInfo.curve = curvePax;
             curveInfo.tokenCount = 4;
+            return curveInfo;
+        }
+
+        if (poolToken == curveRenBtcToken) {
+            curveInfo.curve = curveRenBtc;
+            curveInfo.tokenCount = 2;
+            return curveInfo;
+        }
+
+        if (poolToken == curveTBtcToken) {
+            curveInfo.curve = curveTBtc;
+            curveInfo.tokenCount = 3;
             return curveInfo;
         }
 
