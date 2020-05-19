@@ -535,7 +535,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             return 0;
         }
 
-        return curveRenBtc.get_dy_underlying(i - 1, j - 1, amount);
+        return curveRenBtc.get_dy(i - 1, j - 1, amount);
     }
 
     function calculateCurveTBtc(
@@ -554,7 +554,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             return 0;
         }
 
-        return curveTBtc.get_dy_underlying(i - 1, j - 1, amount);
+        return curveTBtc.get_dy(i - 1, j - 1, amount);
     }
 
     function calculateUniswapReturn(
@@ -1220,7 +1220,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         }
 
         _infiniteApproveIfNeeded(fromToken, address(curveRenBtc));
-        curveRenBtc.exchange_underlying(i - 1, j - 1, amount, 0);
+        curveRenBtc.exchange(i - 1, j - 1, amount, 0);
     }
 
     function _swapOnCurveTBtc(
@@ -1239,7 +1239,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         }
 
         _infiniteApproveIfNeeded(fromToken, address(curveTBtc));
-        curveTBtc.exchange_underlying(i - 1, j - 1, amount, 0);
+        curveTBtc.exchange(i - 1, j - 1, amount, 0);
     }
 
     function _swapOnUniswap(
@@ -1317,7 +1317,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
     ) internal returns(uint256) {
         if (!fromToken.isETH()) {
             IAaveToken fromAave = _getAaveToken(fromToken);
-            _infiniteApproveIfNeeded(fromToken, address(fromAave));
+            _infiniteApproveIfNeeded(fromToken, aave.core());
             aave.deposit(fromToken, amount, 1101);
             return _swapOnUniswap(IERC20(fromAave), toToken, IERC20(fromAave).universalBalanceOf(address(this)));
         }

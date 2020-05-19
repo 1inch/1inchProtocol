@@ -133,7 +133,7 @@ contract OneSplitMultiPath is OneSplitBaseWrap, OneSplitMultiPathBase {
             super._swap(
                 midToken,
                 toToken,
-                address(this).balance,
+                midToken.universalBalanceOf(address(this)),
                 dist,
                 flags
             );
