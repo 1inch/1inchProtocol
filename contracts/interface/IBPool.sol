@@ -2,9 +2,11 @@ pragma solidity ^0.5.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+
 contract BConst {
     uint public constant EXIT_FEE = 0;
 }
+
 
 contract IBMath is BConst {
     function calcPoolOutGivenSingleIn(
@@ -18,6 +20,7 @@ contract IBMath is BConst {
         public
         pure returns (uint poolAmountOut);
 }
+
 
 contract IBPool is IERC20, IBMath {
     function joinPool(uint poolAmountOut, uint[] calldata maxAmountsIn) external;

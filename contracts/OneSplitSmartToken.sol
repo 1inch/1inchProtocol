@@ -6,6 +6,7 @@ import "./interface/ISmartTokenConverter.sol";
 import "./interface/ISmartTokenFormula.sol";
 import "./OneSplitBase.sol";
 
+
 contract OneSplitSmartTokenBase {
     using SafeMath for uint256;
 

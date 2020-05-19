@@ -1,14 +1,35 @@
 pragma solidity ^0.5.0;
 
 import "./OneSplitBase.sol";
-import "./interface/IUniswapV2Pool.sol";
+import "./interface/IUniswapV2Router.sol";
 import "./interface/IUniswapV2Pair.sol";
+
+
+library Math {
+    function min(uint x, uint y) internal pure returns (uint z) {
+        z = x < y ? x : y;
+    }
+
+    // babylonian method (https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Babylonian_method)
+    function sqrt(uint y) internal pure returns (uint z) {
+        if (y > 3) {
+            z = y;
+            uint x = y / 2 + 1;
+            while (x < z) {
+                z = x;
+                x = (y / x + x) / 2;
+            }
+        } else if (y != 0) {
+            z = 1;
+        }
+    }
+}
 
 
 contract OneSplitUniswapV2PoolTokenBase {
     using SafeMath for uint256;
 
-    IUniswapV2Pool constant uniswapPool = IUniswapV2Pool(0x3f6CDd93e4A1c2Df9934Cb90D09040CcFc155F93);
+    IUniswapV2Router constant uniswapRouter = IUniswapV2Router(0xf164fC0Ec4E93095b804a4795bBe1e041497b92a);
 
     function isLiquidityPool(IERC20 token) internal view returns (bool) {
         (bool success, bytes memory data) = address(token).staticcall.gas(2000)(
@@ -36,16 +57,30 @@ contract OneSplitUniswapV2PoolTokenBase {
         details.tokens[0] = TokenInfo({
             token: pair.token0(),
             reserve: reserve0
-        });
+            });
         details.tokens[1] = TokenInfo({
             token: pair.token1(),
             reserve: reserve1
-        });
+            });
 
         details.totalSupply = IERC20(address(pair)).totalSupply();
     }
 
+    function _calcRebalanceAmount(
+        uint256 leftover,
+        uint256 balanceOfLeftoverAsset,
+        uint256 secondAssetBalance
+    ) internal pure returns (uint256) {
+
+        return Math.sqrt(
+            3988000 * leftover * balanceOfLeftoverAsset +
+            3988009 * balanceOfLeftoverAsset * balanceOfLeftoverAsset -
+            9 * balanceOfLeftoverAsset * balanceOfLeftoverAsset / (secondAssetBalance - 1)
+        ) / 1994 - balanceOfLeftoverAsset * 1997 / 1994;
+    }
+
 }
+
 
 contract OneSplitUniswapV2PoolTokenView is OneSplitViewWrapBase, OneSplitUniswapV2PoolTokenBase {
 
@@ -149,6 +184,7 @@ contract OneSplitUniswapV2PoolTokenView is OneSplitViewWrapBase, OneSplitUniswap
         distribution = new uint256[](DEXES_COUNT);
 
         PoolDetails memory details = _getPoolDetails(IUniswapV2Pair(address(poolToken)));
+
         for (uint i = 0; i < 2; i++) {
 
             uint256 exchangeAmount = amount
@@ -195,18 +231,18 @@ contract OneSplitUniswapV2PoolTokenView is OneSplitViewWrapBase, OneSplitUniswap
 
         PoolDetails memory details = _getPoolDetails(IUniswapV2Pair(address(poolToken)));
 
+        // will overwritten to liquidity amounts
         uint256[2] memory amounts;
         amounts[0] = amount.div(2);
         amounts[1] = amount.sub(amounts[0]);
+        uint256[] memory dist = new uint256[](distribution.length);
         for (uint i = 0; i < 2; i++) {
 
             if (fromToken == details.tokens[i].token) {
-                uint256 liquidity = amounts[i].mul(details.totalSupply).div(details.tokens[i].reserve);
-                returnAmount = liquidity > returnAmount ? liquidity : returnAmount;
                 continue;
             }
 
-            (uint256 ret, uint256[] memory dist) = this.getExpectedReturn(
+            (amounts[i], dist) = this.getExpectedReturn(
                 fromToken,
                 details.tokens[i].token,
                 amounts[i],
@@ -214,13 +250,57 @@ contract OneSplitUniswapV2PoolTokenView is OneSplitViewWrapBase, OneSplitUniswap
                 flags
             );
 
-            uint256 liquidity = ret.mul(details.totalSupply).div(details.tokens[i].reserve);
-            returnAmount = liquidity > returnAmount ? liquidity : returnAmount;
-
             for (uint j = 0; j < distribution.length; j++) {
                 distribution[j] |= dist[j] << (i * 8);
             }
         }
+
+        uint256 possibleLiquidity0 = amounts[0].mul(details.totalSupply).div(details.tokens[0].reserve);
+        returnAmount = Math.min(
+            possibleLiquidity0,
+            amounts[1].mul(details.totalSupply).div(details.tokens[1].reserve)
+        );
+
+        uint256 leftoverIndex = possibleLiquidity0 > returnAmount ? 0 : 1;
+        IERC20[] memory path = new IERC20[](2);
+        path[0] = details.tokens[leftoverIndex].token;
+        path[1] = details.tokens[1 - leftoverIndex].token;
+
+        uint256 optimalAmount = amounts[1 - leftoverIndex].mul(
+            details.tokens[leftoverIndex].reserve
+        ).div(details.tokens[1 - leftoverIndex].reserve);
+
+        IERC20 _poolToken = poolToken; // stack too deep
+        uint256 exchangeAmount = _calcRebalanceAmount(
+            amounts[leftoverIndex].sub(optimalAmount),
+            path[0].balanceOf(address(_poolToken)).add(optimalAmount),
+            path[1].balanceOf(address(_poolToken)).add(amounts[1 - leftoverIndex])
+        );
+
+        (bool success, bytes memory data) = address(uniswapRouter).staticcall.gas(500000)(
+            abi.encodeWithSelector(
+                uniswapRouter.getAmountsOut.selector,
+                exchangeAmount,
+                path
+            )
+        );
+
+        if (!success) {
+            return (
+                returnAmount,
+                distribution
+            );
+        }
+
+        uint256[] memory amountsOutAfterSwap = abi.decode(data, (uint256[]));
+
+        uint256 _addedLiquidity = returnAmount; // stack too deep
+        PoolDetails memory _details = details; // stack too deep
+        returnAmount = _addedLiquidity.add(
+            amountsOutAfterSwap[1] // amountOut after swap
+                .mul(_details.totalSupply.add(_addedLiquidity))
+                .div(_details.tokens[leftoverIndex].reserve.sub(amountsOutAfterSwap[1]))
+        );
 
         return (
             returnAmount,
@@ -315,23 +395,27 @@ contract OneSplitUniswapV2PoolToken is OneSplitBaseWrap, OneSplitUniswapV2PoolTo
         uint256[] memory distribution,
         uint256 flags
     ) private {
-        _infiniteApproveIfNeeded(poolToken, address(uniswapPool));
+        _infiniteApproveIfNeeded(poolToken, address(uniswapRouter));
 
-        uint256[2] memory amounts = uniswapPool.removeLiquidity(
-            IUniswapV2Pair(address(poolToken)),
-                amount,
-                [
-                    uint256(0),
-                    uint256(0)
-                ]
+        IERC20 [2] memory tokens = [
+            IUniswapV2Pair(address(poolToken)).token0(),
+            IUniswapV2Pair(address(poolToken)).token1()
+        ];
+
+        uint256[2] memory amounts = uniswapRouter.removeLiquidity(
+            tokens[0],
+            tokens[1],
+            amount,
+            uint256(0),
+            uint256(0),
+            address(this),
+            now.add(1800)
         );
 
         uint256[] memory dist = new uint256[](distribution.length);
-
-        PoolDetails memory details = _getPoolDetails(IUniswapV2Pair(address(poolToken)));
         for (uint i = 0; i < 2; i++) {
 
-            if (toToken == details.tokens[i].token) {
+            if (toToken == tokens[i]) {
                 continue;
             }
 
@@ -340,7 +424,7 @@ contract OneSplitUniswapV2PoolToken is OneSplitBaseWrap, OneSplitUniswapV2PoolTo
             }
 
             this.swap(
-                details.tokens[i].token,
+                tokens[i],
                 toToken,
                 amounts[i],
                 0,
@@ -357,7 +441,10 @@ contract OneSplitUniswapV2PoolToken is OneSplitBaseWrap, OneSplitUniswapV2PoolTo
         uint256[] memory distribution,
         uint256 flags
     ) private {
-        PoolDetails memory details = _getPoolDetails(IUniswapV2Pair(address(poolToken)));
+        IERC20 [2] memory tokens = [
+            IUniswapV2Pair(address(poolToken)).token0(),
+            IUniswapV2Pair(address(poolToken)).token1()
+        ];
 
         // will overwritten to liquidity amounts
         uint256[2] memory amounts;
@@ -366,9 +453,9 @@ contract OneSplitUniswapV2PoolToken is OneSplitBaseWrap, OneSplitUniswapV2PoolTo
         uint256[] memory dist = new uint256[](distribution.length);
         for (uint i = 0; i < 2; i++) {
 
-            _infiniteApproveIfNeeded(details.tokens[i].token, address(uniswapPool));
+            _infiniteApproveIfNeeded(tokens[i], address(uniswapRouter));
 
-            if (fromToken == details.tokens[i].token) {
+            if (fromToken == tokens[i]) {
                 continue;
             }
 
@@ -378,23 +465,74 @@ contract OneSplitUniswapV2PoolToken is OneSplitBaseWrap, OneSplitUniswapV2PoolTo
 
             this.swap(
                 fromToken,
-                details.tokens[i].token,
+                tokens[i],
                 amounts[i],
                 0,
                 dist,
                 flags
             );
 
-            amounts[i] = details.tokens[i].token.universalBalanceOf(address(this));
+            amounts[i] = tokens[i].universalBalanceOf(address(this));
         }
 
-        uniswapPool.addLiquidity(IUniswapV2Pair(address(poolToken)), amounts, 0);
+        (uint256[2] memory redeemAmounts, ) = uniswapRouter.addLiquidity(
+            tokens[0],
+            tokens[1],
+            amounts[0],
+            amounts[1],
+            uint256(0),
+            uint256(0),
+            address(this),
+            now.add(1800)
+        );
 
-        for (uint i = 0; i < 2; i++) {
-            details.tokens[i].token.universalTransfer(
-                msg.sender,
-                details.tokens[i].token.universalBalanceOf(address(this))
-            );
+        if (
+            redeemAmounts[0] == amounts[0] &&
+            redeemAmounts[1] == amounts[1]
+        ) {
+            return;
         }
+
+        uint256 leftoverIndex = amounts[0] != redeemAmounts[0] ? 0 : 1;
+        IERC20[] memory path = new IERC20[](2);
+        path[0] = tokens[leftoverIndex];
+        path[1] = tokens[1 - leftoverIndex];
+
+        uint256 exchangeAmount = _calcRebalanceAmount(
+            amounts[leftoverIndex].sub(redeemAmounts[leftoverIndex]),
+            path[0].balanceOf(address(poolToken)),
+            path[1].balanceOf(address(poolToken))
+        );
+
+        (bool success, bytes memory data) = address(uniswapRouter).call.gas(1000000)(
+            abi.encodeWithSelector(
+                uniswapRouter.swapExactTokensForTokens.selector,
+                exchangeAmount,
+                uint256(0),
+                path,
+                address(this),
+                now.add(1800)
+            )
+        );
+
+        if (!success) {
+            return;
+        }
+
+        uint256[] memory amountsOut = abi.decode(data, (uint256[]));
+
+        address(uniswapRouter).call.gas(1000000)(
+            abi.encodeWithSelector(
+                uniswapRouter.addLiquidity.selector,
+                tokens[0],
+                tokens[1],
+                amountsOut[leftoverIndex],
+                amountsOut[1 - leftoverIndex],
+                uint256(0),
+                uint256(0),
+                address(this),
+                now.add(1800)
+            )
+        );
     }
 }

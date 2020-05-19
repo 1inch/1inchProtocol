@@ -50,6 +50,7 @@ contract OneSplitUniswapPoolTokenBase {
 
 }
 
+
 contract OneSplitUniswapPoolTokenView is OneSplitViewWrapBase, OneSplitUniswapPoolTokenBase {
 
     function getExpectedReturn(

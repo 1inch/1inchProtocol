@@ -42,6 +42,7 @@ contract OneSplitBalancerPoolTokenBase {
 
 }
 
+
 contract OneSplitBalancerPoolTokenView is OneSplitViewWrapBase, OneSplitBalancerPoolTokenBase {
 
     function getExpectedReturn(

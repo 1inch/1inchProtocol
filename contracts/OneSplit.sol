@@ -21,19 +21,19 @@ import "./OneSplitUniswapV2PoolToken.sol";
 contract OneSplitViewWrap is
     OneSplitViewWrapBase,
     OneSplitMultiPathView,
-    //OneSplitChaiView,
-    //OneSplitBdaiView,
-    //OneSplitAaveView,
-    //OneSplitFulcrumView,
+    OneSplitChaiView,
+    OneSplitBdaiView,
+    OneSplitAaveView,
+    OneSplitFulcrumView,
     OneSplitCompoundView,
     OneSplitIearnView,
-    //OneSplitIdleView,
+    OneSplitIdleView,
     OneSplitWethView,
     //OneSplitBalancerPoolTokenView,
     //OneSplitUniswapPoolTokenView,
-    OneSplitCurvePoolTokenView
+    //OneSplitCurvePoolTokenView
     //OneSplitSmartTokenView,
-    //OneSplitUniswapV2PoolTokenView
+    OneSplitUniswapV2PoolTokenView
 {
     IOneSplitView public oneSplitView;
 
@@ -95,20 +95,20 @@ contract OneSplitViewWrap is
 
 contract OneSplitWrap is
     OneSplitBaseWrap,
-    OneSplitMultiPath,
-    //OneSplitChai,
-    //OneSplitBdai,
-    //OneSplitAave,
-    //OneSplitFulcrum,
+    //OneSplitMultiPath,
+    OneSplitChai,
+    OneSplitBdai,
+    OneSplitAave,
+//  OneSplitFulcrum,
     OneSplitCompound,
     OneSplitIearn,
-    //OneSplitIdle,
+    OneSplitIdle,
     OneSplitWeth,
     //OneSplitBalancerPoolToken,
     //OneSplitUniswapPoolToken,
-    OneSplitCurvePoolToken
+    //OneSplitCurvePoolToken
     //OneSplitSmartToken,
-    //OneSplitUniswapV2PoolToken
+    OneSplitUniswapV2PoolToken
 {
     IOneSplitView public oneSplitView;
     IOneSplit public oneSplit;

@@ -320,7 +320,7 @@ contract OneSplitCurvePoolTokenView is OneSplitViewWrapBase, OneSplitCurvePoolTo
             )
         );
 
-        require(success, 'calc_token_amount failed');
+        require(success, "calc_token_amount failed");
 
         return (abi.decode(data, (uint256)), distribution);
     }
@@ -392,7 +392,7 @@ contract OneSplitCurvePoolToken is OneSplitBaseWrap, OneSplitCurvePoolTokenBase 
             )
         );
 
-        require(success, 'remove_liquidity failed');
+        require(success, "remove_liquidity failed");
 
         uint256[] memory dist = new uint256[](distribution.length);
         for (uint i = 0; i < curveInfo.tokenCount; i++) {
@@ -474,6 +474,6 @@ contract OneSplitCurvePoolToken is OneSplitBaseWrap, OneSplitCurvePoolTokenBase 
             )
         );
 
-        require(success, 'add_liquidity failed');
+        require(success, "add_liquidity failed");
     }
 }
