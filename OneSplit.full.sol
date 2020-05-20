@@ -6463,7 +6463,7 @@ contract OneSplitUniswapV2PoolTokenView is OneSplitViewWrapBase, OneSplitUniswap
 
         uint256 optimalAmount = amounts[1 - leftoverIndex].mul(
             details.tokens[leftoverIndex].reserve
-        ) / details.tokens[1 - leftoverIndex].reserve;
+        ).div(details.tokens[1 - leftoverIndex].reserve);
 
         IERC20 _poolToken = poolToken; // stack too deep
         uint256 exchangeAmount = _calcRebalanceAmount(
@@ -6472,7 +6472,7 @@ contract OneSplitUniswapV2PoolTokenView is OneSplitViewWrapBase, OneSplitUniswap
             path[1].balanceOf(address(_poolToken)).add(amounts[1 - leftoverIndex])
         );
 
-        (bool success, bytes memory data) = address(uniswapRouter).staticcall.gas(100000)(
+        (bool success, bytes memory data) = address(uniswapRouter).staticcall.gas(200000)(
             abi.encodeWithSelector(
                 uniswapRouter.getAmountsOut.selector,
                 exchangeAmount,
@@ -6494,7 +6494,7 @@ contract OneSplitUniswapV2PoolTokenView is OneSplitViewWrapBase, OneSplitUniswap
         returnAmount = _addedLiquidity.add(
             amountsOutAfterSwap[1] // amountOut after swap
                 .mul(_details.totalSupply.add(_addedLiquidity))
-                .div(_details.tokens[leftoverIndex].reserve.sub(amountsOutAfterSwap[1]))
+                .div(_details.tokens[1 - leftoverIndex].reserve.sub(amountsOutAfterSwap[1]))
         );
 
         return (
@@ -6681,7 +6681,10 @@ contract OneSplitUniswapV2PoolToken is OneSplitBaseWrap, OneSplitUniswapV2PoolTo
             now.add(1800)
         );
 
-        if (redeemAmounts[0] == amounts[0]) {
+        if (
+            redeemAmounts[0] == amounts[0] &&
+            redeemAmounts[1] == amounts[1]
+        ) {
             return;
         }
 
@@ -6690,10 +6693,12 @@ contract OneSplitUniswapV2PoolToken is OneSplitBaseWrap, OneSplitUniswapV2PoolTo
         path[0] = tokens[leftoverIndex];
         path[1] = tokens[1 - leftoverIndex];
 
+        address _poolToken = address(poolToken); // stack too deep
+        uint256 leftover = amounts[leftoverIndex].sub(redeemAmounts[leftoverIndex]);
         uint256 exchangeAmount = _calcRebalanceAmount(
-            amounts[leftoverIndex].sub(redeemAmounts[leftoverIndex]),
-            path[0].balanceOf(address(poolToken)),
-            path[1].balanceOf(address(poolToken))
+            leftover,
+            path[0].balanceOf(_poolToken),
+            path[1].balanceOf(_poolToken)
         );
 
         (bool success, bytes memory data) = address(uniswapRouter).call.gas(1000000)(
@@ -6718,8 +6723,12 @@ contract OneSplitUniswapV2PoolToken is OneSplitBaseWrap, OneSplitUniswapV2PoolTo
                 uniswapRouter.addLiquidity.selector,
                 tokens[0],
                 tokens[1],
-                amountsOut[leftoverIndex],
-                amountsOut[1 - leftoverIndex],
+                leftoverIndex == 0
+                    ? leftover.sub(amountsOut[0])
+                    : amountsOut[1],
+                leftoverIndex == 1
+                    ? leftover.sub(amountsOut[0])
+                    : amountsOut[1],
                 uint256(0),
                 uint256(0),
                 address(this),
