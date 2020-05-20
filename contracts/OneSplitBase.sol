@@ -20,6 +20,7 @@ import "./interface/ICompound.sol";
 import "./interface/IAaveToken.sol";
 import "./interface/IMooniswap.sol";
 import "./interface/IUniswapV2Factory.sol";
+import "./interface/IDForceSwap.sol";
 import "./IOneSplit.sol";
 import "./UniversalERC20.sol";
 
@@ -58,7 +59,7 @@ contract OneSplitRoot {
     using UniswapV2ExchangeLib for IUniswapV2Exchange;
     using ChaiHelper for IChai;
 
-    uint256 constant public DEXES_COUNT = 20;
+    uint256 constant public DEXES_COUNT = 21;
     IERC20 constant public ETH_ADDRESS = IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
     IERC20 constant public dai = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
@@ -96,6 +97,7 @@ contract OneSplitRoot {
     ICompoundEther constant public cETH = ICompoundEther(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
     IMooniswapRegistry constant public mooniswapRegistry = IMooniswapRegistry(0x7079E8517594e5b21d2B9a0D17cb33F5FE2bca70);
     IUniswapV2Factory constant public uniswapV2 = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
+    IDForceSwap constant public dforceSwap = IDForceSwap(0x03eF3f37856bD08eb47E2dE7ABc4Ddd2c19B60F2);
 
     function _buildBancorPath(
         IERC20 fromToken,
@@ -355,7 +357,8 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             invert != flags.check(FLAG_DISABLE_UNISWAP_V2_USDC)  ? _calculateNoReturn : calculateUniswapV2USDC,
             invert != flags.check(FLAG_DISABLE_CURVE_PAX)        ? _calculateNoReturn : calculateCurvePax,
             invert != flags.check(FLAG_DISABLE_CURVE_RENBTC)     ? _calculateNoReturn : calculateCurveRenBtc,
-            invert != flags.check(FLAG_DISABLE_CURVE_TBTC)       ? _calculateNoReturn : calculateCurveTBtc
+            invert != flags.check(FLAG_DISABLE_CURVE_TBTC)       ? _calculateNoReturn : calculateCurveTBtc,
+            invert != flags.check(FLAG_DISABLE_DFORCE_SWAP)      ? _calculateNoReturn : calculateDforceSwap
         ];
 
         uint256[DEXES_COUNT] memory rates;
@@ -555,6 +558,27 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         }
 
         return curveTBtc.get_dy(i - 1, j - 1, amount);
+    }
+
+    function calculateDforceSwap(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 /*flags*/
+    ) public view returns(uint256) {
+        (bool success, bytes memory data) = address(dforceSwap).staticcall(
+            abi.encodeWithSelector(
+                dforceSwap.getAmountByInput.selector,
+                fromToken,
+                destToken,
+                amount
+            )
+        );
+        if (!success || data.length == 0) {
+            return 0;
+        }
+
+        return abi.decode(data, (uint256));
     }
 
     function calculateUniswapReturn(
@@ -1055,7 +1079,8 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             _swapOnUniswapV2USDC,
             _swapOnCurvePax,
             _swapOnCurveRenBtc,
-            _swapOnCurveTBtc
+            _swapOnCurveTBtc,
+            _swapOnDforceSwap
         ];
 
         require(distribution.length <= reserves.length, "OneSplit: Distribution array should not exceed reserves array size");
@@ -1240,6 +1265,15 @@ contract OneSplit is IOneSplit, OneSplitRoot {
 
         _infiniteApproveIfNeeded(fromToken, address(curveTBtc));
         curveTBtc.exchange(i - 1, j - 1, amount, 0);
+    }
+
+    function _swapOnDforceSwap(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount
+    ) internal returns(uint256) {
+        _infiniteApproveIfNeeded(fromToken, address(dforceSwap));
+        dforceSwap.swap(fromToken, destToken, amount);
     }
 
     function _swapOnUniswap(
