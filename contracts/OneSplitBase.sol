@@ -85,7 +85,7 @@ contract OneSplitRoot {
     ICurve constant public curveBinance = ICurve(0x79a8C46DeA5aDa233ABaFFD40F3A0A2B1e5A4F27);
     ICurve constant public curveSynthetix = ICurve(0xA5407eAE9Ba41422680e2e00537571bcC53efBfD);
     ICurve constant public curvePax = ICurve(0x06364f10B501e868329afBc005b3492902d6C763);
-    IShell constant public shell = IShell()
+    IShell constant public shell = IShell(0xA8253a440Be331dC4a7395B73948cCa6F19Dc97D);
     IAaveLendingPool constant public aave = IAaveLendingPool(0x398eC7346DcD622eDc5ae82352F02bE94C62d119);
     ICompound constant public compound = ICompound(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
     ICompoundEther constant public cETH = ICompoundEther(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
