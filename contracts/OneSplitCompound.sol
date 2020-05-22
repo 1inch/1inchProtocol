@@ -78,7 +78,7 @@ contract OneSplitCompoundView is OneSplitViewWrapBase, OneSplitCompoundBase {
             return (amount, new uint256[](DEXES_COUNT));
         }
 
-        if (!flags.check(FLAG_DISABLE_COMPOUND)) {
+        if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_COMPOUND)) {
             IERC20 underlying = _getCompoundUnderlyingToken(fromToken);
             if (underlying != IERC20(-1)) {
                 uint256 compoundRate = ICompoundToken(address(fromToken)).exchangeRateStored();
@@ -149,7 +149,7 @@ contract OneSplitCompound is OneSplitBaseWrap, OneSplitCompoundBase {
             return;
         }
 
-        if (!flags.check(FLAG_DISABLE_COMPOUND)) {
+        if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_COMPOUND)) {
             IERC20 underlying = _getCompoundUnderlyingToken(fromToken);
             if (underlying != IERC20(-1)) {
                 ICompoundToken(address(fromToken)).redeem(amount);

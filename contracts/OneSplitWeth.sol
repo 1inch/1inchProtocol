@@ -46,7 +46,7 @@ contract OneSplitWethView is OneSplitViewWrapBase {
             return (amount, new uint256[](DEXES_COUNT));
         }
 
-        if (!flags.check(FLAG_DISABLE_WETH)) {
+        if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_WETH)) {
             if (fromToken == weth || fromToken == bancorEtherToken) {
                 return super.getExpectedReturn(ETH_ADDRESS, toToken, amount, parts, flags);
             }
@@ -95,7 +95,7 @@ contract OneSplitWeth is OneSplitBaseWrap {
             return;
         }
 
-        if (!flags.check(FLAG_DISABLE_WETH)) {
+        if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_WETH)) {
             if (fromToken == weth) {
                 weth.withdraw(weth.balanceOf(address(this)));
                 super._swap(

@@ -50,34 +50,36 @@ contract OneSplitIdleView is OneSplitViewWrapBase, OneSplitIdleBase {
             return (amount, new uint256[](DEXES_COUNT));
         }
 
-        IIdle[2] memory tokens = _idleTokens();
+        if (!flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == !flags.check(FLAG_DISABLE_IDLE)) {
+            IIdle[2] memory tokens = _idleTokens();
 
-        for (uint i = 0; i < tokens.length; i++) {
-            if (fromToken == IERC20(tokens[i])) {
-                return _idleGetExpectedReturn(
-                    tokens[i].token(),
-                    toToken,
-                    amount.mul(tokens[i].tokenPrice()).div(1e18),
-                    parts,
-                    flags
-                );
+            for (uint i = 0; i < tokens.length; i++) {
+                if (fromToken == IERC20(tokens[i])) {
+                    return _idleGetExpectedReturn(
+                        tokens[i].token(),
+                        toToken,
+                        amount.mul(tokens[i].tokenPrice()).div(1e18),
+                        parts,
+                        flags
+                    );
+                }
             }
-        }
 
-        for (uint i = 0; i < tokens.length; i++) {
-            if (toToken == IERC20(tokens[i])) {
-                (uint256 ret, uint256[] memory dist) = super.getExpectedReturn(
-                    fromToken,
-                    tokens[i].token(),
-                    amount,
-                    parts,
-                    flags
-                );
+            for (uint i = 0; i < tokens.length; i++) {
+                if (toToken == IERC20(tokens[i])) {
+                    (uint256 ret, uint256[] memory dist) = super.getExpectedReturn(
+                        fromToken,
+                        tokens[i].token(),
+                        amount,
+                        parts,
+                        flags
+                    );
 
-                return (
-                    ret.mul(1e18).div(tokens[i].tokenPrice()),
-                    dist
-                );
+                    return (
+                        ret.mul(1e18).div(tokens[i].tokenPrice()),
+                        dist
+                    );
+                }
             }
         }
 
@@ -129,24 +131,26 @@ contract OneSplitIdle is OneSplitBaseWrap, OneSplitIdleBase {
         uint256[] memory distribution,
         uint256 flags
     ) public payable {
-        IIdle[2] memory tokens = _idleTokens();
+        if (!flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == !flags.check(FLAG_DISABLE_IDLE)) {
+            IIdle[2] memory tokens = _idleTokens();
 
-        for (uint i = 0; i < tokens.length; i++) {
-            if (fromToken == IERC20(tokens[i])) {
-                IERC20 underlying = tokens[i].token();
-                uint256 minted = tokens[i].redeemIdleToken(amount, true, new uint256[](0));
-                _idleSwap(underlying, toToken, minted, distribution, flags);
-                return;
+            for (uint i = 0; i < tokens.length; i++) {
+                if (fromToken == IERC20(tokens[i])) {
+                    IERC20 underlying = tokens[i].token();
+                    uint256 minted = tokens[i].redeemIdleToken(amount, true, new uint256[](0));
+                    _idleSwap(underlying, toToken, minted, distribution, flags);
+                    return;
+                }
             }
-        }
 
-        for (uint i = 0; i < tokens.length; i++) {
-            if (toToken == IERC20(tokens[i])) {
-                IERC20 underlying = tokens[i].token();
-                super._swap(fromToken, underlying, amount, distribution, flags);
-                _infiniteApproveIfNeeded(underlying, address(tokens[i]));
-                tokens[i].mintIdleToken(underlying.balanceOf(address(this)), new uint256[](0));
-                return;
+            for (uint i = 0; i < tokens.length; i++) {
+                if (toToken == IERC20(tokens[i])) {
+                    IERC20 underlying = tokens[i].token();
+                    super._swap(fromToken, underlying, amount, distribution, flags);
+                    _infiniteApproveIfNeeded(underlying, address(tokens[i]));
+                    tokens[i].mintIdleToken(underlying.balanceOf(address(this)), new uint256[](0));
+                    return;
+                }
             }
         }
 

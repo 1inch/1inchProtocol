@@ -1,7 +1,7 @@
 pragma solidity ^0.5.0;
 
-interface IShell {
 
+interface IShell {
     function viewOriginTrade(
         address origin,
         address target,
@@ -15,5 +15,4 @@ interface IShell {
         uint256 minTargetAmount,
         uint256 deadline
     ) external returns (uint256);
-
 }

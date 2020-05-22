@@ -64,9 +64,9 @@ contract OneSplitIearnView is OneSplitViewWrapBase, OneSplitIearnBase {
             return (amount, new uint256[](DEXES_COUNT));
         }
 
-        IIearn[13] memory yTokens = _yTokens();
+        if (!flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == !flags.check(FLAG_DISABLE_IEARN)) {
+            IIearn[13] memory yTokens = _yTokens();
 
-        if (!flags.check(FLAG_DISABLE_IEARN)) {
             for (uint i = 0; i < yTokens.length; i++) {
                 if (fromToken == IERC20(yTokens[i])) {
                     return _iearnGetExpectedReturn(
@@ -140,9 +140,9 @@ contract OneSplitIearn is OneSplitBaseWrap, OneSplitIearnBase {
             return;
         }
 
-        IIearn[13] memory yTokens = _yTokens();
+        if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_IEARN)) {
+            IIearn[13] memory yTokens = _yTokens();
 
-        if (!flags.check(FLAG_DISABLE_IEARN)) {
             for (uint i = 0; i < yTokens.length; i++) {
                 if (fromToken == IERC20(yTokens[i])) {
                     IERC20 underlying = yTokens[i].token();
