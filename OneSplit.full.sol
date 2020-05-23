@@ -2350,6 +2350,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         IERC20 toToken,
         uint256 amount
     ) internal returns (uint256) {
+        _infiniteApproveIfNeeded(fromToken, address(shell));
         return shell.swapByOrigin(
             address(fromToken),
             address(toToken),
