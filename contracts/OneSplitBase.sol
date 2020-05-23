@@ -601,7 +601,13 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             return 0;
         }
 
-        return abi.decode(data, (uint256));
+        uint256 result = abi.decode(data, (uint256));
+        uint256 available = destToken.universalBalanceOf(address(dforceSwap));
+        if (result > available) {
+            return 0;
+        }
+
+        return result;
     }
 
     function calculateUniswapReturn(
