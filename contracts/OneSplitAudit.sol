@@ -5,6 +5,11 @@ import "./IOneSplit.sol";
 import "./UniversalERC20.sol";
 
 
+interface IFreeFromUpTo {
+    function freeFromUpTo(address from, uint256 value) external returns (uint256 freed);
+}
+
+
 //
 // Security assumptions:
 // 1. It is safe to have infinite approves of any tokens to this smart contract,
@@ -13,13 +18,27 @@ import "./UniversalERC20.sol";
 //    if returning amount will not reach `minReturn` value whole swap will be reverted.
 //
 contract OneSplitAudit is IOneSplit, Ownable {
-
     using SafeMath for uint256;
     using UniversalERC20 for IERC20;
+
+    IFreeFromUpTo public constant chi = IFreeFromUpTo(0x0000000000004946c0e9F43F4Dee607b0eF1fA1c);
+    IFreeFromUpTo public constant gst = IFreeFromUpTo(0x0000000000b3F879cb30FE243b4Dfee438691c04);
 
     IOneSplit public oneSplitImpl;
 
     event ImplementationUpdated(address indexed newImpl);
+
+    modifier makeGasDiscount(uint256 flags) {
+        uint256 gasStart = gasleft();
+        _;
+        uint256 gasSpent = 21000 + gasStart - gasleft() + 16 * msg.data.length;
+        if ((flags & FLAG_ENABLE_CHI_BURN) > 0) {
+            chi.freeFromUpTo(msg.sender, (gasSpent + 14154) / 41130);
+        }
+        else if ((flags & FLAG_ENABLE_GST2_BURN) > 0) {
+            gst.freeFromUpTo(msg.sender, (gasSpent + 14154) / 41130);
+        }
+    }
 
     constructor(IOneSplit impl) public {
         setNewImpl(impl);
@@ -111,7 +130,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
         uint256 flags, // See contants in IOneSplit.sol
         address referral,
         uint256 feePercent
-    ) public payable {
+    ) public payable makeGasDiscount(flags) {
         require(fromToken != toToken && amount > 0, "OneSplit: swap makes no sense");
         require((msg.value != 0) == fromToken.isETH(), "OneSplit: msg.value shoule be used only for ETH swap");
         require(feePercent <= 0.03e18, "OneSplit: feePercent out of range");
@@ -120,12 +139,13 @@ contract OneSplitAudit is IOneSplit, Ownable {
         uint256 toTokenBalanceBefore = toToken.universalBalanceOf(address(this));
 
         fromToken.universalTransferFromSenderToThis(amount);
-        fromToken.universalApprove(address(oneSplitImpl), amount);
+        uint256 confirmed = fromToken.universalBalanceOf(address(this)).sub(fromTokenBalanceBefore);
+        fromToken.universalApprove(address(oneSplitImpl), confirmed);
 
         oneSplitImpl.swap.value(msg.value)(
             fromToken,
             toToken,
-            amount,
+            confirmed,
             minReturn,
             distribution,
             flags

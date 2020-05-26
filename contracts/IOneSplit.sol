@@ -66,6 +66,8 @@ contract IOneSplitConsts {
     uint256 public constant FLAG_ENABLE_MULTI_PATH_RENBTC = 0x2000000000; // Turned off by default
     uint256 public constant FLAG_DISABLE_DFORCE_SWAP = 0x4000000000;
     uint256 public constant FLAG_DISABLE_SHELL = 0x8000000000;
+    uint256 public constant FLAG_ENABLE_CHI_BURN = 0x10000000000;
+    uint256 public constant FLAG_ENABLE_GST2_BURN = 0x20000000000;
 }
 
 

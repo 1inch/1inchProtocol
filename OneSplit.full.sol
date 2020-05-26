@@ -147,6 +147,8 @@ contract IOneSplitConsts {
     uint256 public constant FLAG_ENABLE_MULTI_PATH_RENBTC = 0x2000000000; // Turned off by default
     uint256 public constant FLAG_DISABLE_DFORCE_SWAP = 0x4000000000;
     uint256 public constant FLAG_DISABLE_SHELL = 0x8000000000;
+    uint256 public constant FLAG_ENABLE_CHI_BURN = 0x10000000000;
+    uint256 public constant FLAG_ENABLE_GST2_BURN = 0x20000000000;
 }
 
 
@@ -4452,8 +4454,8 @@ contract OneSplitWrap is
         uint256 flags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
     ) public payable {
         fromToken.universalTransferFrom(msg.sender, address(this), amount);
-
-        _swap(fromToken, toToken, amount, distribution, flags);
+        uint256 confirmed = fromToken.universalBalanceOf(address(this));
+        _swap(fromToken, toToken, confirmed, distribution, flags);
 
         uint256 returnAmount = toToken.universalBalanceOf(address(this));
         require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
