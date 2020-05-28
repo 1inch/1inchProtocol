@@ -22,7 +22,6 @@ contract OneSplitAudit is IOneSplit, Ownable {
     using UniversalERC20 for IERC20;
 
     IFreeFromUpTo public constant chi = IFreeFromUpTo(0x0000000000004946c0e9F43F4Dee607b0eF1fA1c);
-    IFreeFromUpTo public constant gst = IFreeFromUpTo(0x0000000000b3F879cb30FE243b4Dfee438691c04);
 
     IOneSplit public oneSplitImpl;
 
@@ -31,12 +30,9 @@ contract OneSplitAudit is IOneSplit, Ownable {
     modifier makeGasDiscount(uint256 flags) {
         uint256 gasStart = gasleft();
         _;
-        uint256 gasSpent = 21000 + gasStart - gasleft() + 16 * msg.data.length;
         if ((flags & FLAG_ENABLE_CHI_BURN) > 0) {
+            uint256 gasSpent = 21000 + gasStart - gasleft() + 16 * msg.data.length;
             chi.freeFromUpTo(msg.sender, (gasSpent + 14154) / 41130);
-        }
-        else if ((flags & FLAG_ENABLE_GST2_BURN) > 0) {
-            gst.freeFromUpTo(msg.sender, (gasSpent + 14154) / 41130);
         }
     }
 
