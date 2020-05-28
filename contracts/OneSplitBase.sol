@@ -74,7 +74,7 @@ contract OneSplitRoot {
     IWETH constant public weth = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IBancorEtherToken constant public bancorEtherToken = IBancorEtherToken(0xc0829421C1d260BD3cB3E0F06cfE2D52db2cE315);
     IChai constant public chai = IChai(0x06AF07097C9Eeb7fD685c692751D5C66dB49c215);
-    IERC20 constant public renbtc = IERC20(0xEB4C2781e4ebA804CE9a9803C67d0893436bB27D);
+    IERC20 constant public renbtc = IERC20(0x93054188d876f558f4a66B2EF1d97d16eDf0895B);
     IERC20 constant public wbtc = IERC20(0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599);
     IERC20 constant public tbtc = IERC20(0x1bBE271d15Bb64dF0bc6CD28Df9Ff322F2eBD847);
     IERC20 constant public hbtc = IERC20(0x0316EB71485b0Ab14103307bf65a021042c6d380);
