@@ -126,7 +126,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
         uint256 flags, // See contants in IOneSplit.sol
         address referral,
         uint256 feePercent
-    ) public payable makeGasDiscount(flags) {
+    ) public payable /*makeGasDiscount(flags)*/ {
         require(fromToken != toToken && amount > 0, "OneSplit: swap makes no sense");
         require((msg.value != 0) == fromToken.isETH(), "OneSplit: msg.value shoule be used only for ETH swap");
         require(feePercent <= 0.03e18, "OneSplit: feePercent out of range");
@@ -136,6 +136,9 @@ contract OneSplitAudit is IOneSplit, Ownable {
 
         fromToken.universalTransferFromSenderToThis(amount);
         uint256 confirmed = fromToken.universalBalanceOf(address(this)).sub(fromTokenBalanceBefore);
+        if (!fromToken.isETH() && fromToken.allowance(address(this), address(oneSplitImpl)) > 0) {
+            fromToken.universalApprove(address(oneSplitImpl), 0);
+        }
         fromToken.universalApprove(address(oneSplitImpl), confirmed);
 
         oneSplitImpl.swap.value(msg.value)(
@@ -155,8 +158,10 @@ contract OneSplitAudit is IOneSplit, Ownable {
         toToken.universalTransfer(referral, returnAmount.mul(feePercent).div(1e18));
         toToken.universalTransfer(msg.sender, returnAmount.sub(returnAmount.mul(feePercent).div(1e18)));
 
+        IERC20 _fromToken = fromToken;
+
         if (fromTokenBalanceAfter > fromTokenBalanceBefore) {
-            fromToken.universalTransfer(msg.sender, fromTokenBalanceAfter.sub(fromTokenBalanceBefore));
+            _fromToken.universalTransfer(msg.sender, fromTokenBalanceAfter.sub(fromTokenBalanceBefore));
         }
     }
 
