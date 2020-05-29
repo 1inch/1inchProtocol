@@ -1182,7 +1182,7 @@ contract OneSplitRoot {
     ICurve constant public curveBinance = ICurve(0x79a8C46DeA5aDa233ABaFFD40F3A0A2B1e5A4F27);
     ICurve constant public curveSynthetix = ICurve(0xA5407eAE9Ba41422680e2e00537571bcC53efBfD);
     ICurve constant public curvePax = ICurve(0x06364f10B501e868329afBc005b3492902d6C763);
-    ICurve constant public curveRenBtc = ICurve(0x8474c1236F0Bc23830A23a41aBB81B2764bA9f4F);
+    ICurve constant public curveRenBtc = ICurve(0x93054188d876f558f4a66B2EF1d97d16eDf0895B);
     ICurve constant public curveTBtc = ICurve(0x9726e9314eF1b96E45f40056bEd61A088897313E);
     IShell constant public shell = IShell(0xA8253a440Be331dC4a7395B73948cCa6F19Dc97D);
     IAaveLendingPool constant public aave = IAaveLendingPool(0x398eC7346DcD622eDc5ae82352F02bE94C62d119);
