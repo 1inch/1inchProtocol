@@ -531,10 +531,10 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         uint256 flags
     ) internal view returns(uint256[] memory rets) {
         return _calculateCurveSelector(
-            curveCompound,
-            curveCompound.get_dy_underlying.selector,
+            curve,
+            curve.get_dy_underlying.selector,
             tokens,
-            720_000,
+            gas,
             fromToken,
             destToken,
             amount,
@@ -556,10 +556,10 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         uint256 flags
     ) internal view returns(uint256[] memory rets) {
         return _calculateCurveSelector(
-            curveCompound,
-            curveCompound.get_dy.selector,
+            curve,
+            curve.get_dy.selector,
             tokens,
-            720_000,
+            gas,
             fromToken,
             destToken,
             amount,
@@ -823,7 +823,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return _interpolateValueWithGas(maxRet, parts, 160_000, toTokenEthPrice);
     }
 
-    function _calculateUniswapFormula(uint256 fromBalance, uint256 toBalance, uint256 amount) internal view returns(uint256) {
+    function _calculateUniswapFormula(uint256 fromBalance, uint256 toBalance, uint256 amount) internal pure returns(uint256) {
         return amount.mul(toBalance).mul(997).div(
             fromBalance.mul(1000).add(amount.mul(997))
         );
@@ -1204,7 +1204,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         uint256 amount,
         uint256 parts,
         uint256 toTokenEthPrice,
-        uint256 flags
+        uint256 /*flags*/
     ) public view returns(uint256[] memory rets) {
         IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
         address[] memory path = _buildBancorPath(fromToken, destToken);
@@ -1230,7 +1230,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         uint256 amount,
         uint256 parts,
         uint256 toTokenEthPrice,
-        uint256 flags
+        uint256 /*flags*/
     ) public view returns(uint256[] memory rets) {
         (bool success, bytes memory data) = address(oasisExchange).staticcall.gas(500000)(
             abi.encodeWithSelector(
@@ -1255,7 +1255,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         uint256 amount,
         uint256 parts,
         uint256 toTokenEthPrice,
-        uint256 flags
+        uint256 /*flags*/
     ) public view returns(uint256[] memory rets) {
         IMooniswap mooniswap = mooniswapRegistry.target();
         (bool success, bytes memory data) = address(mooniswap).staticcall.gas(1000000)(
@@ -1418,6 +1418,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         uint256 /*toTokenEthPrice*/,
         uint256 /*flags*/
     ) internal view returns(uint256[] memory rets) {
+        this;
         return new uint256[](parts);
     }
 }
