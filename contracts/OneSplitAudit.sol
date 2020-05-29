@@ -16,6 +16,8 @@ interface IFreeFromUpTo {
 //    since it could only call `transferFrom()` with first argument equal to msg.sender
 // 2. It is safe to call `swap()` with reliable `minReturn` argument,
 //    if returning amount will not reach `minReturn` value whole swap will be reverted.
+// 3. Additionally CHI tokens could be burned fromm caller if FLAG_ENABLE_CHI_BURN flag
+//    is presented: (flags & 0x10000000000) != 0
 //
 contract OneSplitAudit is IOneSplit, Ownable {
     using SafeMath for uint256;
@@ -27,12 +29,17 @@ contract OneSplitAudit is IOneSplit, Ownable {
 
     event ImplementationUpdated(address indexed newImpl);
 
+    // Helps to avoid "Stack too deep" in swap() method
+    uint256 private _gasStart;
+
     modifier makeGasDiscount(uint256 flags) {
-        uint256 gasStart = gasleft();
-        _;
         if ((flags & FLAG_ENABLE_CHI_BURN) > 0) {
-            uint256 gasSpent = 21000 + gasStart - gasleft() + 16 * msg.data.length;
+            _gasStart = gasleft();
+            _;
+            uint256 gasSpent = 21000 + _gasStart - gasleft() + 16 * msg.data.length;
             chi.freeFromUpTo(msg.sender, (gasSpent + 14154) / 41130);
+        } else {
+            _;
         }
     }
 
@@ -50,9 +57,9 @@ contract OneSplitAudit is IOneSplit, Ownable {
         emit ImplementationUpdated(address(impl));
     }
 
-    /// @notice Calculate expected returning amount of `toToken`
+    /// @notice Calculate expected returning amount of `destToken`
     /// @param fromToken (IERC20) Address of token or `address(0)` for Ether
-    /// @param toToken (IERC20) Address of token or `address(0)` for Ether
+    /// @param destToken (IERC20) Address of token or `address(0)` for Ether
     /// @param amount (uint256) Amount for `fromToken`
     /// @param parts (uint256) Number of pieces source volume could be splitted,
     /// works like granularity, higly affects gas usage. Should be called offchain,
@@ -60,7 +67,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
     /// @param flags (uint256) Flags for enabling and disabling some features, default 0
     function getExpectedReturn(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags // See contants in IOneSplit.sol
@@ -74,23 +81,23 @@ contract OneSplitAudit is IOneSplit, Ownable {
     {
         return oneSplitImpl.getExpectedReturn(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
             flags
         );
     }
 
-    /// @notice Swap `amount` of `fromToken` to `toToken`
+    /// @notice Swap `amount` of `fromToken` to `destToken`
     /// @param fromToken (IERC20) Address of token or `address(0)` for Ether
-    /// @param toToken (IERC20) Address of token or `address(0)` for Ether
+    /// @param destToken (IERC20) Address of token or `address(0)` for Ether
     /// @param amount (uint256) Amount for `fromToken`
     /// @param minReturn (uint256) Minimum expected return, else revert
     /// @param distribution (uint256[]) Array of weights for volume distribution returned by `getExpectedReturn`
     /// @param flags (uint256) Flags for enabling and disabling some features, default 0
     function swap(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 minReturn,
         uint256[] memory distribution,
@@ -98,7 +105,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
     ) public payable {
         swapWithReferral(
             fromToken,
-            toToken,
+            destToken,
             amount,
             minReturn,
             distribution,
@@ -108,9 +115,14 @@ contract OneSplitAudit is IOneSplit, Ownable {
         );
     }
 
-    /// @notice Swap `amount` of `fromToken` to `toToken`
+    struct Balances {
+        uint128 ofFromToken;
+        uint128 ofDestToken;
+    }
+
+    /// @notice Swap `amount` of `fromToken` to `destToken`
     /// @param fromToken (IERC20) Address of token or `address(0)` for Ether
-    /// @param toToken (IERC20) Address of token or `address(0)` for Ether
+    /// @param destToken (IERC20) Address of token or `address(0)` for Ether
     /// @param amount (uint256) Amount for `fromToken`
     /// @param minReturn (uint256) Minimum expected return, else revert
     /// @param distribution (uint256[]) Array of weights for volume distribution returned by `getExpectedReturn`
@@ -119,7 +131,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
     /// @param feePercent (uint256) Fees percents normalized to 1e18, limited to 0.03e18 (3%)
     function swapWithReferral(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 minReturn,
         uint256[] memory distribution,
@@ -127,36 +139,49 @@ contract OneSplitAudit is IOneSplit, Ownable {
         address referral,
         uint256 feePercent
     ) public payable makeGasDiscount(flags) {
-        require(fromToken != toToken && amount > 0, "OneSplit: swap makes no sense");
-        require((msg.value != 0) == fromToken.isETH(), "OneSplit: msg.value shoule be used only for ETH swap");
+        require(fromToken != destToken && amount > 0, "OneSplit: swap makes no sense");
+        require((msg.value != 0) == fromToken.isETH(), "OneSplit: msg.value should be used only for ETH swap");
         require(feePercent <= 0.03e18, "OneSplit: feePercent out of range");
 
-        uint256 fromTokenBalanceBefore = fromToken.universalBalanceOf(address(this)).sub(msg.value);
-        uint256 toTokenBalanceBefore = toToken.universalBalanceOf(address(this));
+        Balances memory beforeBalances = Balances({
+            ofFromToken: uint128(fromToken.universalBalanceOf(address(this)).sub(msg.value)),
+            ofDestToken: uint128(destToken.universalBalanceOf(address(this)))
+        });
 
+        // Transfer From
         fromToken.universalTransferFromSenderToThis(amount);
-        uint256 confirmed = fromToken.universalBalanceOf(address(this)).sub(fromTokenBalanceBefore);
+        uint256 confirmed = fromToken.universalBalanceOf(address(this)).sub(beforeBalances.ofFromToken);
+
+        // Approve
+        if (fromToken.allowance(address(this), address(oneSplitImpl)) > 0) {
+            fromToken.universalApprove(address(oneSplitImpl), 0);
+        }
         fromToken.universalApprove(address(oneSplitImpl), confirmed);
 
+        // Swap
         oneSplitImpl.swap.value(msg.value)(
             fromToken,
-            toToken,
+            destToken,
             confirmed,
             minReturn,
             distribution,
             flags
         );
 
-        uint256 fromTokenBalanceAfter = fromToken.universalBalanceOf(address(this));
-        uint256 toTokenBalanceAfter = toToken.universalBalanceOf(address(this));
+        Balances memory afterBalances = Balances({
+            ofFromToken: uint128(fromToken.universalBalanceOf(address(this))),
+            ofDestToken: uint128(destToken.universalBalanceOf(address(this)))
+        });
 
-        uint256 returnAmount = toTokenBalanceAfter.sub(toTokenBalanceBefore);
+        // Return
+        uint256 returnAmount = uint256(afterBalances.ofDestToken).sub(beforeBalances.ofDestToken);
         require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
-        toToken.universalTransfer(referral, returnAmount.mul(feePercent).div(1e18));
-        toToken.universalTransfer(msg.sender, returnAmount.sub(returnAmount.mul(feePercent).div(1e18)));
+        destToken.universalTransfer(referral, returnAmount.mul(feePercent).div(1e18));
+        destToken.universalTransfer(msg.sender, returnAmount.sub(returnAmount.mul(feePercent).div(1e18)));
 
-        if (fromTokenBalanceAfter > fromTokenBalanceBefore) {
-            fromToken.universalTransfer(msg.sender, fromTokenBalanceAfter.sub(fromTokenBalanceBefore));
+        // Return unswapped
+        if (afterBalances.ofFromToken > beforeBalances.ofFromToken) {
+            fromToken.universalTransfer(msg.sender, uint256(afterBalances.ofFromToken).sub(beforeBalances.ofFromToken));
         }
     }
 
