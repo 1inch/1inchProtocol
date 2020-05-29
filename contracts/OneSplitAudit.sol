@@ -38,6 +38,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
             _;
             uint256 gasSpent = 21000 + _gasStart - gasleft() + 16 * msg.data.length;
             chi.freeFromUpTo(msg.sender, (gasSpent + 14154) / 41130);
+            _gasStart = 0;
         } else {
             _;
         }

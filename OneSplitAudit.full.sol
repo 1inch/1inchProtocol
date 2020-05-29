@@ -715,6 +715,8 @@ interface IFreeFromUpTo {
 //    since it could only call `transferFrom()` with first argument equal to msg.sender
 // 2. It is safe to call `swap()` with reliable `minReturn` argument,
 //    if returning amount will not reach `minReturn` value whole swap will be reverted.
+// 3. Additionally CHI tokens could be burned fromm caller if FLAG_ENABLE_CHI_BURN flag
+//    is presented: (flags & 0x10000000000) != 0
 //
 contract OneSplitAudit is IOneSplit, Ownable {
     using SafeMath for uint256;
@@ -735,6 +737,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
             _;
             uint256 gasSpent = 21000 + _gasStart - gasleft() + 16 * msg.data.length;
             chi.freeFromUpTo(msg.sender, (gasSpent + 14154) / 41130);
+            _gasStart = 0;
         } else {
             _;
         }
@@ -845,13 +848,17 @@ contract OneSplitAudit is IOneSplit, Ownable {
             ofDestToken: uint128(destToken.universalBalanceOf(address(this)))
         });
 
+        // Transfer From
         fromToken.universalTransferFromSenderToThis(amount);
         uint256 confirmed = fromToken.universalBalanceOf(address(this)).sub(beforeBalances.ofFromToken);
+
+        // Approve
         if (fromToken.allowance(address(this), address(oneSplitImpl)) > 0) {
             fromToken.universalApprove(address(oneSplitImpl), 0);
         }
         fromToken.universalApprove(address(oneSplitImpl), confirmed);
 
+        // Swap
         oneSplitImpl.swap.value(msg.value)(
             fromToken,
             destToken,
@@ -866,11 +873,13 @@ contract OneSplitAudit is IOneSplit, Ownable {
             ofDestToken: uint128(destToken.universalBalanceOf(address(this)))
         });
 
+        // Return
         uint256 returnAmount = uint256(afterBalances.ofDestToken).sub(beforeBalances.ofDestToken);
         require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
         destToken.universalTransfer(referral, returnAmount.mul(feePercent).div(1e18));
         destToken.universalTransfer(msg.sender, returnAmount.sub(returnAmount.mul(feePercent).div(1e18)));
 
+        // Return unswapped
         if (afterBalances.ofFromToken > beforeBalances.ofFromToken) {
             fromToken.universalTransfer(msg.sender, uint256(afterBalances.ofFromToken).sub(beforeBalances.ofFromToken));
         }
