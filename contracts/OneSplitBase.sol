@@ -1083,9 +1083,9 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         uint256 /*minReturn*/,
         uint256[] memory distribution,
         uint256 /*flags*/  // See constants in IOneSplit.sol
-    ) public payable {
+    ) public payable returns(uint256 returnAmount) {
         if (fromToken == toToken) {
-            return;
+            return amount;
         }
 
         function(IERC20,IERC20,uint256) returns(uint256)[DEXES_COUNT] memory reserves = [
@@ -1139,6 +1139,8 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             remainingAmount -= swapAmount;
             reserves[i](fromToken, toToken, swapAmount);
         }
+
+        returnAmount = toToken.universalBalanceOf(address(this));
     }
 
     // Swap helpers

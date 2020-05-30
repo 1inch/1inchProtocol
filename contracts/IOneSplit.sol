@@ -92,5 +92,5 @@ contract IOneSplit is IOneSplitConsts {
         uint256 minReturn,
         uint256[] memory distribution,
         uint256 flags
-    ) public payable;
+    ) public payable returns(uint256 returnAmount);
 }

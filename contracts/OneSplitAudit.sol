@@ -29,18 +29,12 @@ contract OneSplitAudit is IOneSplit, Ownable {
 
     event ImplementationUpdated(address indexed newImpl);
 
-    // Helps to avoid "Stack too deep" in swap() method
-    uint256 private _gasStart;
-
     modifier makeGasDiscount(uint256 flags) {
+        uint256 gasStart = gasleft();
+        _;
         if ((flags & FLAG_ENABLE_CHI_BURN) > 0) {
-            _gasStart = gasleft();
-            _;
-            uint256 gasSpent = 21000 + _gasStart - gasleft() + 16 * msg.data.length;
+            uint256 gasSpent = 21000 + gasStart - gasleft() + 16 * msg.data.length;
             chi.freeFromUpTo(msg.sender, (gasSpent + 14154) / 41130);
-            _gasStart = 0;
-        } else {
-            _;
         }
     }
 
@@ -103,8 +97,8 @@ contract OneSplitAudit is IOneSplit, Ownable {
         uint256 minReturn,
         uint256[] memory distribution,
         uint256 flags // See contants in IOneSplit.sol
-    ) public payable {
-        swapWithReferral(
+    ) public payable returns(uint256 returnAmount) {
+        return swapWithReferral(
             fromToken,
             destToken,
             amount,
@@ -139,30 +133,32 @@ contract OneSplitAudit is IOneSplit, Ownable {
         uint256 flags, // See contants in IOneSplit.sol
         address referral,
         uint256 feePercent
-    ) public payable makeGasDiscount(flags) {
-        require(fromToken != destToken && amount > 0, "OneSplit: swap makes no sense");
-        require((msg.value != 0) == fromToken.isETH(), "OneSplit: msg.value should be used only for ETH swap");
+    ) public payable makeGasDiscount(flags) returns(uint256 returnAmount) {
+        fromToken; // Unused variable due "Stack too deep"
+        destToken; // Unused variable due "Stack too deep"
+        require(_fromToken(msg.data) != _destToken(msg.data) && amount > 0, "OneSplit: swap makes no sense");
+        require((msg.value != 0) == _fromToken(msg.data).isETH(), "OneSplit: msg.value should be used only for ETH swap");
         require(feePercent <= 0.03e18, "OneSplit: feePercent out of range");
 
         Balances memory beforeBalances = Balances({
-            ofFromToken: uint128(fromToken.universalBalanceOf(address(this)).sub(msg.value)),
-            ofDestToken: uint128(destToken.universalBalanceOf(address(this)))
+            ofFromToken: uint128(_fromToken(msg.data).universalBalanceOf(address(this)).sub(msg.value)),
+            ofDestToken: uint128(_destToken(msg.data).universalBalanceOf(address(this)))
         });
 
         // Transfer From
-        fromToken.universalTransferFromSenderToThis(amount);
-        uint256 confirmed = fromToken.universalBalanceOf(address(this)).sub(beforeBalances.ofFromToken);
+        _fromToken(msg.data).universalTransferFromSenderToThis(amount);
+        uint256 confirmed = _fromToken(msg.data).universalBalanceOf(address(this)).sub(beforeBalances.ofFromToken);
 
         // Approve
-        if (fromToken.allowance(address(this), address(oneSplitImpl)) > 0) {
-            fromToken.universalApprove(address(oneSplitImpl), 0);
+        if (_fromToken(msg.data).allowance(address(this), address(oneSplitImpl)) > 0) {
+            _fromToken(msg.data).universalApprove(address(oneSplitImpl), 0);
         }
-        fromToken.universalApprove(address(oneSplitImpl), confirmed);
+        _fromToken(msg.data).universalApprove(address(oneSplitImpl), confirmed);
 
         // Swap
         oneSplitImpl.swap.value(msg.value)(
-            fromToken,
-            destToken,
+            _fromToken(msg.data),
+            _destToken(msg.data),
             confirmed,
             minReturn,
             distribution,
@@ -170,23 +166,37 @@ contract OneSplitAudit is IOneSplit, Ownable {
         );
 
         Balances memory afterBalances = Balances({
-            ofFromToken: uint128(fromToken.universalBalanceOf(address(this))),
-            ofDestToken: uint128(destToken.universalBalanceOf(address(this)))
+            ofFromToken: uint128(_fromToken(msg.data).universalBalanceOf(address(this))),
+            ofDestToken: uint128(_destToken(msg.data).universalBalanceOf(address(this)))
         });
 
         // Return
-        uint256 returnAmount = uint256(afterBalances.ofDestToken).sub(beforeBalances.ofDestToken);
+        returnAmount = uint256(afterBalances.ofDestToken).sub(beforeBalances.ofDestToken);
         require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
-        destToken.universalTransfer(referral, returnAmount.mul(feePercent).div(1e18));
-        destToken.universalTransfer(msg.sender, returnAmount.sub(returnAmount.mul(feePercent).div(1e18)));
+        _destToken(msg.data).universalTransfer(referral, returnAmount.mul(feePercent).div(1e18));
+        _destToken(msg.data).universalTransfer(msg.sender, returnAmount.sub(returnAmount.mul(feePercent).div(1e18)));
 
-        // Return unswapped
+        // Return remainder
         if (afterBalances.ofFromToken > beforeBalances.ofFromToken) {
-            fromToken.universalTransfer(msg.sender, uint256(afterBalances.ofFromToken).sub(beforeBalances.ofFromToken));
+            _fromToken(msg.data).universalTransfer(msg.sender, uint256(afterBalances.ofFromToken).sub(beforeBalances.ofFromToken));
         }
     }
 
     function claimAsset(IERC20 asset, uint256 amount) public onlyOwner {
         asset.universalTransfer(msg.sender, amount);
+    }
+
+    // Helps to avoid "Stack too deep" in swap() method
+    function _fromToken(bytes memory data) internal pure returns(IERC20 token) {
+        assembly {
+            token := mload(add(data, 36))
+        }
+    }
+
+    // Helps to avoid "Stack too deep" in swap() method
+    function _destToken(bytes memory data) internal pure returns(IERC20 token) {
+        assembly {
+            token := mload(add(data, 68))
+        }
     }
 }

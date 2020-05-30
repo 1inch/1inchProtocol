@@ -173,7 +173,7 @@ contract IOneSplit is IOneSplitConsts {
         uint256 minReturn,
         uint256[] memory distribution,
         uint256 flags
-    ) public payable;
+    ) public payable returns(uint256 returnAmount);
 }
 
 // File: @openzeppelin/contracts/math/SafeMath.sol
@@ -2174,9 +2174,9 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         uint256 /*minReturn*/,
         uint256[] memory distribution,
         uint256 /*flags*/  // See constants in IOneSplit.sol
-    ) public payable {
+    ) public payable returns(uint256 returnAmount) {
         if (fromToken == toToken) {
-            return;
+            return amount;
         }
 
         function(IERC20,IERC20,uint256) returns(uint256)[DEXES_COUNT] memory reserves = [
@@ -2230,6 +2230,8 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             remainingAmount -= swapAmount;
             reserves[i](fromToken, toToken, swapAmount);
         }
+
+        returnAmount = toToken.universalBalanceOf(address(this));
     }
 
     // Swap helpers
@@ -4451,12 +4453,12 @@ contract OneSplitWrap is
         uint256 minReturn,
         uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
         uint256 flags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
-    ) public payable {
+    ) public payable returns(uint256 returnAmount) {
         fromToken.universalTransferFrom(msg.sender, address(this), amount);
         uint256 confirmed = fromToken.universalBalanceOf(address(this));
         _swap(fromToken, toToken, confirmed, distribution, flags);
 
-        uint256 returnAmount = toToken.universalBalanceOf(address(this));
+        returnAmount = toToken.universalBalanceOf(address(this));
         require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
         toToken.universalTransfer(msg.sender, returnAmount);
         fromToken.universalTransfer(msg.sender, fromToken.universalBalanceOf(address(this)));
