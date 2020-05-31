@@ -17,5 +17,5 @@ interface IAaveLendingPool {
 }
 
 interface IAaveCore {
-    function getReserves() external view returns (IERC20[] memory);
+    function getReserveATokenAddress(IERC20) external view returns(IAaveToken);
 }

@@ -17,7 +17,15 @@ contract AaveRegistry is IAaveRegistry {
     IAaveLendingPool constant public aave = IAaveLendingPool(0x398eC7346DcD622eDc5ae82352F02bE94C62d119);
     mapping(address => address) public cache;
 
-    function getUnderlyingToken(IAaveToken aaveToken) external returns(IERC20) {
+    function getWrapping(IERC20 token) external returns(IAaveToken) {
+        IAaveToken aaveToken = aave.core().getReserveATokenAddress(token);
+        if (aaveToken == IAaveToken(0)) {
+            return aaveToken(-1);
+        }
+        return aaveToken;
+    }
+
+    function getUnderlying(IAaveToken aaveToken) external returns(IERC20) {
         if (aaveToken == IAaveToken(0x3a3A65aAb0dd2A17E3F1947bA16138cd37d08c04)) { // ETH
             return IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
         }
