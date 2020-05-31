@@ -11,7 +11,11 @@ contract IAaveToken is IERC20 {
 
 
 interface IAaveLendingPool {
-    function core() external view returns (address);
+    function core() external view returns (IAaveCore);
 
     function deposit(IERC20 token, uint256 amount, uint16 refCode) external payable;
+}
+
+interface IAaveCore {
+    function getReserves() external view returns (IERC20[] memory);
 }

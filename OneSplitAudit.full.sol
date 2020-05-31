@@ -248,6 +248,15 @@ contract IOneSplitConsts {
     uint256 public constant FLAG_DISABLE_ALL_SPLIT_SOURCES = 0x20000000;
     uint256 public constant FLAG_DISABLE_ALL_WRAP_SOURCES = 0x40000000;
     uint256 public constant FLAG_DISABLE_CURVE_PAX = 0x80000000;
+    uint256 public constant FLAG_DISABLE_CURVE_RENBTC = 0x100000000;
+    uint256 public constant FLAG_DISABLE_CURVE_TBTC = 0x200000000;
+    uint256 public constant FLAG_ENABLE_MULTI_PATH_USDT = 0x400000000; // Turned off by default
+    uint256 public constant FLAG_ENABLE_MULTI_PATH_WBTC = 0x800000000; // Turned off by default
+    uint256 public constant FLAG_ENABLE_MULTI_PATH_TBTC = 0x1000000000; // Turned off by default
+    uint256 public constant FLAG_ENABLE_MULTI_PATH_RENBTC = 0x2000000000; // Turned off by default
+    uint256 public constant FLAG_DISABLE_DFORCE_SWAP = 0x4000000000;
+    uint256 public constant FLAG_DISABLE_SHELL = 0x8000000000;
+    uint256 public constant FLAG_ENABLE_CHI_BURN = 0x10000000000;
 }
 
 
@@ -695,6 +704,11 @@ pragma solidity ^0.5.0;
 
 
 
+interface IFreeFromUpTo {
+    function freeFromUpTo(address from, uint256 value) external returns (uint256 freed);
+}
+
+
 //
 // Security assumptions:
 // 1. It is safe to have infinite approves of any tokens to this smart contract,
@@ -703,13 +717,23 @@ pragma solidity ^0.5.0;
 //    if returning amount will not reach `minReturn` value whole swap will be reverted.
 //
 contract OneSplitAudit is IOneSplit, Ownable {
-
     using SafeMath for uint256;
     using UniversalERC20 for IERC20;
+
+    IFreeFromUpTo public constant chi = IFreeFromUpTo(0x0000000000004946c0e9F43F4Dee607b0eF1fA1c);
 
     IOneSplit public oneSplitImpl;
 
     event ImplementationUpdated(address indexed newImpl);
+
+    modifier makeGasDiscount(uint256 flags) {
+        uint256 gasStart = gasleft();
+        _;
+        if ((flags & FLAG_ENABLE_CHI_BURN) > 0) {
+            uint256 gasSpent = 21000 + gasStart - gasleft() + 16 * msg.data.length;
+            chi.freeFromUpTo(msg.sender, (gasSpent + 14154) / 41130);
+        }
+    }
 
     constructor(IOneSplit impl) public {
         setNewImpl(impl);
@@ -801,7 +825,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
         uint256 flags, // See contants in IOneSplit.sol
         address referral,
         uint256 feePercent
-    ) public payable {
+    ) public payable /*makeGasDiscount(flags)*/ {
         require(fromToken != toToken && amount > 0, "OneSplit: swap makes no sense");
         require((msg.value != 0) == fromToken.isETH(), "OneSplit: msg.value shoule be used only for ETH swap");
         require(feePercent <= 0.03e18, "OneSplit: feePercent out of range");
@@ -810,12 +834,16 @@ contract OneSplitAudit is IOneSplit, Ownable {
         uint256 toTokenBalanceBefore = toToken.universalBalanceOf(address(this));
 
         fromToken.universalTransferFromSenderToThis(amount);
-        fromToken.universalApprove(address(oneSplitImpl), amount);
+        uint256 confirmed = fromToken.universalBalanceOf(address(this)).sub(fromTokenBalanceBefore);
+        if (!fromToken.isETH() && fromToken.allowance(address(this), address(oneSplitImpl)) > 0) {
+            fromToken.universalApprove(address(oneSplitImpl), 0);
+        }
+        fromToken.universalApprove(address(oneSplitImpl), confirmed);
 
         oneSplitImpl.swap.value(msg.value)(
             fromToken,
             toToken,
-            amount,
+            confirmed,
             minReturn,
             distribution,
             flags
@@ -829,8 +857,10 @@ contract OneSplitAudit is IOneSplit, Ownable {
         toToken.universalTransfer(referral, returnAmount.mul(feePercent).div(1e18));
         toToken.universalTransfer(msg.sender, returnAmount.sub(returnAmount.mul(feePercent).div(1e18)));
 
+        IERC20 _fromToken = fromToken;
+
         if (fromTokenBalanceAfter > fromTokenBalanceBefore) {
-            fromToken.universalTransfer(msg.sender, fromTokenBalanceAfter.sub(fromTokenBalanceBefore));
+            _fromToken.universalTransfer(msg.sender, fromTokenBalanceAfter.sub(fromTokenBalanceBefore));
         }
     }
 
