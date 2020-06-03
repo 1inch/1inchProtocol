@@ -383,6 +383,9 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         );
     }
 
+    function log(uint256, uint256[] calldata) external view {
+    }
+
     function getExpectedReturnRespectingGas(
         IERC20 fromToken,
         IERC20 toToken,
@@ -412,6 +415,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             uint256 gas;
             (matrix[i], gas) = reserves[i](fromToken, toToken, amount, parts, flags);
             estimateGasAmount = estimateGasAmount.add(gas);
+            this.log(gas, matrix[i]);
 
             // Prepend zero
             uint256[] memory newLine = new uint256[](parts + 1);
@@ -819,7 +823,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
                 return (new uint256[](rets.length), 0);
             }
 
-            uint256 fromTokenBalance = fromToken.balanceOf(address(fromExchange));
+            uint256 fromTokenBalance = fromToken.universalBalanceOf(address(fromExchange));
             uint256 fromEtherBalance = address(fromExchange).balance;
 
             for (uint i = 0; i < rets.length; i++) {
@@ -834,7 +838,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             }
 
             uint256 toEtherBalance = address(toExchange).balance;
-            uint256 toTokenBalance = toToken.balanceOf(address(toExchange));
+            uint256 toTokenBalance = toToken.universalBalanceOf(address(toExchange));
 
             for (uint i = 0; i < rets.length; i++) {
                 rets[i] = _calculateUniswapFormula(toEtherBalance, toTokenBalance, rets[i]);
@@ -1001,7 +1005,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         (bool success, bytes memory data) = address(kyberNetworkProxy).staticcall.gas(2300)(abi.encodeWithSelector(
             kyberNetworkProxy.kyberNetworkContract.selector
         ));
-        if (!success) {
+        if (!success || data.length == 0) {
             return (0, 0);
         }
 
