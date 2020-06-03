@@ -148,7 +148,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
         uint256 confirmed = _fromToken().universalBalanceOf(address(this)).sub(beforeBalances.ofFromToken);
 
         // Approve if needed
-        if (_fromToken().allowance(address(this), address(oneSplitImpl)) < confirmed) {
+        if (!_fromToken().isETH() && _fromToken().allowance(address(this), address(oneSplitImpl)) < confirmed) {
             _fromToken().universalApprove(address(oneSplitImpl), confirmed);
         }
 
