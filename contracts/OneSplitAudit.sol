@@ -16,8 +16,8 @@ interface IFreeFromUpTo {
 //    since it could only call `transferFrom()` with first argument equal to msg.sender
 // 2. It is safe to call `swap()` with reliable `minReturn` argument,
 //    if returning amount will not reach `minReturn` value whole swap will be reverted.
-// 3. Additionally CHI tokens could be burned fromm caller if FLAG_ENABLE_CHI_BURN flag
-//    is presented: (flags & 0x10000000000) != 0
+// 3. Additionally CHI tokens could be burned from caller if FLAG_ENABLE_CHI_BURN flag
+//    is presented: (flags & 0x10000000000) != 0. Burned amount would refund up to 43% of gas fees.
 //
 contract OneSplitAudit is IOneSplit, Ownable {
     using SafeMath for uint256;
@@ -33,8 +33,8 @@ contract OneSplitAudit is IOneSplit, Ownable {
         uint256 gasStart = gasleft();
         _;
         if ((flags & FLAG_ENABLE_CHI_BURN) > 0) {
-            uint256 gasSpent = 21000 + gasStart - gasleft() + 16 * msg.data.length;
-            chi.freeFromUpTo(msg.sender, (gasSpent + 14154) / 41130);
+            uint256 gasSpent = 21000 + gasStart - gasleft() + 5 * msg.data.length;
+            chi.freeFromUpTo(msg.sender, (gasSpent + 14154) / 41947);
         }
     }
 
@@ -116,8 +116,8 @@ contract OneSplitAudit is IOneSplit, Ownable {
     }
 
     /// @notice Swap `amount` of `fromToken` to `destToken`
-    /// @param fromToken (IERC20) Address of token or `address(0)` for Ether
-    /// @param destToken (IERC20) Address of token or `address(0)` for Ether
+    /// param fromToken (IERC20) Address of token or `address(0)` for Ether
+    /// param destToken (IERC20) Address of token or `address(0)` for Ether
     /// @param amount (uint256) Amount for `fromToken`
     /// @param minReturn (uint256) Minimum expected return, else revert
     /// @param distribution (uint256[]) Array of weights for volume distribution returned by `getExpectedReturn`
@@ -125,8 +125,8 @@ contract OneSplitAudit is IOneSplit, Ownable {
     /// @param referral (address) Address of referral
     /// @param feePercent (uint256) Fees percents normalized to 1e18, limited to 0.03e18 (3%)
     function swapWithReferral(
-        IERC20 fromToken,
-        IERC20 destToken,
+        IERC20 /*fromToken*/,
+        IERC20 /*destToken*/,
         uint256 amount,
         uint256 minReturn,
         uint256[] memory distribution,
@@ -134,31 +134,28 @@ contract OneSplitAudit is IOneSplit, Ownable {
         address referral,
         uint256 feePercent
     ) public payable makeGasDiscount(flags) returns(uint256 returnAmount) {
-        fromToken; // Unused variable due "Stack too deep"
-        destToken; // Unused variable due "Stack too deep"
-        require(_fromToken(msg.data) != _destToken(msg.data) && amount > 0, "OneSplit: swap makes no sense");
-        require((msg.value != 0) == _fromToken(msg.data).isETH(), "OneSplit: msg.value should be used only for ETH swap");
+        require(_fromToken() != _destToken() && amount > 0, "OneSplit: swap makes no sense");
+        require((msg.value != 0) == _fromToken().isETH(), "OneSplit: msg.value should be used only for ETH swap");
         require(feePercent <= 0.03e18, "OneSplit: feePercent out of range");
 
         Balances memory beforeBalances = Balances({
-            ofFromToken: uint128(_fromToken(msg.data).universalBalanceOf(address(this)).sub(msg.value)),
-            ofDestToken: uint128(_destToken(msg.data).universalBalanceOf(address(this)))
+            ofFromToken: uint128(_fromToken().universalBalanceOf(address(this)).sub(msg.value)),
+            ofDestToken: uint128(_destToken().universalBalanceOf(address(this)))
         });
 
         // Transfer From
-        _fromToken(msg.data).universalTransferFromSenderToThis(amount);
-        uint256 confirmed = _fromToken(msg.data).universalBalanceOf(address(this)).sub(beforeBalances.ofFromToken);
+        _fromToken().universalTransferFromSenderToThis(amount);
+        uint256 confirmed = _fromToken().universalBalanceOf(address(this)).sub(beforeBalances.ofFromToken);
 
-        // Approve
-        if (_fromToken(msg.data).allowance(address(this), address(oneSplitImpl)) > 0) {
-            _fromToken(msg.data).universalApprove(address(oneSplitImpl), 0);
+        // Approve if needed
+        if (_fromToken().allowance(address(this), address(oneSplitImpl)) < confirmed) {
+            _fromToken().universalApprove(address(oneSplitImpl), confirmed);
         }
-        _fromToken(msg.data).universalApprove(address(oneSplitImpl), confirmed);
 
         // Swap
         oneSplitImpl.swap.value(msg.value)(
-            _fromToken(msg.data),
-            _destToken(msg.data),
+            _fromToken(),
+            _destToken(),
             confirmed,
             minReturn,
             distribution,
@@ -166,19 +163,19 @@ contract OneSplitAudit is IOneSplit, Ownable {
         );
 
         Balances memory afterBalances = Balances({
-            ofFromToken: uint128(_fromToken(msg.data).universalBalanceOf(address(this))),
-            ofDestToken: uint128(_destToken(msg.data).universalBalanceOf(address(this)))
+            ofFromToken: uint128(_fromToken().universalBalanceOf(address(this))),
+            ofDestToken: uint128(_destToken().universalBalanceOf(address(this)))
         });
 
         // Return
         returnAmount = uint256(afterBalances.ofDestToken).sub(beforeBalances.ofDestToken);
         require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
-        _destToken(msg.data).universalTransfer(referral, returnAmount.mul(feePercent).div(1e18));
-        _destToken(msg.data).universalTransfer(msg.sender, returnAmount.sub(returnAmount.mul(feePercent).div(1e18)));
+        _destToken().universalTransfer(referral, returnAmount.mul(feePercent).div(1e18));
+        _destToken().universalTransfer(msg.sender, returnAmount.sub(returnAmount.mul(feePercent).div(1e18)));
 
         // Return remainder
         if (afterBalances.ofFromToken > beforeBalances.ofFromToken) {
-            _fromToken(msg.data).universalTransfer(msg.sender, uint256(afterBalances.ofFromToken).sub(beforeBalances.ofFromToken));
+            _fromToken().universalTransfer(msg.sender, uint256(afterBalances.ofFromToken).sub(beforeBalances.ofFromToken));
         }
     }
 
@@ -187,16 +184,16 @@ contract OneSplitAudit is IOneSplit, Ownable {
     }
 
     // Helps to avoid "Stack too deep" in swap() method
-    function _fromToken(bytes memory data) internal pure returns(IERC20 token) {
+    function _fromToken() private pure returns(IERC20 token) {
         assembly {
-            token := mload(add(data, 36))
+            token := calldataload(4)
         }
     }
 
     // Helps to avoid "Stack too deep" in swap() method
-    function _destToken(bytes memory data) internal pure returns(IERC20 token) {
+    function _destToken() private pure returns(IERC20 token) {
         assembly {
-            token := mload(add(data, 68))
+            token := calldataload(36)
         }
     }
 }
