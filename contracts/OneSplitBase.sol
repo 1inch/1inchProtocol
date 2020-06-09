@@ -340,8 +340,8 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
                 parent[i][j] = j;
 
                 for (uint k = 1; k <= j; k++) {
-                    if (answer[i - 1][j - k].add(amounts[i][k]) > answer[i][j]) {
-                        answer[i][j] = answer[i - 1][j - k].add(amounts[i][k]);
+                    if (answer[i - 1][j - k] + amounts[i][k] > answer[i][j]) {
+                        answer[i][j] = answer[i - 1][j - k] + amounts[i][k];
                         parent[i][j] = j - k;
                     }
                 }
@@ -383,9 +383,6 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         );
     }
 
-    function log(uint256, uint256[] calldata) external view {
-    }
-
     function getExpectedReturnRespectingGas(
         IERC20 fromToken,
         IERC20 toToken,
@@ -415,21 +412,20 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             uint256 gas;
             (matrix[i], gas) = reserves[i](fromToken, toToken, amount, parts, flags);
             estimateGasAmount = estimateGasAmount.add(gas);
-            this.log(gas, matrix[i]);
 
             // Prepend zero
             uint256[] memory newLine = new uint256[](parts + 1);
-            for (uint j = parts; j > 0; i++) {
+            for (uint j = parts; j > 0; j--) {
                 newLine[j] = matrix[i][j - 1];
             }
             matrix[i] = newLine;
 
             // Substract gas from first part
             uint256 toGas = gas.mul(toTokenEthPrice).div(1e18);
-            if (matrix[i][0] > toGas) {
-                matrix[i][0] = matrix[i][0].sub(toGas);
+            if (matrix[i][1] > toGas) {
+                matrix[i][1] = matrix[i][1].sub(toGas);
             } else {
-                matrix[i][0] = 0;
+                matrix[i][1] = 0;
             }
         }
 
