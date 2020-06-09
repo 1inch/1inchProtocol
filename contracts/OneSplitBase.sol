@@ -318,6 +318,33 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
     function log(uint256) external view {
     }
 
+    function getExchangeName(uint256 i) public pure returns(string memory) {
+        return [
+            "Uniswap",
+            "Kyber",
+            "Bancor",
+            "Oasis",
+            "Curve Compound",
+            "Curve USDT",
+            "Curve Y",
+            "Curve Binance",
+            "CurveSynthetix",
+            "Uniswap Compound",
+            "Uniswap CHAI",
+            "Uniswap Aave",
+            "Mooniswap",
+            "Uniswap V2",
+            "Uniswap V2 (ETH)",
+            "Uniswap V2 (DAI)",
+            "Uniswap V2 (USDC)",
+            "Curve Pax",
+            "Curve RenBTC",
+            "Curve tBTC",
+            "Dforce XSwap",
+            "Shell"
+        ][i];
+    }
+
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
