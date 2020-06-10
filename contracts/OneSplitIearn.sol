@@ -26,23 +26,29 @@ contract OneSplitIearnBase {
 
 
 contract OneSplitIearnView is OneSplitViewWrapBase, OneSplitIearnBase {
-    function getExpectedReturn(
+    function getExpectedReturnRespectingGas(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 flags,
+        uint256 toTokenEthPriceTimesGasPrice
     )
         public
         view
-        returns (uint256 returnAmount, uint256[] memory distribution)
+        returns(
+            uint256 returnAmount,
+            uint256 estimateGasAmount,
+            uint256[] memory distribution
+        )
     {
         return _iearnGetExpectedReturn(
             fromToken,
             toToken,
             amount,
             parts,
-            flags
+            flags,
+            toTokenEthPriceTimesGasPrice
         );
     }
 
@@ -51,17 +57,19 @@ contract OneSplitIearnView is OneSplitViewWrapBase, OneSplitIearnBase {
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 flags,
+        uint256 toTokenEthPriceTimesGasPrice
     )
         private
         view
         returns(
             uint256 returnAmount,
+            uint256 estimateGasAmount,
             uint256[] memory distribution
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](DEXES_COUNT));
+            return (amount, 0, new uint256[](DEXES_COUNT));
         }
 
         if (!flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == !flags.check(FLAG_DISABLE_IEARN)) {
@@ -69,44 +77,49 @@ contract OneSplitIearnView is OneSplitViewWrapBase, OneSplitIearnBase {
 
             for (uint i = 0; i < yTokens.length; i++) {
                 if (fromToken == IERC20(yTokens[i])) {
-                    return _iearnGetExpectedReturn(
+                    (returnAmount, estimateGasAmount, distribution) = _iearnGetExpectedReturn(
                         yTokens[i].token(),
                         toToken,
                         amount
                             .mul(yTokens[i].calcPoolValueInToken())
                             .div(yTokens[i].totalSupply()),
                         parts,
-                        flags
+                        flags,
+                        toTokenEthPriceTimesGasPrice
                     );
+                    return (returnAmount, estimateGasAmount + 260_000, distribution);
                 }
             }
 
             for (uint i = 0; i < yTokens.length; i++) {
                 if (toToken == IERC20(yTokens[i])) {
-                    (uint256 ret, uint256[] memory dist) = super.getExpectedReturn(
+                    (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnRespectingGas(
                         fromToken,
                         yTokens[i].token(),
                         amount,
                         parts,
-                        flags
+                        flags,
+                        toTokenEthPriceTimesGasPrice
                     );
 
-                    return (
-                        ret
+                    return(
+                        returnAmount
                             .mul(yTokens[i].totalSupply())
                             .div(yTokens[i].calcPoolValueInToken()),
-                        dist
+                        estimateGasAmount + 743_000,
+                        distribution
                     );
                 }
             }
         }
 
-        return super.getExpectedReturn(
+        return super.getExpectedReturnRespectingGas(
             fromToken,
             toToken,
             amount,
             parts,
-            flags
+            flags,
+            toTokenEthPriceTimesGasPrice
         );
     }
 }

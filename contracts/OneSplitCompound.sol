@@ -37,17 +37,19 @@ contract OneSplitCompoundBase {
 
 
 contract OneSplitCompoundView is OneSplitViewWrapBase, OneSplitCompoundBase {
-    function getExpectedReturn(
+    function getExpectedReturnRespectingGas(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 flags,
+        uint256 toTokenEthPriceTimesGasPrice
     )
         public
         view
         returns(
             uint256 returnAmount,
+            uint256 estimateGasAmount,
             uint256[] memory distribution
         )
     {
@@ -56,7 +58,8 @@ contract OneSplitCompoundView is OneSplitViewWrapBase, OneSplitCompoundBase {
             toToken,
             amount,
             parts,
-            flags
+            flags,
+            toTokenEthPriceTimesGasPrice
         );
     }
 
@@ -65,57 +68,58 @@ contract OneSplitCompoundView is OneSplitViewWrapBase, OneSplitCompoundBase {
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 flags,
+        uint256 toTokenEthPriceTimesGasPrice
     )
         private
         view
         returns(
             uint256 returnAmount,
+            uint256 estimateGasAmount,
             uint256[] memory distribution
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](DEXES_COUNT));
+            return (amount, 0, new uint256[](DEXES_COUNT));
         }
 
         if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_COMPOUND)) {
             IERC20 underlying = _getCompoundUnderlyingToken(fromToken);
             if (underlying != IERC20(-1)) {
                 uint256 compoundRate = ICompoundToken(address(fromToken)).exchangeRateStored();
-
-                return _compoundGetExpectedReturn(
+                (returnAmount, estimateGasAmount, distribution) = _compoundGetExpectedReturn(
                     underlying,
                     toToken,
                     amount.mul(compoundRate).div(1e18),
                     parts,
-                    flags
+                    flags,
+                    toTokenEthPriceTimesGasPrice
                 );
+                return (returnAmount, estimateGasAmount + 295_000, distribution);
             }
 
             underlying = _getCompoundUnderlyingToken(toToken);
             if (underlying != IERC20(-1)) {
                 uint256 compoundRate = ICompoundToken(address(toToken)).exchangeRateStored();
-
-                (returnAmount, distribution) = super.getExpectedReturn(
+                (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnRespectingGas(
                     fromToken,
                     underlying,
                     amount,
                     parts,
-                    flags
+                    flags,
+                    toTokenEthPriceTimesGasPrice
                 );
-
-                returnAmount = returnAmount.mul(1e18).div(compoundRate);
-                return (returnAmount, distribution);
-
+                return (returnAmount.mul(1e18).div(compoundRate), estimateGasAmount + 430_000, distribution);
             }
         }
 
-        return super.getExpectedReturn(
+        return super.getExpectedReturnRespectingGas(
             fromToken,
             toToken,
             amount,
             parts,
-            flags
+            flags,
+            toTokenEthPriceTimesGasPrice
         );
     }
 }

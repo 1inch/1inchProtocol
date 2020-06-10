@@ -11,49 +11,59 @@ contract OneSplitBdaiBase {
 
 
 contract OneSplitBdaiView is OneSplitViewWrapBase, OneSplitBdaiBase {
-    function getExpectedReturn(
+    function getExpectedReturnRespectingGas(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 flags,
+        uint256 toTokenEthPriceTimesGasPrice
     )
         public
         view
-        returns (uint256 returnAmount, uint256[] memory distribution)
+        returns(
+            uint256 returnAmount,
+            uint256 estimateGasAmount,
+            uint256[] memory distribution
+        )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](DEXES_COUNT));
+            return (amount, 0, new uint256[](DEXES_COUNT));
         }
 
         if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_BDAI)) {
             if (fromToken == IERC20(bdai)) {
-                return super.getExpectedReturn(
+                (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnRespectingGas(
                     dai,
                     toToken,
                     amount,
                     parts,
-                    flags
+                    flags,
+                    toTokenEthPriceTimesGasPrice
                 );
+                return (returnAmount, estimateGasAmount + 227_000, distribution);
             }
 
             if (toToken == IERC20(bdai)) {
-                return super.getExpectedReturn(
+                (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnRespectingGas(
                     fromToken,
                     dai,
                     amount,
                     parts,
-                    flags
+                    flags,
+                    toTokenEthPriceTimesGasPrice
                 );
+                return (returnAmount, estimateGasAmount + 295_000, distribution);
             }
         }
 
-        return super.getExpectedReturn(
+        return super.getExpectedReturnRespectingGas(
             fromToken,
             toToken,
             amount,
             parts,
-            flags
+            flags,
+            toTokenEthPriceTimesGasPrice
         );
     }
 }

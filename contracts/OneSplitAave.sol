@@ -65,17 +65,19 @@ contract OneSplitAaveBase {
 
 
 contract OneSplitAaveView is OneSplitViewWrapBase, OneSplitAaveBase {
-    function getExpectedReturn(
+    function getExpectedReturnRespectingGas(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 flags, // See constants in IOneSplit.sol
+        uint256 toTokenEthPriceTimesGasPrice
     )
         public
         view
         returns(
             uint256 returnAmount,
+            uint256 estimateGasAmount,
             uint256[] memory distribution
         )
     {
@@ -84,7 +86,8 @@ contract OneSplitAaveView is OneSplitViewWrapBase, OneSplitAaveBase {
             toToken,
             amount,
             parts,
-            flags
+            flags,
+            toTokenEthPriceTimesGasPrice
         );
     }
 
@@ -93,49 +96,56 @@ contract OneSplitAaveView is OneSplitViewWrapBase, OneSplitAaveBase {
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 flags,
+        uint256 toTokenEthPriceTimesGasPrice
     )
         private
         view
         returns(
             uint256 returnAmount,
+            uint256 estimateGasAmount,
             uint256[] memory distribution
         )
     {
         if (fromToken == toToken) {
-            return (amount, distribution);
+            return (amount, 0, new uint256[](DEXES_COUNT));
         }
 
         if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_AAVE)) {
             IERC20 underlying = _getAaveUnderlyingToken(fromToken);
             if (underlying != IERC20(-1)) {
-                return _aaveGetExpectedReturn(
+                (returnAmount, estimateGasAmount, distribution) = _aaveGetExpectedReturn(
                     underlying,
                     toToken,
                     amount,
                     parts,
-                    flags
+                    flags,
+                    toTokenEthPriceTimesGasPrice
                 );
+                return (returnAmount, estimateGasAmount + 670_000, distribution);
             }
 
             underlying = _getAaveUnderlyingToken(toToken);
             if (underlying != IERC20(-1)) {
-                return super.getExpectedReturn(
+                (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnRespectingGas(
                     fromToken,
                     underlying,
                     amount,
                     parts,
-                    flags
+                    flags,
+                    toTokenEthPriceTimesGasPrice
                 );
+                return (returnAmount, estimateGasAmount + 310_000, distribution);
             }
         }
 
-        return super.getExpectedReturn(
+        return super.getExpectedReturnRespectingGas(
             fromToken,
             toToken,
             amount,
             parts,
-            flags
+            flags,
+            toTokenEthPriceTimesGasPrice
         );
     }
 }

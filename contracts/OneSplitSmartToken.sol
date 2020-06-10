@@ -38,22 +38,24 @@ contract OneSplitSmartTokenBase {
 
 
 contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase {
-    function getExpectedReturn(
+    function getExpectedReturnRespectingGas(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 flags,
+        uint256 toTokenEthPriceTimesGasPrice
     )
         public
         view
         returns(
             uint256 returnAmount,
+            uint256 estimateGasAmount,
             uint256[] memory distribution
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](DEXES_COUNT));
+            return (amount, 0, new uint256[](DEXES_COUNT));
         }
 
         if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_SMART_TOKEN)) {
@@ -139,12 +141,13 @@ contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase 
             }
         }
 
-        return super.getExpectedReturn(
+        return super.getExpectedReturnRespectingGas(
             fromToken,
             toToken,
             amount,
             parts,
-            flags
+            flags,
+            toTokenEthPriceTimesGasPrice
         );
     }
 }

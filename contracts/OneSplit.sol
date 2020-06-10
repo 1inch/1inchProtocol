@@ -47,39 +47,69 @@ contract OneSplitViewWrap is
             uint256[] memory distribution
         )
     {
-        if (fromToken == toToken) {
-            return (amount, new uint256[](DEXES_COUNT));
-        }
-
-        return super.getExpectedReturn(
+        (returnAmount, , distribution) = getExpectedReturnRespectingGas(
             fromToken,
             toToken,
             amount,
             parts,
-            flags
+            flags,
+            0
         );
     }
 
-    function _getExpectedReturnFloor(
+    function getExpectedReturnRespectingGas(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 flags, // See constants in IOneSplit.sol
+        uint256 toTokenEthPriceTimesGasPrice
+    )
+        public
+        view
+        returns(
+            uint256 returnAmount,
+            uint256 estimateGasAmount,
+            uint256[] memory distribution
+        )
+    {
+        if (fromToken == toToken) {
+            return (amount, 0, new uint256[](DEXES_COUNT));
+        }
+
+        return super.getExpectedReturnRespectingGas(
+            fromToken,
+            toToken,
+            amount,
+            parts,
+            flags,
+            toTokenEthPriceTimesGasPrice
+        );
+    }
+
+    function _getExpectedReturnRespectingGasFloor(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags,
+        uint256 toTokenEthPriceTimesGasPrice
     )
         internal
         view
         returns(
             uint256 returnAmount,
+            uint256 estimateGasAmount,
             uint256[] memory distribution
         )
     {
-        return oneSplitView.getExpectedReturn(
+        return oneSplitView.getExpectedReturnRespectingGas(
             fromToken,
             toToken,
             amount,
             parts,
-            flags
+            flags,
+            toTokenEthPriceTimesGasPrice
         );
     }
 }
@@ -116,21 +146,48 @@ contract OneSplitWrap is
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags // 1 - Uniswap, 2 - Kyber, 4 - Bancor, 8 - Oasis, 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
+        uint256 flags
     )
         public
         view
         returns(
-            uint256 /*returnAmount*/,
-            uint256[] memory /*distribution*/
+            uint256 returnAmount,
+            uint256[] memory distribution
         )
     {
-        return oneSplitView.getExpectedReturn(
+        (returnAmount, , distribution) = getExpectedReturnRespectingGas(
             fromToken,
             toToken,
             amount,
             parts,
-            flags
+            flags,
+            0
+        );
+    }
+
+    function getExpectedReturnRespectingGas(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags,
+        uint256 toTokenEthPriceTimesGasPrice
+    )
+        public
+        view
+        returns(
+            uint256 returnAmount,
+            uint256 estimateGasAmount,
+            uint256[] memory distribution
+        )
+    {
+        return oneSplitView.getExpectedReturnRespectingGas(
+            fromToken,
+            toToken,
+            amount,
+            parts,
+            flags,
+            toTokenEthPriceTimesGasPrice
         );
     }
 

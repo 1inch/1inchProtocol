@@ -5,17 +5,19 @@ import "./OneSplitBase.sol";
 
 
 contract OneSplitWethView is OneSplitViewWrapBase {
-    function getExpectedReturn(
+    function getExpectedReturnRespectingGas(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 flags,
+        uint256 toTokenEthPriceTimesGasPrice
     )
         public
         view
         returns(
             uint256 returnAmount,
+            uint256 estimateGasAmount,
             uint256[] memory distribution
         )
     {
@@ -24,7 +26,8 @@ contract OneSplitWethView is OneSplitViewWrapBase {
             toToken,
             amount,
             parts,
-            flags
+            flags,
+            toTokenEthPriceTimesGasPrice
         );
     }
 
@@ -33,35 +36,38 @@ contract OneSplitWethView is OneSplitViewWrapBase {
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 flags,
+        uint256 toTokenEthPriceTimesGasPrice
     )
         private
         view
         returns(
             uint256 returnAmount,
+            uint256 estimateGasAmount,
             uint256[] memory distribution
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](DEXES_COUNT));
+            return (amount, 0, new uint256[](DEXES_COUNT));
         }
 
         if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_WETH)) {
             if (fromToken == weth || fromToken == bancorEtherToken) {
-                return super.getExpectedReturn(ETH_ADDRESS, toToken, amount, parts, flags);
+                return super.getExpectedReturnRespectingGas(ETH_ADDRESS, toToken, amount, parts, flags, toTokenEthPriceTimesGasPrice);
             }
 
             if (toToken == weth || toToken == bancorEtherToken) {
-                return super.getExpectedReturn(fromToken, ETH_ADDRESS, amount, parts, flags);
+                return super.getExpectedReturnRespectingGas(fromToken, ETH_ADDRESS, amount, parts, flags, toTokenEthPriceTimesGasPrice);
             }
         }
 
-        return super.getExpectedReturn(
+        return super.getExpectedReturnRespectingGas(
             fromToken,
             toToken,
             amount,
             parts,
-            flags
+            flags,
+            toTokenEthPriceTimesGasPrice
         );
     }
 }

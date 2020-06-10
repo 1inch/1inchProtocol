@@ -40,6 +40,22 @@ contract IOneSplitView is IOneSplitConsts {
             uint256 returnAmount,
             uint256[] memory distribution
         );
+
+    function getExpectedReturnRespectingGas(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags,
+        uint256 toTokenEthPriceTimesGasPrice
+    )
+        public
+        view
+        returns(
+            uint256 returnAmount,
+            uint256 estimateGasAmount,
+            uint256[] memory distribution
+        );
 }
 
 
@@ -289,26 +305,55 @@ contract OneSplitViewWrapBase is IOneSplitView, OneSplitRoot {
             uint256[] memory distribution
         )
     {
-        return _getExpectedReturnFloor(
+        (returnAmount, , distribution) = this.getExpectedReturnRespectingGas(
             fromToken,
             toToken,
             amount,
             parts,
-            flags
+            flags,
+            0
         );
     }
 
-    function _getExpectedReturnFloor(
+    function getExpectedReturnRespectingGas(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags // See constants in IOneSplit.sol
+        uint256 flags,
+        uint256 toTokenEthPriceTimesGasPrice
+    )
+        public
+        view
+        returns(
+            uint256 returnAmount,
+            uint256 estimateGasAmount,
+            uint256[] memory distribution
+        )
+    {
+        return _getExpectedReturnRespectingGasFloor(
+            fromToken,
+            toToken,
+            amount,
+            parts,
+            flags,
+            toTokenEthPriceTimesGasPrice
+        );
+    }
+
+    function _getExpectedReturnRespectingGasFloor(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags, // See constants in IOneSplit.sol
+        uint256 toTokenEthPriceTimesGasPrice
     )
         internal
         view
         returns(
             uint256 returnAmount,
+            uint256 estimateGasAmount,
             uint256[] memory distribution
         );
 }
@@ -317,15 +362,15 @@ contract OneSplitViewWrapBase is IOneSplitView, OneSplitRoot {
 contract OneSplitView is IOneSplitView, OneSplitRoot {
     function _findBestDistribution(
         uint256 s,                            // parts
-        uint256[][DEXES_COUNT] memory amounts // exchangesReturns
-    ) internal pure returns(uint256 returnAmount, uint256[] memory distribution) {
+        int256[][DEXES_COUNT] memory amounts // exchangesReturns
+    ) internal pure returns(int256 returnAmount, uint256[] memory distribution) {
         uint256 n = amounts.length;
 
-        uint256[][] memory answer = new uint256[][](n); // int[n][s+1]
+        int256[][] memory answer = new int256[][](n); // int[n][s+1]
         uint256[][] memory parent = new uint256[][](n); // int[n][s+1]
 
         for (uint i = 0; i < n; i++) {
-            answer[i] = new uint256[](s + 1);
+            answer[i] = new int256[](s + 1);
             parent[i] = new uint256[](s + 1);
         }
 
@@ -389,7 +434,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         uint256 amount,
         uint256 parts,
         uint256 flags, // See constants in IOneSplit.sol
-        uint256 toTokenEthPrice
+        uint256 toTokenEthPriceTimesGasPrice
     )
         public
         view
@@ -407,36 +452,37 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
 
         function(IERC20,IERC20,uint256,uint256,uint256) view returns(uint256[] memory, uint256)[DEXES_COUNT] memory reserves = _getAllReserves(flags);
 
-        uint256[][DEXES_COUNT] memory matrix;
+        int256[][DEXES_COUNT] memory matrix;
+        uint256[DEXES_COUNT] memory gases;
         for (uint i = 0; i < DEXES_COUNT; i++) {
-            uint256 gas;
-            (matrix[i], gas) = reserves[i](fromToken, toToken, amount, parts, flags);
-            estimateGasAmount = estimateGasAmount.add(gas);
+            uint256[] memory rets;
+            (rets, gases[i]) = reserves[i](fromToken, toToken, amount, parts, flags);
 
             // Prepend zero
-            uint256[] memory newLine = new uint256[](parts + 1);
-            for (uint j = parts; j > 0; j--) {
-                newLine[j] = matrix[i][j - 1];
+            matrix[i] = new int256[](parts + 1);
+            for (uint j = 0; j < parts; j++) {
+                matrix[i][j + 1] = int256(rets[j]);
             }
-            matrix[i] = newLine;
 
-            // Substract gas from first part
-            uint256 toGas = gas.mul(toTokenEthPrice).div(1e18);
-            if (matrix[i][1] > toGas) {
-                matrix[i][1] = matrix[i][1].sub(toGas);
-            } else {
-                matrix[i][1] = 0;
-            }
+            // Respect gas in first part
+            matrix[i][1] -= int256(gases[i].mul(toTokenEthPriceTimesGasPrice).div(1e18));
         }
 
-        (returnAmount, distribution) = _findBestDistribution(parts, matrix);
+        (, distribution) = _findBestDistribution(parts, matrix);
 
         // Recalculate exact returnAmount
-        returnAmount = 0;
         for (uint i = 0; i < DEXES_COUNT; i++) {
-            uint256 volume = amount.mul(distribution[i]).div(parts);
-            (uint256[] memory res,) = reserves[i](fromToken, toToken, volume, 1, flags);
-            returnAmount = returnAmount.add(res[0]);
+            if (distribution[i] > 0) {
+                estimateGasAmount = estimateGasAmount.add(gases[i]);
+                returnAmount = returnAmount.add(
+                    uint256(matrix[i][distribution[i]])
+                );
+                if (distribution[i] == 1) {
+                    returnAmount = returnAmount.add(
+                        gases[i].mul(toTokenEthPriceTimesGasPrice).div(1e18)
+                    );
+                }
+            }
         }
     }
 
@@ -477,7 +523,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 /*destToken*/,
         uint256 /*amount*/,
         uint256 /*parts*/,
-        uint256 /*toTokenEthPrice*/,
+        uint256 /*toTokenEthPriceTimesGasPrice*/,
         uint256 /*flags*/,
         uint256 /*destTokenEthPrice*/
     ) internal view returns(uint256[] memory /*rets*/, uint256 /*gas*/) {
@@ -1096,20 +1142,15 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         uint256 parts,
         uint256 flags
     ) internal view returns(uint256[] memory rets, uint256 gas) {
-        uint256 maxRet = 0;
-        uint i = parts;
-        while (maxRet == 0 && i > 0) {
-            (maxRet, gas) = _calculateKyberReturn(fromToken, destToken, amount.mul(i).div(parts), flags);
-            if (maxRet == 0) {
-                i = i / 2;
+        rets = new uint256[](parts);
+        for (uint i = 0; i < parts; i++) {
+            (rets[i], gas) = _calculateKyberReturn(fromToken, destToken, amount.mul(i + 1).div(parts), flags);
+            if (rets[i] == 0) {
+                break;
             }
         }
 
-        if (i == 0) {
-            return (new uint256[](parts), 0);
-        }
-
-        return (_linearInterpolation(maxRet, i), gas);
+        return (rets, gas);
     }
 
     function calculateBancorReturn(
@@ -1122,19 +1163,27 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
         address[] memory path = _buildBancorPath(fromToken, destToken);
 
-        (bool success, bytes memory data) = address(bancorNetwork).staticcall.gas(500000)(
-            abi.encodeWithSelector(
-                bancorNetwork.getReturnByPath.selector,
-                path,
-                amount
-            )
-        );
-        if (!success) {
-            return (new uint256[](parts), 0);
+        rets = _linearInterpolation(amount, parts);
+        for (uint i = 0; i < parts; i++) {
+            (bool success, bytes memory data) = address(bancorNetwork).staticcall.gas(500000)(
+                abi.encodeWithSelector(
+                    bancorNetwork.getReturnByPath.selector,
+                    path,
+                    rets[i]
+                )
+            );
+            if (!success || data.length == 0) {
+                for (; i < parts; i++) {
+                    rets[i] = 0;
+                }
+                break;
+            } else {
+                (uint256 ret,) = abi.decode(data, (uint256,uint256));
+                rets[i] = ret;
+            }
         }
 
-        (uint256 maxRet,) = abi.decode(data, (uint256,uint256));
-        return (_linearInterpolation(maxRet, parts), path.length.mul(150_000));
+        return (rets, path.length.mul(150_000));
     }
 
     function calculateOasisReturn(
@@ -1144,21 +1193,28 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         uint256 parts,
         uint256 /*flags*/
     ) internal view returns(uint256[] memory rets, uint256 gas) {
-        (bool success, bytes memory data) = address(oasisExchange).staticcall.gas(500000)(
-            abi.encodeWithSelector(
-                oasisExchange.getBuyAmount.selector,
-                destToken.isETH() ? weth : destToken,
-                fromToken.isETH() ? weth : fromToken,
-                amount
-            )
-        );
+        rets = _linearInterpolation(amount, parts);
+        for (uint i = 0; i < parts; i++) {
+            (bool success, bytes memory data) = address(oasisExchange).staticcall.gas(500000)(
+                abi.encodeWithSelector(
+                    oasisExchange.getBuyAmount.selector,
+                    destToken.isETH() ? weth : destToken,
+                    fromToken.isETH() ? weth : fromToken,
+                    rets[i]
+                )
+            );
 
-        if (!success) {
-            return (new uint256[](parts), 0);
+            if (!success || data.length == 0) {
+                for (; i < parts; i++) {
+                    rets[i] = 0;
+                }
+                break;
+            } else {
+                rets[i] = abi.decode(data, (uint256));
+            }
         }
 
-        uint256 maxRet = abi.decode(data, (uint256));
-        return (_linearInterpolation(maxRet, parts), 500_000);
+        return (rets, 500_000);
     }
 
     function calculateMooniswap(
@@ -1178,7 +1234,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             )
         );
 
-        if (!success) {
+        if (!success || data.length == 0) {
             return (new uint256[](parts), 0);
         }
 
@@ -1372,12 +1428,39 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             uint256[] memory distribution
         )
     {
-        return oneSplitView.getExpectedReturn(
+        (returnAmount, , distribution) = getExpectedReturnRespectingGas(
             fromToken,
             toToken,
             amount,
             parts,
-            flags
+            flags,
+            0
+        );
+    }
+
+    function getExpectedReturnRespectingGas(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags,
+        uint256 toTokenEthPriceTimesGasPrice
+    )
+        public
+        view
+        returns(
+            uint256 returnAmount,
+            uint256 estimateGasAmount,
+            uint256[] memory distribution
+        )
+    {
+        return oneSplitView.getExpectedReturnRespectingGas(
+            fromToken,
+            toToken,
+            amount,
+            parts,
+            flags,
+            toTokenEthPriceTimesGasPrice
         );
     }
 

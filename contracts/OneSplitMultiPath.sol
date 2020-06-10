@@ -36,22 +36,24 @@ contract OneSplitMultiPathBase is IOneSplitConsts, OneSplitRoot {
 
 
 contract OneSplitMultiPathView is OneSplitViewWrapBase, OneSplitMultiPathBase {
-    function getExpectedReturn(
+    function getExpectedReturnRespectingGas(
         IERC20 fromToken,
         IERC20 toToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 flags,
+        uint256 toTokenEthPriceTimesGasPrice
     )
         public
         view
         returns (
             uint256 returnAmount,
+            uint256 estimateGasAmount,
             uint256[] memory distribution
         )
     {
         if (fromToken == toToken) {
-            return (amount, new uint256[](DEXES_COUNT));
+            return (amount, 0, new uint256[](DEXES_COUNT));
         }
 
         IERC20 midToken = _getMultiPathToken(flags);
@@ -62,43 +64,51 @@ contract OneSplitMultiPathView is OneSplitViewWrapBase, OneSplitMultiPathBase {
                 fromToken == midToken ||
                 toToken == midToken)
             {
-                super.getExpectedReturn(
+                return super.getExpectedReturnRespectingGas(
                     fromToken,
                     toToken,
                     amount,
                     parts,
-                    flags
+                    flags,
+                    toTokenEthPriceTimesGasPrice
                 );
             }
 
-            (returnAmount, distribution) = super.getExpectedReturn(
+            // Stack too deep
+            uint256 _flags = flags;
+
+            (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnRespectingGas(
                 fromToken,
                 midToken,
                 amount,
                 parts,
-                flags | FLAG_DISABLE_BANCOR | FLAG_DISABLE_CURVE_COMPOUND | FLAG_DISABLE_CURVE_USDT | FLAG_DISABLE_CURVE_Y | FLAG_DISABLE_CURVE_BINANCE | FLAG_DISABLE_CURVE_PAX
+                _flags | FLAG_DISABLE_BANCOR | FLAG_DISABLE_CURVE_COMPOUND | FLAG_DISABLE_CURVE_USDT | FLAG_DISABLE_CURVE_Y | FLAG_DISABLE_CURVE_BINANCE | FLAG_DISABLE_CURVE_PAX,
+                toTokenEthPriceTimesGasPrice
             );
 
             uint256[] memory dist;
-            (returnAmount, dist) = super.getExpectedReturn(
+            uint256 estimateGasAmount2;
+            (returnAmount, estimateGasAmount2, dist) = super.getExpectedReturnRespectingGas(
                 midToken,
                 toToken,
                 returnAmount,
                 parts,
-                flags | FLAG_DISABLE_BANCOR | FLAG_DISABLE_CURVE_COMPOUND | FLAG_DISABLE_CURVE_USDT | FLAG_DISABLE_CURVE_Y | FLAG_DISABLE_CURVE_BINANCE | FLAG_DISABLE_CURVE_PAX
+                _flags | FLAG_DISABLE_BANCOR | FLAG_DISABLE_CURVE_COMPOUND | FLAG_DISABLE_CURVE_USDT | FLAG_DISABLE_CURVE_Y | FLAG_DISABLE_CURVE_BINANCE | FLAG_DISABLE_CURVE_PAX,
+                toTokenEthPriceTimesGasPrice
             );
             for (uint i = 0; i < distribution.length; i++) {
                 distribution[i] = distribution[i].add(dist[i] << 8);
             }
-            return (returnAmount, distribution);
+            return (returnAmount, estimateGasAmount + estimateGasAmount2, distribution);
         }
 
-        return super.getExpectedReturn(
+        return super.getExpectedReturnRespectingGas(
             fromToken,
             toToken,
             amount,
             parts,
-            flags
+            flags,
+            toTokenEthPriceTimesGasPrice
         );
     }
 }
