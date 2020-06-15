@@ -61,10 +61,18 @@ library UniversalERC20 {
 
     function universalApprove(IERC20 token, address to, uint256 amount) internal {
         if (!isETH(token)) {
-            if (amount > 0 && token.allowance(address(this), to) > 0) {
+            if (amount == 0) {
                 token.safeApprove(to, 0);
+                return;
             }
-            token.safeApprove(to, amount);
+
+            uint256 allowance = token.allowance(address(this), to);
+            if (allowance < amount) {
+                if (allowance > 0) {
+                    token.safeApprove(to, 0);
+                }
+                token.safeApprove(to, amount);
+            }
         }
     }
 

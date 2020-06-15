@@ -404,6 +404,33 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         returnAmount = answer[n - 1][s];
     }
 
+    function getExchangeName(uint256 i) public pure returns(string memory) {
+        return [
+            "Uniswap",
+            "Kyber",
+            "Bancor",
+            "Oasis",
+            "Curve Compound",
+            "Curve USDT",
+            "Curve Y",
+            "Curve Binance",
+            "CurveSynthetix",
+            "Uniswap Compound",
+            "Uniswap CHAI",
+            "Uniswap Aave",
+            "Mooniswap",
+            "Uniswap V2",
+            "Uniswap V2 (ETH)",
+            "Uniswap V2 (DAI)",
+            "Uniswap V2 (USDC)",
+            "Curve Pax",
+            "Curve RenBTC",
+            "Curve tBTC",
+            "Dforce XSwap",
+            "Shell"
+        ][i];
+    }
+
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 toToken,
@@ -1471,9 +1498,9 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         uint256 /*minReturn*/,
         uint256[] memory distribution,
         uint256 /*flags*/  // See constants in IOneSplit.sol
-    ) public payable {
+    ) public payable returns(uint256 returnAmount) {
         if (fromToken == toToken) {
-            return;
+            return amount;
         }
 
         function(IERC20,IERC20,uint256) returns(uint256)[DEXES_COUNT] memory reserves = [
@@ -1527,6 +1554,8 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             remainingAmount -= swapAmount;
             reserves[i](fromToken, toToken, swapAmount);
         }
+
+        returnAmount = toToken.universalBalanceOf(address(this));
     }
 
     // Swap helpers

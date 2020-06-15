@@ -2,21 +2,20 @@ pragma solidity ^0.5.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-
 //
+//  [ msg.sender ]
 //        ||
 //        ||
 //        \/
-// +--------------+
-// | OneSplitWrap |
-// +--------------+
-//        ||
-//        || (delegatecall)
-//        \/
-// +--------------+
-// |   OneSplit   |
-// +--------------+
-//
+// +--------------+               _         +----------------------+
+// | OneSplitWrap |              / =======> |   OneSplitViewWrap   |
+// +--------------+             / /         +----------------------+
+//        ||                   / /                     ||
+//        || (delegatecall)   / / (staticcall)         || (staticcall)
+//        \/                 / /                       \/
+// +--------------+         / /               +------------------+
+// |   OneSplit   | ========_/                |   OneSplitView   |
+// +--------------+                           +------------------+
 //
 
 
@@ -108,5 +107,8 @@ contract IOneSplit is IOneSplitConsts {
         uint256 minReturn,
         uint256[] memory distribution,
         uint256 flags
-    ) public payable;
+    )
+        public
+        payable
+        returns(uint256 returnAmount);
 }

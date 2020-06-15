@@ -83,21 +83,20 @@ interface IERC20 {
 pragma solidity ^0.5.0;
 
 
-
 //
+//  [ msg.sender ]
 //        ||
 //        ||
 //        \/
-// +--------------+
-// | OneSplitWrap |
-// +--------------+
-//        ||
-//        || (delegatecall)
-//        \/
-// +--------------+
-// |   OneSplit   |
-// +--------------+
-//
+// +--------------+               _         +----------------------+
+// | OneSplitWrap |              / =======> |   OneSplitViewWrap   |
+// +--------------+             / /         +----------------------+
+//        ||                   / /                     ||
+//        || (delegatecall)   / / (staticcall)         || (staticcall)
+//        \/                 / /                       \/
+// +--------------+         / /               +------------------+
+// |   OneSplit   | ========_/                |   OneSplitView   |
+// +--------------+                           +------------------+
 //
 
 
@@ -189,7 +188,10 @@ contract IOneSplit is IOneSplitConsts {
         uint256 minReturn,
         uint256[] memory distribution,
         uint256 flags
-    ) public payable;
+    )
+        public
+        payable
+        returns(uint256 returnAmount);
 }
 
 // File: @openzeppelin/contracts/math/SafeMath.sol
@@ -995,10 +997,18 @@ library UniversalERC20 {
 
     function universalApprove(IERC20 token, address to, uint256 amount) internal {
         if (!isETH(token)) {
-            if (amount > 0 && token.allowance(address(this), to) > 0) {
+            if (amount == 0) {
                 token.safeApprove(to, 0);
+                return;
             }
-            token.safeApprove(to, amount);
+
+            uint256 allowance = token.allowance(address(this), to);
+            if (allowance < amount) {
+                if (allowance > 0) {
+                    token.safeApprove(to, 0);
+                }
+                token.safeApprove(to, amount);
+            }
         }
     }
 
@@ -1517,6 +1527,33 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         }
 
         returnAmount = answer[n - 1][s];
+    }
+
+    function getExchangeName(uint256 i) public pure returns(string memory) {
+        return [
+            "Uniswap",
+            "Kyber",
+            "Bancor",
+            "Oasis",
+            "Curve Compound",
+            "Curve USDT",
+            "Curve Y",
+            "Curve Binance",
+            "CurveSynthetix",
+            "Uniswap Compound",
+            "Uniswap CHAI",
+            "Uniswap Aave",
+            "Mooniswap",
+            "Uniswap V2",
+            "Uniswap V2 (ETH)",
+            "Uniswap V2 (DAI)",
+            "Uniswap V2 (USDC)",
+            "Curve Pax",
+            "Curve RenBTC",
+            "Curve tBTC",
+            "Dforce XSwap",
+            "Shell"
+        ][i];
     }
 
     function getExpectedReturn(
@@ -2586,9 +2623,9 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         uint256 /*minReturn*/,
         uint256[] memory distribution,
         uint256 /*flags*/  // See constants in IOneSplit.sol
-    ) public payable {
+    ) public payable returns(uint256 returnAmount) {
         if (fromToken == toToken) {
-            return;
+            return amount;
         }
 
         function(IERC20,IERC20,uint256) returns(uint256)[DEXES_COUNT] memory reserves = [
@@ -2642,6 +2679,8 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             remainingAmount -= swapAmount;
             reserves[i](fromToken, toToken, swapAmount);
         }
+
+        returnAmount = toToken.universalBalanceOf(address(this));
     }
 
     // Swap helpers
@@ -5004,12 +5043,12 @@ contract OneSplitWrap is
         uint256 minReturn,
         uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
         uint256 flags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
-    ) public payable {
+    ) public payable returns(uint256 returnAmount) {
         fromToken.universalTransferFrom(msg.sender, address(this), amount);
         uint256 confirmed = fromToken.universalBalanceOf(address(this));
         _swap(fromToken, toToken, confirmed, distribution, flags);
 
-        uint256 returnAmount = toToken.universalBalanceOf(address(this));
+        returnAmount = toToken.universalBalanceOf(address(this));
         require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
         toToken.universalTransfer(msg.sender, returnAmount);
         fromToken.universalTransfer(msg.sender, fromToken.universalBalanceOf(address(this)));
