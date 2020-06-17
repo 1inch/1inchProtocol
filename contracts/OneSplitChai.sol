@@ -5,13 +5,13 @@ import "./OneSplitBase.sol";
 
 
 contract OneSplitChaiView is OneSplitViewWrapBase {
-    function getExpectedReturnRespectingGas(
+    function getExpectedReturnWithGas(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags,
-        uint256 toTokenEthPriceTimesGasPrice
+        uint256 destTokenEthPriceTimesGasPrice
     )
         public
         view
@@ -21,43 +21,43 @@ contract OneSplitChaiView is OneSplitViewWrapBase {
             uint256[] memory distribution
         )
     {
-        if (fromToken == toToken) {
+        if (fromToken == destToken) {
             return (amount, 0, new uint256[](DEXES_COUNT));
         }
 
         if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_CHAI)) {
             if (fromToken == IERC20(chai)) {
-                (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnRespectingGas(
+                (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                     dai,
-                    toToken,
+                    destToken,
                     chai.chaiToDai(amount),
                     parts,
                     flags,
-                    toTokenEthPriceTimesGasPrice
+                    destTokenEthPriceTimesGasPrice
                 );
                 return (returnAmount, estimateGasAmount + 197_000, distribution);
             }
 
-            if (toToken == IERC20(chai)) {
-                (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnRespectingGas(
+            if (destToken == IERC20(chai)) {
+                (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                     fromToken,
                     dai,
                     amount,
                     parts,
                     flags,
-                    toTokenEthPriceTimesGasPrice
+                    destTokenEthPriceTimesGasPrice
                 );
                 return (chai.daiToChai(returnAmount), estimateGasAmount + 168_000, distribution);
             }
         }
 
-        return super.getExpectedReturnRespectingGas(
+        return super.getExpectedReturnWithGas(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
             flags,
-            toTokenEthPriceTimesGasPrice
+            destTokenEthPriceTimesGasPrice
         );
     }
 }
@@ -66,12 +66,12 @@ contract OneSplitChaiView is OneSplitViewWrapBase {
 contract OneSplitChai is OneSplitBaseWrap {
     function _swap(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256[] memory distribution,
         uint256 flags
     ) internal {
-        if (fromToken == toToken) {
+        if (fromToken == destToken) {
             return;
         }
 
@@ -81,14 +81,14 @@ contract OneSplitChai is OneSplitBaseWrap {
 
                 return super._swap(
                     dai,
-                    toToken,
+                    destToken,
                     dai.balanceOf(address(this)),
                     distribution,
                     flags
                 );
             }
 
-            if (toToken == IERC20(chai)) {
+            if (destToken == IERC20(chai)) {
                 super._swap(
                     fromToken,
                     dai,
@@ -106,7 +106,7 @@ contract OneSplitChai is OneSplitBaseWrap {
 
         return super._swap(
             fromToken,
-            toToken,
+            destToken,
             amount,
             distribution,
             flags

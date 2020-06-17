@@ -74,12 +74,48 @@ contract OneSplitAudit is IOneSplit, Ownable {
             uint256[] memory distribution
         )
     {
-        return oneSplitImpl.getExpectedReturn(
+        (returnAmount, , distribution) = getExpectedReturnWithGas(
             fromToken,
             destToken,
             amount,
             parts,
-            flags
+            flags,
+            0
+        );
+    }
+
+    /// @notice Calculate expected returning amount of `destToken`
+    /// @param fromToken (IERC20) Address of token or `address(0)` for Ether
+    /// @param destToken (IERC20) Address of token or `address(0)` for Ether
+    /// @param amount (uint256) Amount for `fromToken`
+    /// @param parts (uint256) Number of pieces source volume could be splitted,
+    /// works like granularity, higly affects gas usage. Should be called offchain,
+    /// but could be called onchain if user swaps not his own funds, but this is still considered as not safe.
+    /// @param flags (uint256) Flags for enabling and disabling some features, default 0
+    /// @param destTokenEthPriceTimesGasPrice (uint256) destToken price to ETH multiplied by gas price
+    function getExpectedReturnWithGas(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags, // See constants in IOneSplit.sol
+        uint256 destTokenEthPriceTimesGasPrice
+    )
+        public
+        view
+        returns(
+            uint256 returnAmount,
+            uint256 estimateGasAmount,
+            uint256[] memory distribution
+        )
+    {
+        return oneSplitImpl.getExpectedReturnWithGas(
+            fromToken,
+            destToken,
+            amount,
+            parts,
+            flags,
+            destTokenEthPriceTimesGasPrice
         );
     }
 
@@ -147,12 +183,8 @@ contract OneSplitAudit is IOneSplit, Ownable {
         _fromToken().universalTransferFromSenderToThis(amount);
         uint256 confirmed = _fromToken().universalBalanceOf(address(this)).sub(beforeBalances.ofFromToken);
 
-        // Approve if needed
-        if (!_fromToken().isETH() && _fromToken().allowance(address(this), address(oneSplitImpl)) < confirmed) {
-            _fromToken().universalApprove(address(oneSplitImpl), confirmed);
-        }
-
         // Swap
+        _fromToken().universalApprove(address(oneSplitImpl), confirmed);
         oneSplitImpl.swap.value(msg.value)(
             _fromToken(),
             _destToken(),

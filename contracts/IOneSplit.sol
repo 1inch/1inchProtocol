@@ -83,7 +83,7 @@ contract IOneSplitConsts {
 contract IOneSplit is IOneSplitConsts {
     function getExpectedReturn(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags // See constants in IOneSplit.sol
@@ -95,13 +95,13 @@ contract IOneSplit is IOneSplitConsts {
             uint256[] memory distribution
         );
 
-    function getExpectedReturnRespectingGas(
+    function getExpectedReturnWithGas(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags, // See constants in IOneSplit.sol
-        uint256 toTokenEthPriceTimesGasPrice
+        uint256 destTokenEthPriceTimesGasPrice
     )
         public
         view
@@ -113,7 +113,7 @@ contract IOneSplit is IOneSplitConsts {
 
     function swap(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 minReturn,
         uint256[] memory distribution,

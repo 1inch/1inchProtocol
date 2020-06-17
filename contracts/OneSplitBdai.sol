@@ -11,13 +11,13 @@ contract OneSplitBdaiBase {
 
 
 contract OneSplitBdaiView is OneSplitViewWrapBase, OneSplitBdaiBase {
-    function getExpectedReturnRespectingGas(
+    function getExpectedReturnWithGas(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags,
-        uint256 toTokenEthPriceTimesGasPrice
+        uint256 destTokenEthPriceTimesGasPrice
     )
         public
         view
@@ -27,43 +27,43 @@ contract OneSplitBdaiView is OneSplitViewWrapBase, OneSplitBdaiBase {
             uint256[] memory distribution
         )
     {
-        if (fromToken == toToken) {
+        if (fromToken == destToken) {
             return (amount, 0, new uint256[](DEXES_COUNT));
         }
 
         if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_BDAI)) {
             if (fromToken == IERC20(bdai)) {
-                (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnRespectingGas(
+                (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                     dai,
-                    toToken,
+                    destToken,
                     amount,
                     parts,
                     flags,
-                    toTokenEthPriceTimesGasPrice
+                    destTokenEthPriceTimesGasPrice
                 );
                 return (returnAmount, estimateGasAmount + 227_000, distribution);
             }
 
-            if (toToken == IERC20(bdai)) {
-                (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnRespectingGas(
+            if (destToken == IERC20(bdai)) {
+                (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                     fromToken,
                     dai,
                     amount,
                     parts,
                     flags,
-                    toTokenEthPriceTimesGasPrice
+                    destTokenEthPriceTimesGasPrice
                 );
                 return (returnAmount, estimateGasAmount + 295_000, distribution);
             }
         }
 
-        return super.getExpectedReturnRespectingGas(
+        return super.getExpectedReturnWithGas(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
             flags,
-            toTokenEthPriceTimesGasPrice
+            destTokenEthPriceTimesGasPrice
         );
     }
 }
@@ -72,12 +72,12 @@ contract OneSplitBdaiView is OneSplitViewWrapBase, OneSplitBdaiBase {
 contract OneSplitBdai is OneSplitBaseWrap, OneSplitBdaiBase {
     function _swap(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256[] memory distribution,
         uint256 flags
     ) internal {
-        if (fromToken == toToken) {
+        if (fromToken == destToken) {
             return;
         }
 
@@ -89,7 +89,7 @@ contract OneSplitBdai is OneSplitBaseWrap, OneSplitBdaiBase {
                 if (btuBalance > 0) {
                     (,uint256[] memory btuDistribution) = getExpectedReturn(
                         btu,
-                        toToken,
+                        destToken,
                         btuBalance,
                         1,
                         flags
@@ -97,7 +97,7 @@ contract OneSplitBdai is OneSplitBaseWrap, OneSplitBdaiBase {
 
                     _swap(
                         btu,
-                        toToken,
+                        destToken,
                         btuBalance,
                         btuDistribution,
                         flags
@@ -106,14 +106,14 @@ contract OneSplitBdai is OneSplitBaseWrap, OneSplitBdaiBase {
 
                 return super._swap(
                     dai,
-                    toToken,
+                    destToken,
                     amount,
                     distribution,
                     flags
                 );
             }
 
-            if (toToken == IERC20(bdai)) {
+            if (destToken == IERC20(bdai)) {
                 super._swap(fromToken, dai, amount, distribution, flags);
 
                 uint256 daiBalance = dai.balanceOf(address(this));
@@ -123,6 +123,6 @@ contract OneSplitBdai is OneSplitBaseWrap, OneSplitBdaiBase {
             }
         }
 
-        return super._swap(fromToken, toToken, amount, distribution, flags);
+        return super._swap(fromToken, destToken, amount, distribution, flags);
     }
 }

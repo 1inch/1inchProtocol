@@ -26,13 +26,13 @@ contract OneSplitIearnBase {
 
 
 contract OneSplitIearnView is OneSplitViewWrapBase, OneSplitIearnBase {
-    function getExpectedReturnRespectingGas(
+    function getExpectedReturnWithGas(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags,
-        uint256 toTokenEthPriceTimesGasPrice
+        uint256 destTokenEthPriceTimesGasPrice
     )
         public
         view
@@ -44,21 +44,21 @@ contract OneSplitIearnView is OneSplitViewWrapBase, OneSplitIearnBase {
     {
         return _iearnGetExpectedReturn(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
             flags,
-            toTokenEthPriceTimesGasPrice
+            destTokenEthPriceTimesGasPrice
         );
     }
 
     function _iearnGetExpectedReturn(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags,
-        uint256 toTokenEthPriceTimesGasPrice
+        uint256 destTokenEthPriceTimesGasPrice
     )
         private
         view
@@ -68,7 +68,7 @@ contract OneSplitIearnView is OneSplitViewWrapBase, OneSplitIearnBase {
             uint256[] memory distribution
         )
     {
-        if (fromToken == toToken) {
+        if (fromToken == destToken) {
             return (amount, 0, new uint256[](DEXES_COUNT));
         }
 
@@ -79,27 +79,27 @@ contract OneSplitIearnView is OneSplitViewWrapBase, OneSplitIearnBase {
                 if (fromToken == IERC20(yTokens[i])) {
                     (returnAmount, estimateGasAmount, distribution) = _iearnGetExpectedReturn(
                         yTokens[i].token(),
-                        toToken,
+                        destToken,
                         amount
                             .mul(yTokens[i].calcPoolValueInToken())
                             .div(yTokens[i].totalSupply()),
                         parts,
                         flags,
-                        toTokenEthPriceTimesGasPrice
+                        destTokenEthPriceTimesGasPrice
                     );
                     return (returnAmount, estimateGasAmount + 260_000, distribution);
                 }
             }
 
             for (uint i = 0; i < yTokens.length; i++) {
-                if (toToken == IERC20(yTokens[i])) {
-                    (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnRespectingGas(
+                if (destToken == IERC20(yTokens[i])) {
+                    (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                         fromToken,
                         yTokens[i].token(),
                         amount,
                         parts,
                         flags,
-                        toTokenEthPriceTimesGasPrice
+                        destTokenEthPriceTimesGasPrice
                     );
 
                     return(
@@ -113,13 +113,13 @@ contract OneSplitIearnView is OneSplitViewWrapBase, OneSplitIearnBase {
             }
         }
 
-        return super.getExpectedReturnRespectingGas(
+        return super.getExpectedReturnWithGas(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
             flags,
-            toTokenEthPriceTimesGasPrice
+            destTokenEthPriceTimesGasPrice
         );
     }
 }
@@ -128,14 +128,14 @@ contract OneSplitIearnView is OneSplitViewWrapBase, OneSplitIearnBase {
 contract OneSplitIearn is OneSplitBaseWrap, OneSplitIearnBase {
     function _swap(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256[] memory distribution,
         uint256 flags
     ) internal {
         _iearnSwap(
             fromToken,
-            toToken,
+            destToken,
             amount,
             distribution,
             flags
@@ -144,12 +144,12 @@ contract OneSplitIearn is OneSplitBaseWrap, OneSplitIearnBase {
 
     function _iearnSwap(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256[] memory distribution,
         uint256 flags
     ) private {
-        if (fromToken == toToken) {
+        if (fromToken == destToken) {
             return;
         }
 
@@ -160,13 +160,13 @@ contract OneSplitIearn is OneSplitBaseWrap, OneSplitIearnBase {
                 if (fromToken == IERC20(yTokens[i])) {
                     IERC20 underlying = yTokens[i].token();
                     yTokens[i].withdraw(amount);
-                    _iearnSwap(underlying, toToken, underlying.balanceOf(address(this)), distribution, flags);
+                    _iearnSwap(underlying, destToken, underlying.balanceOf(address(this)), distribution, flags);
                     return;
                 }
             }
 
             for (uint i = 0; i < yTokens.length; i++) {
-                if (toToken == IERC20(yTokens[i])) {
+                if (destToken == IERC20(yTokens[i])) {
                     IERC20 underlying = yTokens[i].token();
                     super._swap(fromToken, underlying, amount, distribution, flags);
 
@@ -178,6 +178,6 @@ contract OneSplitIearn is OneSplitBaseWrap, OneSplitIearnBase {
             }
         }
 
-        return super._swap(fromToken, toToken, amount, distribution, flags);
+        return super._swap(fromToken, destToken, amount, distribution, flags);
     }
 }

@@ -11,7 +11,7 @@ interface IMooniswapRegistry {
 interface IMooniswap {
     function getReturn(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount
     )
         external
@@ -20,7 +20,7 @@ interface IMooniswap {
 
     function swap(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 minReturn
     )

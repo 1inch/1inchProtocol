@@ -35,7 +35,7 @@ contract OneSplitViewWrap is
 
     function getExpectedReturn(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags
@@ -47,9 +47,9 @@ contract OneSplitViewWrap is
             uint256[] memory distribution
         )
     {
-        (returnAmount, , distribution) = getExpectedReturnRespectingGas(
+        (returnAmount, , distribution) = getExpectedReturnWithGas(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
             flags,
@@ -57,13 +57,13 @@ contract OneSplitViewWrap is
         );
     }
 
-    function getExpectedReturnRespectingGas(
+    function getExpectedReturnWithGas(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags, // See constants in IOneSplit.sol
-        uint256 toTokenEthPriceTimesGasPrice
+        uint256 destTokenEthPriceTimesGasPrice
     )
         public
         view
@@ -73,27 +73,27 @@ contract OneSplitViewWrap is
             uint256[] memory distribution
         )
     {
-        if (fromToken == toToken) {
+        if (fromToken == destToken) {
             return (amount, 0, new uint256[](DEXES_COUNT));
         }
 
-        return super.getExpectedReturnRespectingGas(
+        return super.getExpectedReturnWithGas(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
             flags,
-            toTokenEthPriceTimesGasPrice
+            destTokenEthPriceTimesGasPrice
         );
     }
 
     function _getExpectedReturnRespectingGasFloor(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags,
-        uint256 toTokenEthPriceTimesGasPrice
+        uint256 destTokenEthPriceTimesGasPrice
     )
         internal
         view
@@ -103,13 +103,13 @@ contract OneSplitViewWrap is
             uint256[] memory distribution
         )
     {
-        return oneSplitView.getExpectedReturnRespectingGas(
+        return oneSplitView.getExpectedReturnWithGas(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
             flags,
-            toTokenEthPriceTimesGasPrice
+            destTokenEthPriceTimesGasPrice
         );
     }
 }
@@ -143,7 +143,7 @@ contract OneSplitWrap is
 
     function getExpectedReturn(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags
@@ -155,9 +155,9 @@ contract OneSplitWrap is
             uint256[] memory distribution
         )
     {
-        (returnAmount, , distribution) = getExpectedReturnRespectingGas(
+        (returnAmount, , distribution) = getExpectedReturnWithGas(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
             flags,
@@ -165,13 +165,13 @@ contract OneSplitWrap is
         );
     }
 
-    function getExpectedReturnRespectingGas(
+    function getExpectedReturnWithGas(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags,
-        uint256 toTokenEthPriceTimesGasPrice
+        uint256 destTokenEthPriceTimesGasPrice
     )
         public
         view
@@ -181,19 +181,19 @@ contract OneSplitWrap is
             uint256[] memory distribution
         )
     {
-        return oneSplitView.getExpectedReturnRespectingGas(
+        return oneSplitView.getExpectedReturnWithGas(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
             flags,
-            toTokenEthPriceTimesGasPrice
+            destTokenEthPriceTimesGasPrice
         );
     }
 
     function swap(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 minReturn,
         uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
@@ -201,17 +201,17 @@ contract OneSplitWrap is
     ) public payable returns(uint256 returnAmount) {
         fromToken.universalTransferFrom(msg.sender, address(this), amount);
         uint256 confirmed = fromToken.universalBalanceOf(address(this));
-        _swap(fromToken, toToken, confirmed, distribution, flags);
+        _swap(fromToken, destToken, confirmed, distribution, flags);
 
-        returnAmount = toToken.universalBalanceOf(address(this));
+        returnAmount = destToken.universalBalanceOf(address(this));
         require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
-        toToken.universalTransfer(msg.sender, returnAmount);
+        destToken.universalTransfer(msg.sender, returnAmount);
         fromToken.universalTransfer(msg.sender, fromToken.universalBalanceOf(address(this)));
     }
 
     function _swapFloor(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256[] memory distribution,
         uint256 flags
@@ -220,7 +220,7 @@ contract OneSplitWrap is
             abi.encodeWithSelector(
                 this.swap.selector,
                 fromToken,
-                toToken,
+                destToken,
                 amount,
                 0,
                 distribution,

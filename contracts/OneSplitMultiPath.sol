@@ -36,13 +36,13 @@ contract OneSplitMultiPathBase is IOneSplitConsts, OneSplitRoot {
 
 
 contract OneSplitMultiPathView is OneSplitViewWrapBase, OneSplitMultiPathBase {
-    function getExpectedReturnRespectingGas(
+    function getExpectedReturnWithGas(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags,
-        uint256 toTokenEthPriceTimesGasPrice
+        uint256 destTokenEthPriceTimesGasPrice
     )
         public
         view
@@ -52,7 +52,7 @@ contract OneSplitMultiPathView is OneSplitViewWrapBase, OneSplitMultiPathBase {
             uint256[] memory distribution
         )
     {
-        if (fromToken == toToken) {
+        if (fromToken == destToken) {
             return (amount, 0, new uint256[](DEXES_COUNT));
         }
 
@@ -60,41 +60,41 @@ contract OneSplitMultiPathView is OneSplitViewWrapBase, OneSplitMultiPathBase {
 
         if (midToken != IERC20(0)) {
             if ((fromToken.isETH() && midToken.isETH()) ||
-                (toToken.isETH() && midToken.isETH()) ||
+                (destToken.isETH() && midToken.isETH()) ||
                 fromToken == midToken ||
-                toToken == midToken)
+                destToken == midToken)
             {
-                return super.getExpectedReturnRespectingGas(
+                return super.getExpectedReturnWithGas(
                     fromToken,
-                    toToken,
+                    destToken,
                     amount,
                     parts,
                     flags,
-                    toTokenEthPriceTimesGasPrice
+                    destTokenEthPriceTimesGasPrice
                 );
             }
 
             // Stack too deep
             uint256 _flags = flags;
 
-            (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnRespectingGas(
+            (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                 fromToken,
                 midToken,
                 amount,
                 parts,
                 _flags | FLAG_DISABLE_BANCOR | FLAG_DISABLE_CURVE_COMPOUND | FLAG_DISABLE_CURVE_USDT | FLAG_DISABLE_CURVE_Y | FLAG_DISABLE_CURVE_BINANCE | FLAG_DISABLE_CURVE_PAX,
-                toTokenEthPriceTimesGasPrice
+                destTokenEthPriceTimesGasPrice
             );
 
             uint256[] memory dist;
             uint256 estimateGasAmount2;
-            (returnAmount, estimateGasAmount2, dist) = super.getExpectedReturnRespectingGas(
+            (returnAmount, estimateGasAmount2, dist) = super.getExpectedReturnWithGas(
                 midToken,
-                toToken,
+                destToken,
                 returnAmount,
                 parts,
                 _flags | FLAG_DISABLE_BANCOR | FLAG_DISABLE_CURVE_COMPOUND | FLAG_DISABLE_CURVE_USDT | FLAG_DISABLE_CURVE_Y | FLAG_DISABLE_CURVE_BINANCE | FLAG_DISABLE_CURVE_PAX,
-                toTokenEthPriceTimesGasPrice
+                destTokenEthPriceTimesGasPrice
             );
             for (uint i = 0; i < distribution.length; i++) {
                 distribution[i] = distribution[i].add(dist[i] << 8);
@@ -102,13 +102,13 @@ contract OneSplitMultiPathView is OneSplitViewWrapBase, OneSplitMultiPathBase {
             return (returnAmount, estimateGasAmount + estimateGasAmount2, distribution);
         }
 
-        return super.getExpectedReturnRespectingGas(
+        return super.getExpectedReturnWithGas(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
             flags,
-            toTokenEthPriceTimesGasPrice
+            destTokenEthPriceTimesGasPrice
         );
     }
 }
@@ -117,7 +117,7 @@ contract OneSplitMultiPathView is OneSplitViewWrapBase, OneSplitMultiPathBase {
 contract OneSplitMultiPath is OneSplitBaseWrap, OneSplitMultiPathBase {
     function _swap(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256[] memory distribution,
         uint256 flags
@@ -142,7 +142,7 @@ contract OneSplitMultiPath is OneSplitBaseWrap, OneSplitMultiPathBase {
             }
             super._swap(
                 midToken,
-                toToken,
+                destToken,
                 midToken.universalBalanceOf(address(this)),
                 dist,
                 flags
@@ -152,7 +152,7 @@ contract OneSplitMultiPath is OneSplitBaseWrap, OneSplitMultiPathBase {
 
         super._swap(
             fromToken,
-            toToken,
+            destToken,
             amount,
             distribution,
             flags

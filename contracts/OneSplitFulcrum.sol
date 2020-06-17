@@ -51,13 +51,13 @@ contract OneSplitFulcrumBase {
 
 
 contract OneSplitFulcrumView is OneSplitViewWrapBase, OneSplitFulcrumBase {
-    function getExpectedReturnRespectingGas(
+    function getExpectedReturnWithGas(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags,
-        uint256 toTokenEthPriceTimesGasPrice
+        uint256 destTokenEthPriceTimesGasPrice
     )
         public
         view
@@ -69,21 +69,21 @@ contract OneSplitFulcrumView is OneSplitViewWrapBase, OneSplitFulcrumBase {
     {
         return _fulcrumGetExpectedReturn(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
             flags,
-            toTokenEthPriceTimesGasPrice
+            destTokenEthPriceTimesGasPrice
         );
     }
 
     function _fulcrumGetExpectedReturn(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags,
-        uint256 toTokenEthPriceTimesGasPrice
+        uint256 destTokenEthPriceTimesGasPrice
     )
         private
         view
@@ -93,7 +93,7 @@ contract OneSplitFulcrumView is OneSplitViewWrapBase, OneSplitFulcrumBase {
             uint256[] memory distribution
         )
     {
-        if (fromToken == toToken) {
+        if (fromToken == destToken) {
             return (amount, 0, new uint256[](DEXES_COUNT));
         }
 
@@ -103,37 +103,37 @@ contract OneSplitFulcrumView is OneSplitViewWrapBase, OneSplitFulcrumBase {
                 uint256 fulcrumRate = IFulcrumToken(address(fromToken)).tokenPrice();
                 (returnAmount, estimateGasAmount, distribution) = _fulcrumGetExpectedReturn(
                     underlying,
-                    toToken,
+                    destToken,
                     amount.mul(fulcrumRate).div(1e18),
                     parts,
                     flags,
-                    toTokenEthPriceTimesGasPrice
+                    destTokenEthPriceTimesGasPrice
                 );
                 return (returnAmount, estimateGasAmount + 381_000, distribution);
             }
 
-            underlying = _isFulcrumToken(toToken);
+            underlying = _isFulcrumToken(destToken);
             if (underlying != IERC20(-1)) {
-                uint256 fulcrumRate = IFulcrumToken(address(toToken)).tokenPrice();
-                (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnRespectingGas(
+                uint256 fulcrumRate = IFulcrumToken(address(destToken)).tokenPrice();
+                (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                     fromToken,
                     underlying,
                     amount,
                     parts,
                     flags,
-                    toTokenEthPriceTimesGasPrice
+                    destTokenEthPriceTimesGasPrice
                 );
                 return (returnAmount.mul(1e18).div(fulcrumRate), estimateGasAmount + 354_000, distribution);
             }
         }
 
-        return super.getExpectedReturnRespectingGas(
+        return super.getExpectedReturnWithGas(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
             flags,
-            toTokenEthPriceTimesGasPrice
+            destTokenEthPriceTimesGasPrice
         );
     }
 }
@@ -142,14 +142,14 @@ contract OneSplitFulcrumView is OneSplitViewWrapBase, OneSplitFulcrumBase {
 contract OneSplitFulcrum is OneSplitBaseWrap, OneSplitFulcrumBase {
     function _swap(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256[] memory distribution,
         uint256 flags
     ) internal {
         _fulcrumSwap(
             fromToken,
-            toToken,
+            destToken,
             amount,
             distribution,
             flags
@@ -158,12 +158,12 @@ contract OneSplitFulcrum is OneSplitBaseWrap, OneSplitFulcrumBase {
 
     function _fulcrumSwap(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256[] memory distribution,
         uint256 flags
     ) private {
-        if (fromToken == toToken) {
+        if (fromToken == destToken) {
             return;
         }
 
@@ -180,14 +180,14 @@ contract OneSplitFulcrum is OneSplitBaseWrap, OneSplitFulcrumBase {
 
                 return super._swap(
                     underlying,
-                    toToken,
+                    destToken,
                     underlyingAmount,
                     distribution,
                     flags
                 );
             }
 
-            underlying = _isFulcrumToken(toToken);
+            underlying = _isFulcrumToken(destToken);
             if (underlying != IERC20(-1)) {
                 super._swap(
                     fromToken,
@@ -200,10 +200,10 @@ contract OneSplitFulcrum is OneSplitBaseWrap, OneSplitFulcrumBase {
                 uint256 underlyingAmount = underlying.universalBalanceOf(address(this));
 
                 if (underlying.isETH()) {
-                    IFulcrumToken(address(toToken)).mintWithEther.value(underlyingAmount)(address(this));
+                    IFulcrumToken(address(destToken)).mintWithEther.value(underlyingAmount)(address(this));
                 } else {
-                    underlying.universalApprove(address(toToken), underlyingAmount);
-                    IFulcrumToken(address(toToken)).mint(address(this), underlyingAmount);
+                    underlying.universalApprove(address(destToken), underlyingAmount);
+                    IFulcrumToken(address(destToken)).mint(address(this), underlyingAmount);
                 }
                 return;
             }
@@ -211,7 +211,7 @@ contract OneSplitFulcrum is OneSplitBaseWrap, OneSplitFulcrumBase {
 
         return super._swap(
             fromToken,
-            toToken,
+            destToken,
             amount,
             distribution,
             flags

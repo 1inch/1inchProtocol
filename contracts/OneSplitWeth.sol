@@ -5,13 +5,13 @@ import "./OneSplitBase.sol";
 
 
 contract OneSplitWethView is OneSplitViewWrapBase {
-    function getExpectedReturnRespectingGas(
+    function getExpectedReturnWithGas(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags,
-        uint256 toTokenEthPriceTimesGasPrice
+        uint256 destTokenEthPriceTimesGasPrice
     )
         public
         view
@@ -23,21 +23,21 @@ contract OneSplitWethView is OneSplitViewWrapBase {
     {
         return _wethGetExpectedReturn(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
             flags,
-            toTokenEthPriceTimesGasPrice
+            destTokenEthPriceTimesGasPrice
         );
     }
 
     function _wethGetExpectedReturn(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags,
-        uint256 toTokenEthPriceTimesGasPrice
+        uint256 destTokenEthPriceTimesGasPrice
     )
         private
         view
@@ -47,27 +47,27 @@ contract OneSplitWethView is OneSplitViewWrapBase {
             uint256[] memory distribution
         )
     {
-        if (fromToken == toToken) {
+        if (fromToken == destToken) {
             return (amount, 0, new uint256[](DEXES_COUNT));
         }
 
         if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_WETH)) {
             if (fromToken == weth || fromToken == bancorEtherToken) {
-                return super.getExpectedReturnRespectingGas(ETH_ADDRESS, toToken, amount, parts, flags, toTokenEthPriceTimesGasPrice);
+                return super.getExpectedReturnWithGas(ETH_ADDRESS, destToken, amount, parts, flags, destTokenEthPriceTimesGasPrice);
             }
 
-            if (toToken == weth || toToken == bancorEtherToken) {
-                return super.getExpectedReturnRespectingGas(fromToken, ETH_ADDRESS, amount, parts, flags, toTokenEthPriceTimesGasPrice);
+            if (destToken == weth || destToken == bancorEtherToken) {
+                return super.getExpectedReturnWithGas(fromToken, ETH_ADDRESS, amount, parts, flags, destTokenEthPriceTimesGasPrice);
             }
         }
 
-        return super.getExpectedReturnRespectingGas(
+        return super.getExpectedReturnWithGas(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
             flags,
-            toTokenEthPriceTimesGasPrice
+            destTokenEthPriceTimesGasPrice
         );
     }
 }
@@ -76,14 +76,14 @@ contract OneSplitWethView is OneSplitViewWrapBase {
 contract OneSplitWeth is OneSplitBaseWrap {
     function _swap(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256[] memory distribution,
         uint256 flags
     ) internal {
         _wethSwap(
             fromToken,
-            toToken,
+            destToken,
             amount,
             distribution,
             flags
@@ -92,12 +92,12 @@ contract OneSplitWeth is OneSplitBaseWrap {
 
     function _wethSwap(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256[] memory distribution,
         uint256 flags
     ) private {
-        if (fromToken == toToken) {
+        if (fromToken == destToken) {
             return;
         }
 
@@ -106,7 +106,7 @@ contract OneSplitWeth is OneSplitBaseWrap {
                 weth.withdraw(weth.balanceOf(address(this)));
                 super._swap(
                     ETH_ADDRESS,
-                    toToken,
+                    destToken,
                     amount,
                     distribution,
                     flags
@@ -118,7 +118,7 @@ contract OneSplitWeth is OneSplitBaseWrap {
                 bancorEtherToken.withdraw(bancorEtherToken.balanceOf(address(this)));
                 super._swap(
                     ETH_ADDRESS,
-                    toToken,
+                    destToken,
                     amount,
                     distribution,
                     flags
@@ -126,7 +126,7 @@ contract OneSplitWeth is OneSplitBaseWrap {
                 return;
             }
 
-            if (toToken == weth) {
+            if (destToken == weth) {
                 _wethSwap(
                     fromToken,
                     ETH_ADDRESS,
@@ -138,7 +138,7 @@ contract OneSplitWeth is OneSplitBaseWrap {
                 return;
             }
 
-            if (toToken == bancorEtherToken) {
+            if (destToken == bancorEtherToken) {
                 _wethSwap(
                     fromToken,
                     ETH_ADDRESS,
@@ -153,7 +153,7 @@ contract OneSplitWeth is OneSplitBaseWrap {
 
         return super._swap(
             fromToken,
-            toToken,
+            destToken,
             amount,
             distribution,
             flags

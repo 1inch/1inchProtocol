@@ -24,13 +24,13 @@ contract OneSplitIdleBase {
 
 
 contract OneSplitIdleView is OneSplitViewWrapBase, OneSplitIdleBase {
-    function getExpectedReturnRespectingGas(
+    function getExpectedReturnWithGas(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags,
-        uint256 toTokenEthPriceTimesGasPrice
+        uint256 destTokenEthPriceTimesGasPrice
     )
         public
         view
@@ -42,21 +42,21 @@ contract OneSplitIdleView is OneSplitViewWrapBase, OneSplitIdleBase {
     {
         return _idleGetExpectedReturn(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
             flags,
-            toTokenEthPriceTimesGasPrice
+            destTokenEthPriceTimesGasPrice
         );
     }
 
     function _idleGetExpectedReturn(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags,
-        uint256 toTokenEthPriceTimesGasPrice
+        uint256 destTokenEthPriceTimesGasPrice
     )
         internal
         view
@@ -66,7 +66,7 @@ contract OneSplitIdleView is OneSplitViewWrapBase, OneSplitIdleBase {
             uint256[] memory distribution
         )
     {
-        if (fromToken == toToken) {
+        if (fromToken == destToken) {
             return (amount, 0, new uint256[](DEXES_COUNT));
         }
 
@@ -77,38 +77,38 @@ contract OneSplitIdleView is OneSplitViewWrapBase, OneSplitIdleBase {
                 if (fromToken == IERC20(tokens[i])) {
                     (returnAmount, estimateGasAmount, distribution) = _idleGetExpectedReturn(
                         tokens[i].token(),
-                        toToken,
+                        destToken,
                         amount.mul(tokens[i].tokenPrice()).div(1e18),
                         parts,
                         flags,
-                        toTokenEthPriceTimesGasPrice
+                        destTokenEthPriceTimesGasPrice
                     );
                     return (returnAmount, estimateGasAmount + 2_400_000, distribution);
                 }
             }
 
             for (uint i = 0; i < tokens.length; i++) {
-                if (toToken == IERC20(tokens[i])) {
-                    (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnRespectingGas(
+                if (destToken == IERC20(tokens[i])) {
+                    (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                         fromToken,
                         tokens[i].token(),
                         amount,
                         parts,
                         flags,
-                        toTokenEthPriceTimesGasPrice
+                        destTokenEthPriceTimesGasPrice
                     );
                     return (returnAmount.mul(1e18).div(tokens[i].tokenPrice()), estimateGasAmount + 1_300_000, distribution);
                 }
             }
         }
 
-        return super.getExpectedReturnRespectingGas(
+        return super.getExpectedReturnWithGas(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
             flags,
-            toTokenEthPriceTimesGasPrice
+            destTokenEthPriceTimesGasPrice
         );
     }
 }
@@ -117,7 +117,7 @@ contract OneSplitIdleView is OneSplitViewWrapBase, OneSplitIdleBase {
 contract OneSplitIdle is OneSplitBaseWrap, OneSplitIdleBase {
     function _superOneSplitIdleSwap(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256[] calldata distribution,
         uint256 flags
@@ -125,19 +125,19 @@ contract OneSplitIdle is OneSplitBaseWrap, OneSplitIdleBase {
         external
     {
         require(msg.sender == address(this));
-        return super._swap(fromToken, toToken, amount, distribution, flags);
+        return super._swap(fromToken, destToken, amount, distribution, flags);
     }
 
     function _swap(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256[] memory distribution,
         uint256 flags
     ) internal {
         _idleSwap(
             fromToken,
-            toToken,
+            destToken,
             amount,
             distribution,
             flags
@@ -146,7 +146,7 @@ contract OneSplitIdle is OneSplitBaseWrap, OneSplitIdleBase {
 
     function _idleSwap(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256[] memory distribution,
         uint256 flags
@@ -158,13 +158,13 @@ contract OneSplitIdle is OneSplitBaseWrap, OneSplitIdleBase {
                 if (fromToken == IERC20(tokens[i])) {
                     IERC20 underlying = tokens[i].token();
                     uint256 minted = tokens[i].redeemIdleToken(amount, true, new uint256[](0));
-                    _idleSwap(underlying, toToken, minted, distribution, flags);
+                    _idleSwap(underlying, destToken, minted, distribution, flags);
                     return;
                 }
             }
 
             for (uint i = 0; i < tokens.length; i++) {
-                if (toToken == IERC20(tokens[i])) {
+                if (destToken == IERC20(tokens[i])) {
                     IERC20 underlying = tokens[i].token();
                     super._swap(fromToken, underlying, amount, distribution, flags);
 
@@ -176,6 +176,6 @@ contract OneSplitIdle is OneSplitBaseWrap, OneSplitIdleBase {
             }
         }
 
-        return super._swap(fromToken, toToken, amount, distribution, flags);
+        return super._swap(fromToken, destToken, amount, distribution, flags);
     }
 }

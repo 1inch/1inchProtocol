@@ -29,7 +29,7 @@ import "./UniversalERC20.sol";
 contract IOneSplitView is IOneSplitConsts {
     function getExpectedReturn(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags
@@ -41,13 +41,13 @@ contract IOneSplitView is IOneSplitConsts {
             uint256[] memory distribution
         );
 
-    function getExpectedReturnRespectingGas(
+    function getExpectedReturnWithGas(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags,
-        uint256 toTokenEthPriceTimesGasPrice
+        uint256 destTokenEthPriceTimesGasPrice
     )
         public
         view
@@ -119,20 +119,20 @@ contract OneSplitRoot {
 
     function _buildBancorPath(
         IERC20 fromToken,
-        IERC20 toToken
+        IERC20 destToken
     ) internal view returns(address[] memory path) {
-        if (fromToken == toToken) {
+        if (fromToken == destToken) {
             return new address[](0);
         }
 
         if (fromToken.isETH()) {
             fromToken = bancorEtherToken;
         }
-        if (toToken.isETH()) {
-            toToken = bancorEtherToken;
+        if (destToken.isETH()) {
+            destToken = bancorEtherToken;
         }
 
-        if (fromToken == bnt || toToken == bnt) {
+        if (fromToken == bnt || destToken == bnt) {
             path = new address[](3);
         } else {
             path = new address[](5);
@@ -159,10 +159,10 @@ contract OneSplitRoot {
             }
         }
 
-        if (toToken != bnt) {
+        if (destToken != bnt) {
             (bool success, bytes memory data) = address(bancorConverterRegistry).staticcall.gas(10000)(abi.encodeWithSelector(
                 bancorConverterRegistry.getConvertibleTokenSmartToken.selector,
-                toToken.isETH() ? bnt : toToken,
+                destToken.isETH() ? bnt : destToken,
                 0
             ));
             if (!success) {
@@ -175,7 +175,7 @@ contract OneSplitRoot {
             }
         }
 
-        if (toToken == bnt) {
+        if (destToken == bnt) {
             path[0] = address(fromToken);
             path[1] = fromConverter;
             path[2] = address(bnt);
@@ -185,7 +185,7 @@ contract OneSplitRoot {
         if (fromToken == bnt) {
             path[0] = address(bnt);
             path[1] = toConverter;
-            path[2] = address(toToken);
+            path[2] = address(destToken);
             return path;
         }
 
@@ -193,7 +193,7 @@ contract OneSplitRoot {
         path[1] = fromConverter;
         path[2] = address(bnt);
         path[3] = toConverter;
-        path[4] = address(toToken);
+        path[4] = address(destToken);
         return path;
     }
 
@@ -287,7 +287,7 @@ contract OneSplitRoot {
 contract OneSplitViewWrapBase is IOneSplitView, OneSplitRoot {
     function getExpectedReturn(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags // See constants in IOneSplit.sol
@@ -299,9 +299,9 @@ contract OneSplitViewWrapBase is IOneSplitView, OneSplitRoot {
             uint256[] memory distribution
         )
     {
-        (returnAmount, , distribution) = this.getExpectedReturnRespectingGas(
+        (returnAmount, , distribution) = this.getExpectedReturnWithGas(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
             flags,
@@ -309,13 +309,13 @@ contract OneSplitViewWrapBase is IOneSplitView, OneSplitRoot {
         );
     }
 
-    function getExpectedReturnRespectingGas(
+    function getExpectedReturnWithGas(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags,
-        uint256 toTokenEthPriceTimesGasPrice
+        uint256 destTokenEthPriceTimesGasPrice
     )
         public
         view
@@ -327,21 +327,21 @@ contract OneSplitViewWrapBase is IOneSplitView, OneSplitRoot {
     {
         return _getExpectedReturnRespectingGasFloor(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
             flags,
-            toTokenEthPriceTimesGasPrice
+            destTokenEthPriceTimesGasPrice
         );
     }
 
     function _getExpectedReturnRespectingGasFloor(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags, // See constants in IOneSplit.sol
-        uint256 toTokenEthPriceTimesGasPrice
+        uint256 destTokenEthPriceTimesGasPrice
     )
         internal
         view
@@ -427,7 +427,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
 
     function getExpectedReturn(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags // See constants in IOneSplit.sol
@@ -439,9 +439,9 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             uint256[] memory distribution
         )
     {
-        (returnAmount, , distribution) = getExpectedReturnRespectingGas(
+        (returnAmount, , distribution) = getExpectedReturnWithGas(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
             flags,
@@ -449,13 +449,13 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         );
     }
 
-    function getExpectedReturnRespectingGas(
+    function getExpectedReturnWithGas(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags, // See constants in IOneSplit.sol
-        uint256 toTokenEthPriceTimesGasPrice
+        uint256 destTokenEthPriceTimesGasPrice
     )
         public
         view
@@ -467,7 +467,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
     {
         distribution = new uint256[](DEXES_COUNT);
 
-        if (fromToken == toToken) {
+        if (fromToken == destToken) {
             return (amount, 0, distribution);
         }
 
@@ -477,7 +477,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         uint256[DEXES_COUNT] memory gases;
         for (uint i = 0; i < DEXES_COUNT; i++) {
             uint256[] memory rets;
-            (rets, gases[i]) = reserves[i](fromToken, toToken, amount, parts, flags);
+            (rets, gases[i]) = reserves[i](fromToken, destToken, amount, parts, flags);
 
             // Prepend zero
             matrix[i] = new int256[](parts + 1);
@@ -486,7 +486,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             }
 
             // Respect gas in first part
-            matrix[i][1] -= int256(gases[i].mul(toTokenEthPriceTimesGasPrice).div(1e18));
+            matrix[i][1] -= int256(gases[i].mul(destTokenEthPriceTimesGasPrice).div(1e18));
         }
 
         (, distribution) = _findBestDistribution(parts, matrix);
@@ -500,7 +500,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
                 );
                 if (distribution[i] == 1) {
                     returnAmount = returnAmount.add(
-                        gases[i].mul(toTokenEthPriceTimesGasPrice).div(1e18)
+                        gases[i].mul(destTokenEthPriceTimesGasPrice).div(1e18)
                     );
                 }
             }
@@ -544,7 +544,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 /*destToken*/,
         uint256 /*amount*/,
         uint256 /*parts*/,
-        uint256 /*toTokenEthPriceTimesGasPrice*/,
+        uint256 /*destTokenEthPriceTimesGasPrice*/,
         uint256 /*flags*/,
         uint256 /*destTokenEthPrice*/
     ) internal view returns(uint256[] memory /*rets*/, uint256 /*gas*/) {
@@ -874,7 +874,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
 
     function _calculateUniswapReturn(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256[] memory amounts,
         uint256 /*flags*/
     ) internal view returns(uint256[] memory rets, uint256 gas) {
@@ -894,21 +894,21 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             }
         }
 
-        if (!toToken.isETH()) {
-            IUniswapExchange toExchange = uniswapFactory.getExchange(toToken);
+        if (!destToken.isETH()) {
+            IUniswapExchange toExchange = uniswapFactory.getExchange(destToken);
             if (toExchange == IUniswapExchange(0)) {
                 return (new uint256[](rets.length), 0);
             }
 
             uint256 toEtherBalance = address(toExchange).balance;
-            uint256 toTokenBalance = toToken.universalBalanceOf(address(toExchange));
+            uint256 toTokenBalance = destToken.universalBalanceOf(address(toExchange));
 
             for (uint i = 0; i < rets.length; i++) {
                 rets[i] = _calculateUniswapFormula(toEtherBalance, toTokenBalance, rets[i]);
             }
         }
 
-        return (rets, fromToken.isETH() || toToken.isETH() ? 60_000 : 100_000);
+        return (rets, fromToken.isETH() || destToken.isETH() ? 60_000 : 100_000);
     }
 
     function calculateUniswapReturn(
@@ -1061,7 +1061,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
 
     function _calculateKyberReturn(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 flags
     ) internal view returns(uint256 returnAmount, uint256 gas) {
@@ -1074,8 +1074,8 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
 
         IKyberNetworkContract kyberNetworkContract = IKyberNetworkContract(abi.decode(data, (address)));
 
-        if (fromToken.isETH() || toToken.isETH()) {
-            return _calculateKyberReturnWithEth(kyberNetworkContract, fromToken, toToken, amount, flags);
+        if (fromToken.isETH() || destToken.isETH()) {
+            return _calculateKyberReturnWithEth(kyberNetworkContract, fromToken, destToken, amount, flags);
         }
 
         (uint256 value, uint256 gasFee) = _calculateKyberReturnWithEth(kyberNetworkContract, fromToken, ETH_ADDRESS, amount, flags);
@@ -1083,23 +1083,23 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             return (0, 0);
         }
 
-        (uint256 value2, uint256 gasFee2) =  _calculateKyberReturnWithEth(kyberNetworkContract, ETH_ADDRESS, toToken, value, flags);
+        (uint256 value2, uint256 gasFee2) =  _calculateKyberReturnWithEth(kyberNetworkContract, ETH_ADDRESS, destToken, value, flags);
         return (value2, gasFee + gasFee2);
     }
 
     function _calculateKyberReturnWithEth(
         IKyberNetworkContract kyberNetworkContract,
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 flags
     ) internal view returns(uint256 returnAmount, uint256 gas) {
-        require(fromToken.isETH() || toToken.isETH(), "One of the tokens should be ETH");
+        require(fromToken.isETH() || destToken.isETH(), "One of the tokens should be ETH");
 
         (bool success, bytes memory data) = address(kyberNetworkContract).staticcall.gas(1500000)(abi.encodeWithSelector(
             kyberNetworkContract.searchBestRate.selector,
             fromToken.isETH() ? ETH_ADDRESS : fromToken,
-            toToken.isETH() ? ETH_ADDRESS : toToken,
+            destToken.isETH() ? ETH_ADDRESS : destToken,
             amount,
             true
         ));
@@ -1149,7 +1149,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
 
         return (
             ret.mul(amount)
-                .mul(10 ** IERC20(toToken).universalDecimals())
+                .mul(10 ** IERC20(destToken).universalDecimals())
                 .div(10 ** IERC20(fromToken).universalDecimals())
                 .div(1e18),
             700_000
@@ -1381,7 +1381,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
 
     function _calculateNoReturn(
         IERC20 /*fromToken*/,
-        IERC20 /*toToken*/,
+        IERC20 /*destToken*/,
         uint256 /*amount*/,
         uint256 parts,
         uint256 /*flags*/
@@ -1395,18 +1395,18 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
 contract OneSplitBaseWrap is IOneSplit, OneSplitRoot {
     function _swap(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256[] memory distribution,
         uint256 flags // See constants in IOneSplit.sol
     ) internal {
-        if (fromToken == toToken) {
+        if (fromToken == destToken) {
             return;
         }
 
         _swapFloor(
             fromToken,
-            toToken,
+            destToken,
             amount,
             distribution,
             flags
@@ -1415,7 +1415,7 @@ contract OneSplitBaseWrap is IOneSplit, OneSplitRoot {
 
     function _swapFloor(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256[] memory distribution,
         uint256 /*flags*/ // See constants in IOneSplit.sol
@@ -1437,7 +1437,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
 
     function getExpectedReturn(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags
@@ -1449,9 +1449,9 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             uint256[] memory distribution
         )
     {
-        (returnAmount, , distribution) = getExpectedReturnRespectingGas(
+        (returnAmount, , distribution) = getExpectedReturnWithGas(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
             flags,
@@ -1459,13 +1459,13 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         );
     }
 
-    function getExpectedReturnRespectingGas(
+    function getExpectedReturnWithGas(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags,
-        uint256 toTokenEthPriceTimesGasPrice
+        uint256 destTokenEthPriceTimesGasPrice
     )
         public
         view
@@ -1475,25 +1475,25 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             uint256[] memory distribution
         )
     {
-        return oneSplitView.getExpectedReturnRespectingGas(
+        return oneSplitView.getExpectedReturnWithGas(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
             flags,
-            toTokenEthPriceTimesGasPrice
+            destTokenEthPriceTimesGasPrice
         );
     }
 
     function swap(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 /*minReturn*/,
         uint256[] memory distribution,
         uint256 /*flags*/  // See constants in IOneSplit.sol
     ) public payable returns(uint256 returnAmount) {
-        if (fromToken == toToken) {
+        if (fromToken == destToken) {
             return amount;
         }
 
@@ -1546,10 +1546,10 @@ contract OneSplit is IOneSplit, OneSplitRoot {
                 swapAmount = remainingAmount;
             }
             remainingAmount -= swapAmount;
-            reserves[i](fromToken, toToken, swapAmount);
+            reserves[i](fromToken, destToken, swapAmount);
         }
 
-        returnAmount = toToken.universalBalanceOf(address(this));
+        returnAmount = destToken.universalBalanceOf(address(this));
     }
 
     // Swap helpers
@@ -1674,13 +1674,13 @@ contract OneSplit is IOneSplit, OneSplitRoot {
 
     function _swapOnShell(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount
     ) internal returns (uint256) {
         fromToken.universalApprove(address(shell), amount);
         return shell.swapByOrigin(
             address(fromToken),
-            address(toToken),
+            address(destToken),
             amount,
             0,
             now + 50
@@ -1734,7 +1734,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
 
     function _swapOnUniswap(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount
     ) internal returns(uint256) {
 
@@ -1748,8 +1748,8 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             }
         }
 
-        if (!toToken.isETH()) {
-            IUniswapExchange toExchange = uniswapFactory.getExchange(toToken);
+        if (!destToken.isETH()) {
+            IUniswapExchange toExchange = uniswapFactory.getExchange(destToken);
             if (toExchange != IUniswapExchange(0)) {
                 returnAmount = toExchange.ethToTokenSwapInput.value(returnAmount)(1, now);
             }
@@ -1760,21 +1760,21 @@ contract OneSplit is IOneSplit, OneSplitRoot {
 
     function _swapOnUniswapCompound(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount
     ) internal returns(uint256) {
         if (!fromToken.isETH()) {
             ICompoundToken fromCompound = _getCompoundToken(fromToken);
             fromToken.universalApprove(address(fromCompound), amount);
             fromCompound.mint(amount);
-            return _swapOnUniswap(IERC20(fromCompound), toToken, IERC20(fromCompound).universalBalanceOf(address(this)));
+            return _swapOnUniswap(IERC20(fromCompound), destToken, IERC20(fromCompound).universalBalanceOf(address(this)));
         }
 
-        if (!toToken.isETH()) {
-            ICompoundToken toCompound = _getCompoundToken(toToken);
+        if (!destToken.isETH()) {
+            ICompoundToken toCompound = _getCompoundToken(destToken);
             uint256 compoundAmount = _swapOnUniswap(fromToken, IERC20(toCompound), amount);
             toCompound.redeem(compoundAmount);
-            return toToken.universalBalanceOf(address(this));
+            return destToken.universalBalanceOf(address(this));
         }
 
         return 0;
@@ -1782,19 +1782,19 @@ contract OneSplit is IOneSplit, OneSplitRoot {
 
     function _swapOnUniswapChai(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount
     ) internal returns(uint256) {
         if (fromToken == dai) {
             fromToken.universalApprove(address(chai), amount);
             chai.join(address(this), amount);
-            return _swapOnUniswap(IERC20(chai), toToken, IERC20(chai).universalBalanceOf(address(this)));
+            return _swapOnUniswap(IERC20(chai), destToken, IERC20(chai).universalBalanceOf(address(this)));
         }
 
-        if (toToken == dai) {
+        if (destToken == dai) {
             uint256 chaiAmount = _swapOnUniswap(fromToken, IERC20(chai), amount);
             chai.exit(address(this), chaiAmount);
-            return toToken.universalBalanceOf(address(this));
+            return destToken.universalBalanceOf(address(this));
         }
 
         return 0;
@@ -1802,18 +1802,18 @@ contract OneSplit is IOneSplit, OneSplitRoot {
 
     function _swapOnUniswapAave(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount
     ) internal returns(uint256) {
         if (!fromToken.isETH()) {
             IAaveToken fromAave = _getAaveToken(fromToken);
             fromToken.universalApprove(aave.core(), amount);
             aave.deposit(fromToken, amount, 1101);
-            return _swapOnUniswap(IERC20(fromAave), toToken, IERC20(fromAave).universalBalanceOf(address(this)));
+            return _swapOnUniswap(IERC20(fromAave), destToken, IERC20(fromAave).universalBalanceOf(address(this)));
         }
 
-        if (!toToken.isETH()) {
-            IAaveToken toAave = _getAaveToken(toToken);
+        if (!destToken.isETH()) {
+            IAaveToken toAave = _getAaveToken(destToken);
             uint256 aaveAmount = _swapOnUniswap(fromToken, IERC20(toAave), amount);
             toAave.redeem(aaveAmount);
             return aaveAmount;
@@ -1824,14 +1824,14 @@ contract OneSplit is IOneSplit, OneSplitRoot {
 
     function _swapOnMooniswap(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount
     ) internal returns(uint256) {
         IMooniswap mooniswap = mooniswapRegistry.target();
         fromToken.universalApprove(address(mooniswap), amount);
         return mooniswap.swap.value(fromToken.isETH() ? amount : 0)(
             fromToken,
-            toToken,
+            destToken,
             amount,
             0
         );
@@ -1839,14 +1839,14 @@ contract OneSplit is IOneSplit, OneSplitRoot {
 
     function _swapOnKyber(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount
     ) internal returns(uint256) {
         fromToken.universalApprove(address(kyberNetworkProxy), amount);
         return kyberNetworkProxy.tradeWithHint.value(fromToken.isETH() ? amount : 0)(
             fromToken.isETH() ? ETH_ADDRESS : fromToken,
             amount,
-            toToken.isETH() ? ETH_ADDRESS : toToken,
+            destToken.isETH() ? ETH_ADDRESS : destToken,
             address(this),
             1 << 255,
             0,
@@ -1857,7 +1857,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
 
     function _swapOnBancor(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount
     ) internal returns(uint256) {
         if (fromToken.isETH()) {
@@ -1865,13 +1865,13 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         }
 
         IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
-        address[] memory path = _buildBancorPath(fromToken, toToken);
+        address[] memory path = _buildBancorPath(fromToken, destToken);
 
         IERC20 approveToken = fromToken.isETH() ? bancorEtherToken : fromToken;
         approveToken.universalApprove(address(bancorNetwork), amount);
         uint256 returnAmount = bancorNetwork.claimAndConvert(path, amount, 1);
 
-        if (toToken.isETH()) {
+        if (destToken.isETH()) {
             bancorEtherToken.withdraw(bancorEtherToken.balanceOf(address(this)));
         }
 
@@ -1880,7 +1880,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
 
     function _swapOnOasis(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount
     ) internal returns(uint256) {
         if (fromToken.isETH()) {
@@ -1892,11 +1892,11 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         uint256 returnAmount = oasisExchange.sellAllAmount(
             fromToken.isETH() ? weth : fromToken,
             amount,
-            toToken.isETH() ? weth : toToken,
+            destToken.isETH() ? weth : destToken,
             1
         );
 
-        if (toToken.isETH()) {
+        if (destToken.isETH()) {
             weth.withdraw(weth.balanceOf(address(this)));
         }
 
@@ -1905,7 +1905,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
 
     function _swapOnUniswapV2Internal(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount
     ) internal returns(uint256 returnAmount) {
         if (fromToken.isETH()) {
@@ -1913,7 +1913,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         }
 
         IERC20 fromTokenReal = fromToken.isETH() ? weth : fromToken;
-        IERC20 toTokenReal = toToken.isETH() ? weth : toToken;
+        IERC20 toTokenReal = destToken.isETH() ? weth : destToken;
         IUniswapV2Exchange exchange = uniswapV2.getPair(fromTokenReal, toTokenReal);
         returnAmount = exchange.getReturn(fromTokenReal, toTokenReal, amount);
 
@@ -1924,7 +1924,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             exchange.swap(returnAmount, 0, address(this), "");
         }
 
-        if (toToken.isETH()) {
+        if (destToken.isETH()) {
             weth.withdraw(weth.balanceOf(address(this)));
         }
     }
@@ -1932,12 +1932,12 @@ contract OneSplit is IOneSplit, OneSplitRoot {
     function _swapOnUniswapV2OverMid(
         IERC20 fromToken,
         IERC20 midToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount
     ) internal returns(uint256) {
         return _swapOnUniswapV2Internal(
             midToken,
-            toToken,
+            destToken,
             _swapOnUniswapV2Internal(
                 fromToken,
                 midToken,
@@ -1948,51 +1948,51 @@ contract OneSplit is IOneSplit, OneSplitRoot {
 
     function _swapOnUniswapV2(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount
     ) internal returns(uint256) {
         return _swapOnUniswapV2Internal(
             fromToken,
-            toToken,
+            destToken,
             amount
         );
     }
 
     function _swapOnUniswapV2ETH(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount
     ) internal returns(uint256) {
         return _swapOnUniswapV2OverMid(
             fromToken,
             weth,
-            toToken,
+            destToken,
             amount
         );
     }
 
     function _swapOnUniswapV2DAI(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount
     ) internal returns(uint256) {
         return _swapOnUniswapV2OverMid(
             fromToken,
             dai,
-            toToken,
+            destToken,
             amount
         );
     }
 
     function _swapOnUniswapV2USDC(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount
     ) internal returns(uint256) {
         return _swapOnUniswapV2OverMid(
             fromToken,
             usdc,
-            toToken,
+            destToken,
             amount
         );
     }
