@@ -73,6 +73,41 @@ In case of direct swap each element of `distribution` array matches element of `
 
 In case of swap with transitional token each element of `distribution` (256 bits) matches 2 swaps: second bytes are equal to swap to transitional token, lowest bytes are equal to swap to the desired token.
 
+## Supported DEXes
+
+- [Uniswap]()
+- [Kyber]()
+- [Bancor]()
+- [Oasis]()
+- [Curve Compound]()
+- [Curve USDT]()
+- [Curve Y]()
+- [Curve Binance]()
+- [Curve Synthetix]()
+- [Uniswap Compound]()
+- [Uniswap CHAI]()
+- [Uniswap Aave]()
+- [Mooniswap]()
+- [Uniswap V2]()
+- [Uniswap V2 ETH]()
+- [Uniswap V2 DAI]()
+- [Uniswap V2 USDC]()
+- [Curve Pax]()
+- [Curve renBTC]()
+- [Curve tBTC]()
+- [Dforce XSwap]()
+- [Shell]()
+- [mStable mUSD]()
+- [CHAI]()
+- [BDAI]()
+- [Aave]()
+- [Fulcrum]()
+- [Compound]()
+- [Iearn]()
+- [Idle]()
+- [WETH]()
+
+
 ## Methods
 
 If you need Ether instead of any token use `address(0)` or `address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE)` as param `fromToken`/`destToken`
