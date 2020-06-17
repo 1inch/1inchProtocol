@@ -61,7 +61,10 @@ let wrapExchanges = [
 ]
 ```
 
+![How it works](./img/scheme.png)
+
 First of all call method `getExpectedReturn` (see methods section), it returns `distribution` array. Each element of this array matches element of `splitExchanges` (see above) and represents fraction of trading volume.<br>
+Then call `getExpectedReturnWithGas` to take into account gas when splitting. This method returns more profitable `distribution` array for exchange.<br>
 Then call method `swap` or `swapWithReferral` (see methods section) with param `distribution` which was recieved earlier from method `getExpectedReturn`.
 
 Swap may be customized by flags (see flags section). There are 2 types of swap: direct swap and swap over transitional token.
@@ -92,6 +95,8 @@ If you need Ether instead of any token use `address(0)` or `address(0xEeeeeEeeeE
   | ----- | ----- | ----- |
   | returnAmount | uint256 | Expected returning amount of desired token |
   | distribution | uint256[] | Array of weights for volume distribution  |
+  
+  **Notice:** This method is equal to `getExpectedReturnWithGas(fromToken, destToken, amount, parts, flags, 0)`
 
   **Example:**
   ```
@@ -118,6 +123,32 @@ If you need Ether instead of any token use `address(0)` or `address(0xEeeeeEeeeE
   });
   ```
 
+- **getExpectedReturnWithGas(fromToken, destToken, amount, parts, flags, destTokenEthPriceTimesGasPrice)**
+
+  Calculate expected returning amount of desired token taking into account how gas protocols affect price
+
+  | Params | Type | Description |
+  | ----- | ----- | ----- |
+  | fromToken | IERC20 | Address of trading off token |
+  | destToken | IERC20 | Address of desired token |
+  | amount | uint256 | Amount for `fromToken` |
+  | parts | uint256 | Number of pieces source volume could be splitted (Works like granularity, higly affects gas usage. Should be called offchain, but could be called onchain if user swaps not his own funds, but this is still considered as not safe) |
+  | flags | uint256 | Flags for enabling and disabling some features (default: `0`), see flags description |
+  | destTokenEthPriceTimesGasPrice | uint256 | `returnAmount * gas_price`, where `returnAmount` is result of `getExpectedReturn(fromToken, destTokem, amount, parts, flags)` |
+  
+  Return values: 
+
+  | Params | Type | Description |
+  | ----- | ----- | ----- |
+  | returnAmount | uint256 | Expected returning amount of desired token |
+  | estimateGasAmount | uint256 | Expected gas amount of exchange |
+  | distribution | uint256[] | Array of weights for volume distribution  |
+  
+  **Example:**
+  ```
+   // TO DO: ...
+  ```
+
 - **swap(fromToken, destToken, amount, minReturn, distribution, flags)**
 
   Swap `amount` of `fromToken` to `destToken`
@@ -133,6 +164,8 @@ If you need Ether instead of any token use `address(0)` or `address(0xEeeeeEeeeE
   
   **Notice:** Make sure the `flags` param coincides `flags` param in `getExpectedReturn` method if you want the same result
   
+  **Notice:** This method is equal to `swapWithReferral(fromToken, destToken, amount, minReturn, distribution, flags, address(0), 0)`
+  
   Return values: 
   
   | Params | Type | Description |
@@ -143,7 +176,8 @@ If you need Ether instead of any token use `address(0)` or `address(0xEeeeeEeeeE
   ```
    // TO DO: ...
   ```
-- **swapWithReferral(fromToken, destToken, amount, minReturn, distribution, flags)**
+
+- **swapWithReferral(fromToken, destToken, amount, minReturn, distribution, flags, referral, feePercent)**
   
   Swap `amount` of `fromToken` to `destToken`
   
