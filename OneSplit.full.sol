@@ -158,6 +158,7 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_DISABLE_DFORCE_SWAP = 0x4000000000;
     uint256 internal constant FLAG_DISABLE_SHELL = 0x8000000000;
     uint256 internal constant FLAG_ENABLE_CHI_BURN = 0x10000000000;
+    uint256 internal constant FLAG_DISABLE_MSTABLE_MUSD = 0x20000000000;
 }
 
 
@@ -1133,6 +1134,32 @@ interface IShell {
     ) external returns (uint256);
 }
 
+// File: contracts/interface/IMStable.sol
+
+pragma solidity ^0.5.0;
+
+
+
+contract IMStable is IERC20 {
+    function getSwapOutput(
+        IERC20 _input,
+        IERC20 _output,
+        uint256 _quantity
+    )
+        external
+        view
+        returns (bool, string memory, uint256 output);
+
+    function swap(
+        IERC20 _input,
+        IERC20 _output,
+        uint256 _quantity,
+        address _recipient
+    )
+        external
+        returns (uint256 output);
+}
+
 // File: contracts/OneSplitBase.sol
 
 pragma solidity ^0.5.0;
@@ -1146,6 +1173,7 @@ pragma solidity ^0.5.0;
 
 
 //import "./interface/IBancorNetworkPathFinder.sol";
+
 
 
 
@@ -1212,7 +1240,7 @@ contract OneSplitRoot {
     using UniswapV2ExchangeLib for IUniswapV2Exchange;
     using ChaiHelper for IChai;
 
-    uint256 constant public DEXES_COUNT = 22;
+    uint256 constant public DEXES_COUNT = 23;
     IERC20 constant internal ETH_ADDRESS = IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
     IERC20 constant internal dai = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
@@ -1252,6 +1280,7 @@ contract OneSplitRoot {
     IMooniswapRegistry constant internal mooniswapRegistry = IMooniswapRegistry(0x7079E8517594e5b21d2B9a0D17cb33F5FE2bca70);
     IUniswapV2Factory constant internal uniswapV2 = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
     IDForceSwap constant internal dforceSwap = IDForceSwap(0x03eF3f37856bD08eb47E2dE7ABc4Ddd2c19B60F2);
+    IMStable constant internal musd = IMStable(0xe2f2a5C287993345a840Db3B0845fbC70f5935a5);
 
     function _buildBancorPath(
         IERC20 fromToken,
@@ -1262,10 +1291,10 @@ contract OneSplitRoot {
         }
 
         if (fromToken.isETH()) {
-            fromToken = bancorEtherToken;
+            fromToken = ETH_ADDRESS;
         }
         if (destToken.isETH()) {
-            destToken = bancorEtherToken;
+            destToken = ETH_ADDRESS;
         }
 
         if (fromToken == bnt || destToken == bnt) {
@@ -1557,7 +1586,8 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             "Curve RenBTC",
             "Curve tBTC",
             "Dforce XSwap",
-            "Shell"
+            "Shell",
+            "mStable"
         ][i];
     }
 
@@ -1671,7 +1701,8 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             invert != flags.check(FLAG_DISABLE_CURVE_RENBTC)     ? _calculateNoReturn : calculateCurveRenBtc,
             invert != flags.check(FLAG_DISABLE_CURVE_TBTC)       ? _calculateNoReturn : calculateCurveTBtc,
             invert != flags.check(FLAG_DISABLE_DFORCE_SWAP)      ? _calculateNoReturn : calculateDforceSwap,
-            invert != flags.check(FLAG_DISABLE_SHELL)            ? _calculateNoReturn : calculateShell
+            invert != flags.check(FLAG_DISABLE_SHELL)            ? _calculateNoReturn : calculateShell,
+            invert != flags.check(FLAG_DISABLE_MSTABLE_MUSD)     ? _calculateNoReturn : calculateMStableMUSD
         ];
     }
 
@@ -1697,6 +1728,36 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         for (uint i = 0; i < parts; i++) {
             rets[i] = value.mul(i + 1).div(parts);
         }
+    }
+
+    function calculateMStableMUSD(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 /*flags*/
+    ) internal view returns(uint256[] memory rets, uint256 gas) {
+        if ((fromToken != usdc && fromToken != dai && fromToken != usdt && fromToken != tusd) ||
+            (destToken != usdc && destToken != dai && destToken != usdt && destToken != tusd))
+        {
+            return (new uint256[](parts), 0);
+        }
+
+        for (uint i = 1; parts > i; i *= 2) {
+            (,, uint256 maxRet) = musd.getSwapOutput(fromToken, destToken, amount / i);
+            if (maxRet > 0) {
+                rets = new uint256[](parts);
+                for (uint j = 0; j < parts / i; j++) {
+                    rets[i] = maxRet.mul(j + 1).mul(i).div(parts);
+                }
+                break;
+            }
+        }
+
+        return (
+            rets,
+            700_000
+        );
     }
 
     function _calculateCurveSelector(
@@ -2655,7 +2716,8 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             _swapOnCurveRenBtc,
             _swapOnCurveTBtc,
             _swapOnDforceSwap,
-            _swapOnShell
+            _swapOnShell,
+            _swapOnMStableMUSD
         ];
 
         require(distribution.length <= reserves.length, "OneSplit: Distribution array should not exceed reserves array size");
@@ -2820,6 +2882,20 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             amount,
             0,
             now + 50
+        );
+    }
+
+    function _swapOnMStableMUSD(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount
+    ) internal returns (uint256) {
+        fromToken.universalApprove(address(musd), amount);
+        return musd.swap(
+            fromToken,
+            destToken,
+            amount,
+            address(this)
         );
     }
 
@@ -2996,22 +3072,9 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         IERC20 destToken,
         uint256 amount
     ) internal returns(uint256) {
-        if (fromToken.isETH()) {
-            bancorEtherToken.deposit.value(amount)();
-        }
-
         IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
         address[] memory path = _buildBancorPath(fromToken, destToken);
-
-        IERC20 approveToken = fromToken.isETH() ? bancorEtherToken : fromToken;
-        approveToken.universalApprove(address(bancorNetwork), amount);
-        uint256 returnAmount = bancorNetwork.claimAndConvert(path, amount, 1);
-
-        if (destToken.isETH()) {
-            bancorEtherToken.withdraw(bancorEtherToken.balanceOf(address(this)));
-        }
-
-        return returnAmount;
+        return bancorNetwork.convert.value(fromToken.isETH() ? amount : 0)(path, amount, 1);
     }
 
     function _swapOnOasis(
@@ -4855,9 +4918,108 @@ contract OneSplitWeth is OneSplitBaseWrap {
     }
 }
 
+// File: contracts/OneSplitMStable.sol
+
+pragma solidity ^0.5.0;
+
+
+
+
+contract OneSplitMStableView is OneSplitViewWrapBase {
+    function getExpectedReturnWithGas(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags,
+        uint256 destTokenEthPriceTimesGasPrice
+    )
+        public
+        view
+        returns(
+            uint256 returnAmount,
+            uint256 estimateGasAmount,
+            uint256[] memory distribution
+        )
+    {
+        if (fromToken == destToken) {
+            return (amount, 0, new uint256[](DEXES_COUNT));
+        }
+
+        if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_MSTABLE_MUSD)) {
+            if (fromToken == IERC20(musd)) {
+                // TODO: redeem
+                // (,, uint256 result) = musd.getSwapOutput(fromToken, destToken, amount);
+                // return (result, 300_000, new uint256[](DEXES_COUNT));
+            }
+
+            if (destToken == IERC20(musd)) {
+                (,, uint256 result) = musd.getSwapOutput(fromToken, destToken, amount);
+                return (result, 300_000, new uint256[](DEXES_COUNT));
+            }
+        }
+
+        return super.getExpectedReturnWithGas(
+            fromToken,
+            destToken,
+            amount,
+            parts,
+            flags,
+            destTokenEthPriceTimesGasPrice
+        );
+    }
+}
+
+
+contract OneSplitMStable is OneSplitBaseWrap {
+    function _swap(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256[] memory distribution,
+        uint256 flags
+    ) internal {
+        if (fromToken == destToken) {
+            return;
+        }
+
+        if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_MSTABLE_MUSD)) {
+            if (fromToken == IERC20(musd)) {
+                // TODO: redeem
+                // musd.swap(
+                //     fromToken,
+                //     destToken,
+                //     amount,
+                //     address(this)
+                // );
+                // return;
+            }
+
+            if (destToken == IERC20(musd)) {
+                musd.swap(
+                    fromToken,
+                    destToken,
+                    amount,
+                    address(this)
+                );
+                return;
+            }
+        }
+
+        return super._swap(
+            fromToken,
+            destToken,
+            amount,
+            distribution,
+            flags
+        );
+    }
+}
+
 // File: contracts/OneSplit.sol
 
 pragma solidity ^0.5.0;
+
 
 
 
@@ -4875,6 +5037,7 @@ pragma solidity ^0.5.0;
 contract OneSplitViewWrap is
     OneSplitViewWrapBase,
     OneSplitMultiPathView,
+    OneSplitMStableView,
     OneSplitChaiView,
     OneSplitBdaiView,
     OneSplitAaveView,
@@ -4976,6 +5139,7 @@ contract OneSplitViewWrap is
 contract OneSplitWrap is
     OneSplitBaseWrap,
     OneSplitMultiPath,
+    OneSplitMStable,
     OneSplitChai,
     OneSplitBdai,
     OneSplitAave,

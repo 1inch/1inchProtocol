@@ -11,12 +11,14 @@ import "./OneSplitIearn.sol";
 import "./OneSplitIdle.sol";
 import "./OneSplitAave.sol";
 import "./OneSplitWeth.sol";
+import "./OneSplitMStable.sol";
 //import "./OneSplitSmartToken.sol";
 
 
 contract OneSplitViewWrap is
     OneSplitViewWrapBase,
     OneSplitMultiPathView,
+    OneSplitMStableView,
     OneSplitChaiView,
     OneSplitBdaiView,
     OneSplitAaveView,
@@ -118,6 +120,7 @@ contract OneSplitViewWrap is
 contract OneSplitWrap is
     OneSplitBaseWrap,
     OneSplitMultiPath,
+    OneSplitMStable,
     OneSplitChai,
     OneSplitBdai,
     OneSplitAave,
