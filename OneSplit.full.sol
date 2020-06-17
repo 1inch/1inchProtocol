@@ -1309,9 +1309,9 @@ contract OneSplitRoot {
         IBancorConverterRegistry bancorConverterRegistry = IBancorConverterRegistry(bancorContractRegistry.addressOf("BancorConverterRegistry"));
 
         if (fromToken != bnt) {
-            (bool success, bytes memory data) = address(bancorConverterRegistry).staticcall.gas(10000)(abi.encodeWithSelector(
+            (bool success, bytes memory data) = address(bancorConverterRegistry).staticcall.gas(100000)(abi.encodeWithSelector(
                 bancorConverterRegistry.getConvertibleTokenSmartToken.selector,
-                fromToken.isETH() ? bnt : fromToken,
+                fromToken.isETH() ? ETH_ADDRESS : fromToken,
                 0
             ));
             if (!success) {
@@ -1325,9 +1325,9 @@ contract OneSplitRoot {
         }
 
         if (destToken != bnt) {
-            (bool success, bytes memory data) = address(bancorConverterRegistry).staticcall.gas(10000)(abi.encodeWithSelector(
+            (bool success, bytes memory data) = address(bancorConverterRegistry).staticcall.gas(100000)(abi.encodeWithSelector(
                 bancorConverterRegistry.getConvertibleTokenSmartToken.selector,
-                destToken.isETH() ? bnt : destToken,
+                destToken.isETH() ? ETH_ADDRESS : destToken,
                 0
             ));
             if (!success) {

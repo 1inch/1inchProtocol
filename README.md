@@ -21,27 +21,58 @@ So far the service works with 2 types of exchages: `split` and `wrap`.
 List of `split` exchanges: 
 ```
 let splitExchanges = [
-  "Uniswap", "Kyber", "Bancor", "Oasis", "CurveCompound", "CurveUsdt", "CurveY", "CurveBinance", "CurveSynthetix", "UniswapCompound", "UniswapChai", "UniswapAave", "Mooniswap", "UniswapV2", "UniswapV2ETH", "UniswapV2DAI", "UniswapV2USDC", "CurvePax", "CurveRenBtc", "CurveTBtc", "DforceSwap", "Shellexchangers"
+  "Uniswap",
+  "Kyber",
+  "Bancor",
+  "Oasis",
+  "Curve Compound",
+  "Curve USDT",
+  "Curve Y",
+  "Curve Binance",
+  "Curve Synthetix",
+  "Uniswap Compound",
+  "Uniswap CHAI",
+  "Uniswap Aave",
+  "Mooniswap",
+  "Uniswap V2",
+  "Uniswap V2 ETH",
+  "Uniswap V2 DAI",
+  "Uniswap V2 USDC",
+  "Curve Pax",
+  "Curve renBTC",
+  "Curve tBTC",
+  "Dforce XSwap",
+  "Shell",
+  "mStable mUSD"
 ]
 ```
 
 List of `wrap` exchanges:  
 ```
 let wrapExchanges = [
-  "Chai", "Bdai", "Aave", "Fulcrum", "Compound", "Iearn", "Idle", "Weth", "SmartToken"
+  "CHAI",
+  "BDAI",
+  "Aave",
+  "Fulcrum",
+  "Compound",
+  "Iearn",
+  "Idle",
+  "WETH"
 ]
 ```
 
-First of all call method `getExpectedReturn` (see methods section), it returns `distribution` array. Each element of this array matches element of `splitExchanges` (see above) and represents fraction of trading off token.<br>
-Then call method `swap` or `swapWithReferral` (see methods section) with param `distribution` which is recieved earlier in method `getExpectedReturn`.
+First of all call method `getExpectedReturn` (see methods section), it returns `distribution` array. Each element of this array matches element of `splitExchanges` (see above) and represents fraction of trading volume.<br>
+Then call method `swap` or `swapWithReferral` (see methods section) with param `distribution` which was recieved earlier from method `getExpectedReturn`.
 
-Swap may be customized by flags (see flags section). There are 2 types of swap: direct swap and swap with transitional token.<br>
-In case of direct swap each element of `distribution` array matches element of `splitExchanges` and represents fraction of trading off token as alerady described above.<br>
-In case of swap with transitional token each element of `distribution` (256 bits) matches 2 swaps: high 128 bits are equal to swap to transitional token, low 128 bits are equal to swap to desired token.
+Swap may be customized by flags (see flags section). There are 2 types of swap: direct swap and swap over transitional token.
+
+In case of direct swap each element of `distribution` array matches element of `splitExchanges` and represents fraction of trading off token as alerady described above.
+
+In case of swap with transitional token each element of `distribution` (256 bits) matches 2 swaps: second bytes are equal to swap to transitional token, lowest bytes are equal to swap to the desired token.
 
 ## Methods
 
-If you need Ether instead of any token use `address(0)` as param `fromToken`/`destToken`
+If you need Ether instead of any token use `address(0)` or `address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE)` as param `fromToken`/`destToken`
 
 - **getExpectedReturn(fromToken, destToken, amount, parts, flags)**
 
