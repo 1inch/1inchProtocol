@@ -167,8 +167,10 @@ contract OneSplitIdle is OneSplitBaseWrap, OneSplitIdleBase {
                 if (toToken == IERC20(tokens[i])) {
                     IERC20 underlying = tokens[i].token();
                     super._swap(fromToken, underlying, amount, distribution, flags);
-                    _infiniteApproveIfNeeded(underlying, address(tokens[i]));
-                    tokens[i].mintIdleToken(underlying.balanceOf(address(this)), new uint256[](0));
+
+                    uint256 underlyingBalance = underlying.balanceOf(address(this));
+                    underlying.universalApprove(address(tokens[i]), underlyingBalance);
+                    tokens[i].mintIdleToken(underlyingBalance, new uint256[](0));
                     return;
                 }
             }

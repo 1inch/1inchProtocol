@@ -202,7 +202,7 @@ contract OneSplitFulcrum is OneSplitBaseWrap, OneSplitFulcrumBase {
                 if (underlying.isETH()) {
                     IFulcrumToken(address(toToken)).mintWithEther.value(underlyingAmount)(address(this));
                 } else {
-                    _infiniteApproveIfNeeded(underlying, address(toToken));
+                    underlying.universalApprove(address(toToken), underlyingAmount);
                     IFulcrumToken(address(toToken)).mint(address(this), underlyingAmount);
                 }
                 return;

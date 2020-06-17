@@ -183,7 +183,7 @@ contract OneSplitCompound is OneSplitBaseWrap, OneSplitCompoundBase {
                 if (underlying.isETH()) {
                     cETH.mint.value(underlyingAmount)();
                 } else {
-                    _infiniteApproveIfNeeded(underlying, address(toToken));
+                    underlying.universalApprove(address(toToken), underlyingAmount);
                     ICompoundToken(address(toToken)).mint(underlyingAmount);
                 }
                 return;

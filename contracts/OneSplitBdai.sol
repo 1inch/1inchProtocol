@@ -116,8 +116,9 @@ contract OneSplitBdai is OneSplitBaseWrap, OneSplitBdaiBase {
             if (toToken == IERC20(bdai)) {
                 super._swap(fromToken, dai, amount, distribution, flags);
 
-                _infiniteApproveIfNeeded(dai, address(bdai));
-                bdai.join(dai.balanceOf(address(this)));
+                uint256 daiBalance = dai.balanceOf(address(this));
+                dai.universalApprove(address(bdai), daiBalance);
+                bdai.join(daiBalance);
                 return;
             }
         }

@@ -97,8 +97,9 @@ contract OneSplitChai is OneSplitBaseWrap {
                     flags
                 );
 
-                _infiniteApproveIfNeeded(dai, address(chai));
-                chai.join(address(this), dai.balanceOf(address(this)));
+                uint256 daiBalance = dai.balanceOf(address(this));
+                dai.universalApprove(address(chai), daiBalance);
+                chai.join(address(this), daiBalance);
                 return;
             }
         }

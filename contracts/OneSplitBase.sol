@@ -281,14 +281,6 @@ contract OneSplitRoot {
 
         return IAaveToken(0);
     }
-
-    function _infiniteApproveIfNeeded(IERC20 token, address to) internal {
-        if (!token.isETH()) {
-            if ((token.allowance(address(this), to) >> 255) == 0) {
-                token.universalApprove(to, uint256(- 1));
-            }
-        }
-    }
 }
 
 
@@ -1573,7 +1565,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             return 0;
         }
 
-        _infiniteApproveIfNeeded(fromToken, address(curveCompound));
+        fromToken.universalApprove(address(curveCompound), amount);
         curveCompound.exchange_underlying(i - 1, j - 1, amount, 0);
     }
 
@@ -1592,7 +1584,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             return 0;
         }
 
-        _infiniteApproveIfNeeded(fromToken, address(curveUsdt));
+        fromToken.universalApprove(address(curveUsdt), amount);
         curveUsdt.exchange_underlying(i - 1, j - 1, amount, 0);
     }
 
@@ -1613,7 +1605,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             return 0;
         }
 
-        _infiniteApproveIfNeeded(fromToken, address(curveY));
+        fromToken.universalApprove(address(curveY), amount);
         curveY.exchange_underlying(i - 1, j - 1, amount, 0);
     }
 
@@ -1634,7 +1626,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             return 0;
         }
 
-        _infiniteApproveIfNeeded(fromToken, address(curveBinance));
+        fromToken.universalApprove(address(curveBinance), amount);
         curveBinance.exchange_underlying(i - 1, j - 1, amount, 0);
     }
 
@@ -1655,7 +1647,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             return 0;
         }
 
-        _infiniteApproveIfNeeded(fromToken, address(curveSynthetix));
+        fromToken.universalApprove(address(curveSynthetix), amount);
         curveSynthetix.exchange_underlying(i - 1, j - 1, amount, 0);
     }
 
@@ -1676,7 +1668,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             return 0;
         }
 
-        _infiniteApproveIfNeeded(fromToken, address(curvePax));
+        fromToken.universalApprove(address(curvePax), amount);
         curvePax.exchange_underlying(i - 1, j - 1, amount, 0);
     }
 
@@ -1685,7 +1677,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         IERC20 toToken,
         uint256 amount
     ) internal returns (uint256) {
-        _infiniteApproveIfNeeded(fromToken, address(shell));
+        fromToken.universalApprove(address(shell), amount);
         return shell.swapByOrigin(
             address(fromToken),
             address(toToken),
@@ -1708,7 +1700,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             return 0;
         }
 
-        _infiniteApproveIfNeeded(fromToken, address(curveRenBtc));
+        fromToken.universalApprove(address(curveRenBtc), amount);
         curveRenBtc.exchange(i - 1, j - 1, amount, 0);
     }
 
@@ -1727,7 +1719,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             return 0;
         }
 
-        _infiniteApproveIfNeeded(fromToken, address(curveTBtc));
+        fromToken.universalApprove(address(curveTBtc), amount);
         curveTBtc.exchange(i - 1, j - 1, amount, 0);
     }
 
@@ -1736,7 +1728,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         IERC20 destToken,
         uint256 amount
     ) internal returns(uint256) {
-        _infiniteApproveIfNeeded(fromToken, address(dforceSwap));
+        fromToken.universalApprove(address(dforceSwap), amount);
         dforceSwap.swap(fromToken, destToken, amount);
     }
 
@@ -1751,7 +1743,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         if (!fromToken.isETH()) {
             IUniswapExchange fromExchange = uniswapFactory.getExchange(fromToken);
             if (fromExchange != IUniswapExchange(0)) {
-                _infiniteApproveIfNeeded(fromToken, address(fromExchange));
+                fromToken.universalApprove(address(fromExchange), returnAmount);
                 returnAmount = fromExchange.tokenToEthSwapInput(returnAmount, 1, now);
             }
         }
@@ -1773,7 +1765,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
     ) internal returns(uint256) {
         if (!fromToken.isETH()) {
             ICompoundToken fromCompound = _getCompoundToken(fromToken);
-            _infiniteApproveIfNeeded(fromToken, address(fromCompound));
+            fromToken.universalApprove(address(fromCompound), amount);
             fromCompound.mint(amount);
             return _swapOnUniswap(IERC20(fromCompound), toToken, IERC20(fromCompound).universalBalanceOf(address(this)));
         }
@@ -1794,7 +1786,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         uint256 amount
     ) internal returns(uint256) {
         if (fromToken == dai) {
-            _infiniteApproveIfNeeded(fromToken, address(chai));
+            fromToken.universalApprove(address(chai), amount);
             chai.join(address(this), amount);
             return _swapOnUniswap(IERC20(chai), toToken, IERC20(chai).universalBalanceOf(address(this)));
         }
@@ -1815,7 +1807,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
     ) internal returns(uint256) {
         if (!fromToken.isETH()) {
             IAaveToken fromAave = _getAaveToken(fromToken);
-            _infiniteApproveIfNeeded(fromToken, aave.core());
+            fromToken.universalApprove(aave.core(), amount);
             aave.deposit(fromToken, amount, 1101);
             return _swapOnUniswap(IERC20(fromAave), toToken, IERC20(fromAave).universalBalanceOf(address(this)));
         }
@@ -1836,7 +1828,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         uint256 amount
     ) internal returns(uint256) {
         IMooniswap mooniswap = mooniswapRegistry.target();
-        _infiniteApproveIfNeeded(fromToken, address(mooniswap));
+        fromToken.universalApprove(address(mooniswap), amount);
         return mooniswap.swap.value(fromToken.isETH() ? amount : 0)(
             fromToken,
             toToken,
@@ -1850,7 +1842,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         IERC20 toToken,
         uint256 amount
     ) internal returns(uint256) {
-        _infiniteApproveIfNeeded(fromToken, address(kyberNetworkProxy));
+        fromToken.universalApprove(address(kyberNetworkProxy), amount);
         return kyberNetworkProxy.tradeWithHint.value(fromToken.isETH() ? amount : 0)(
             fromToken.isETH() ? ETH_ADDRESS : fromToken,
             amount,
@@ -1875,7 +1867,8 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
         address[] memory path = _buildBancorPath(fromToken, toToken);
 
-        _infiniteApproveIfNeeded(fromToken.isETH() ? bancorEtherToken : fromToken, address(bancorNetwork));
+        IERC20 approveToken = fromToken.isETH() ? bancorEtherToken : fromToken;
+        approveToken.universalApprove(address(bancorNetwork), amount);
         uint256 returnAmount = bancorNetwork.claimAndConvert(path, amount, 1);
 
         if (toToken.isETH()) {
@@ -1894,7 +1887,8 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             weth.deposit.value(amount)();
         }
 
-        _infiniteApproveIfNeeded(fromToken.isETH() ? weth : fromToken, address(oasisExchange));
+        IERC20 approveToken = fromToken.isETH() ? weth : fromToken;
+        approveToken.universalApprove(address(oasisExchange), amount);
         uint256 returnAmount = oasisExchange.sellAllAmount(
             fromToken.isETH() ? weth : fromToken,
             amount,

@@ -169,8 +169,10 @@ contract OneSplitIearn is OneSplitBaseWrap, OneSplitIearnBase {
                 if (toToken == IERC20(yTokens[i])) {
                     IERC20 underlying = yTokens[i].token();
                     super._swap(fromToken, underlying, amount, distribution, flags);
-                    _infiniteApproveIfNeeded(underlying, address(yTokens[i]));
-                    yTokens[i].deposit(underlying.balanceOf(address(this)));
+
+                    uint256 underlyingBalance = underlying.balanceOf(address(this));
+                    underlying.universalApprove(address(yTokens[i]), underlyingBalance);
+                    yTokens[i].deposit(underlyingBalance);
                     return;
                 }
             }
