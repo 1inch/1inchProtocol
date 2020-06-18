@@ -26,13 +26,12 @@ contract OneSplitMStableView is OneSplitViewWrapBase {
         }
 
         if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_MSTABLE_MUSD)) {
-            if (fromToken == IERC20(musd)) {
-                // TODO: redeem
-                // (,, uint256 result) = musd.getSwapOutput(fromToken, destToken, amount);
-                // return (result, 300_000, new uint256[](DEXES_COUNT));
+            if (fromToken == IERC20(musd) && ((destToken == usdc || destToken == dai || destToken == usdt || destToken == tusd))) {
+                (,, uint256 result) = musd_helper.getRedeemValidity(fromToken, amount, destToken);
+                return (result, 300_000, new uint256[](DEXES_COUNT));
             }
 
-            if (destToken == IERC20(musd)) {
+            if (destToken == IERC20(musd) && ((fromToken == usdc || fromToken == dai || fromToken == usdt || fromToken == tusd))) {
                 (,, uint256 result) = musd.getSwapOutput(fromToken, destToken, amount);
                 return (result, 300_000, new uint256[](DEXES_COUNT));
             }
@@ -63,18 +62,16 @@ contract OneSplitMStable is OneSplitBaseWrap {
         }
 
         if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_MSTABLE_MUSD)) {
-            if (fromToken == IERC20(musd)) {
-                // TODO: redeem
-                // musd.swap(
-                //     fromToken,
-                //     destToken,
-                //     amount,
-                //     address(this)
-                // );
-                // return;
+            if (fromToken == IERC20(musd) && ((destToken == usdc || destToken == dai || destToken == usdt || destToken == tusd))) {
+                (,, uint256 result) = musd_helper.getRedeemValidity(fromToken, amount, destToken);
+                musd.redeem(
+                    destToken,
+                    result
+                );
+                return;
             }
 
-            if (destToken == IERC20(musd)) {
+            if (destToken == IERC20(musd) && ((fromToken == usdc || fromToken == dai || fromToken == usdt || fromToken == tusd))) {
                 musd.swap(
                     fromToken,
                     destToken,
