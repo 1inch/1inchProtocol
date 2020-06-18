@@ -101,8 +101,12 @@ library ChaiHelper {
         return _rmul(rpow(POT.dsr(), now - POT.rho(), RAY), POT.chi());
     }
 
+    function chaiPrice(IChai chai) internal view returns(uint256) {
+        return chaiToDai(chai, 1e18);
+    }
+
     function daiToChai(
-        IChai, /*chai*/
+        IChai /*chai*/,
         uint256 amount
     ) internal view returns (uint256) {
         uint256 chi = (now > POT.rho()) ? potDrip() : POT.chi();
@@ -110,7 +114,7 @@ library ChaiHelper {
     }
 
     function chaiToDai(
-        IChai, /*chai*/
+        IChai /*chai*/,
         uint256 amount
     ) internal view returns (uint256) {
         uint256 chi = (now > POT.rho()) ? potDrip() : POT.chi();

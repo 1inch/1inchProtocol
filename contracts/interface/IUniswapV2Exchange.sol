@@ -17,11 +17,11 @@ library UniswapV2ExchangeLib {
     function getReturn(
         IUniswapV2Exchange exchange,
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint amountIn
     ) internal view returns (uint256) {
         uint256 reserveIn = fromToken.universalBalanceOf(address(exchange));
-        uint256 reserveOut = toToken.universalBalanceOf(address(exchange));
+        uint256 reserveOut = destToken.universalBalanceOf(address(exchange));
 
         uint256 amountInWithFee = amountIn.mul(997);
         uint256 numerator = amountInWithFee.mul(reserveOut);

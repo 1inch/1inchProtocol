@@ -26,87 +26,100 @@ contract OneSplitIearnBase {
 
 
 contract OneSplitIearnView is OneSplitViewWrapBase, OneSplitIearnBase {
-    function getExpectedReturn(
+    function getExpectedReturnWithGas(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 flags,
+        uint256 destTokenEthPriceTimesGasPrice
     )
         public
         view
-        returns (uint256 returnAmount, uint256[] memory distribution)
+        returns(
+            uint256 returnAmount,
+            uint256 estimateGasAmount,
+            uint256[] memory distribution
+        )
     {
         return _iearnGetExpectedReturn(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
-            flags
+            flags,
+            destTokenEthPriceTimesGasPrice
         );
     }
 
     function _iearnGetExpectedReturn(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 flags,
+        uint256 destTokenEthPriceTimesGasPrice
     )
         private
         view
         returns(
             uint256 returnAmount,
+            uint256 estimateGasAmount,
             uint256[] memory distribution
         )
     {
-        if (fromToken == toToken) {
-            return (amount, new uint256[](DEXES_COUNT));
+        if (fromToken == destToken) {
+            return (amount, 0, new uint256[](DEXES_COUNT));
         }
 
-        IIearn[13] memory yTokens = _yTokens();
+        if (!flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == !flags.check(FLAG_DISABLE_IEARN)) {
+            IIearn[13] memory yTokens = _yTokens();
 
-        if (!flags.check(FLAG_DISABLE_IEARN)) {
             for (uint i = 0; i < yTokens.length; i++) {
                 if (fromToken == IERC20(yTokens[i])) {
-                    return _iearnGetExpectedReturn(
+                    (returnAmount, estimateGasAmount, distribution) = _iearnGetExpectedReturn(
                         yTokens[i].token(),
-                        toToken,
+                        destToken,
                         amount
                             .mul(yTokens[i].calcPoolValueInToken())
                             .div(yTokens[i].totalSupply()),
                         parts,
-                        flags
+                        flags,
+                        destTokenEthPriceTimesGasPrice
                     );
+                    return (returnAmount, estimateGasAmount + 260_000, distribution);
                 }
             }
 
             for (uint i = 0; i < yTokens.length; i++) {
-                if (toToken == IERC20(yTokens[i])) {
-                    (uint256 ret, uint256[] memory dist) = super.getExpectedReturn(
+                if (destToken == IERC20(yTokens[i])) {
+                    (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                         fromToken,
                         yTokens[i].token(),
                         amount,
                         parts,
-                        flags
+                        flags,
+                        destTokenEthPriceTimesGasPrice
                     );
 
-                    return (
-                        ret
+                    return(
+                        returnAmount
                             .mul(yTokens[i].totalSupply())
                             .div(yTokens[i].calcPoolValueInToken()),
-                        dist
+                        estimateGasAmount + 743_000,
+                        distribution
                     );
                 }
             }
         }
 
-        return super.getExpectedReturn(
+        return super.getExpectedReturnWithGas(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
-            flags
+            flags,
+            destTokenEthPriceTimesGasPrice
         );
     }
 }
@@ -115,14 +128,14 @@ contract OneSplitIearnView is OneSplitViewWrapBase, OneSplitIearnBase {
 contract OneSplitIearn is OneSplitBaseWrap, OneSplitIearnBase {
     function _swap(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256[] memory distribution,
         uint256 flags
     ) internal {
         _iearnSwap(
             fromToken,
-            toToken,
+            destToken,
             amount,
             distribution,
             flags
@@ -131,38 +144,40 @@ contract OneSplitIearn is OneSplitBaseWrap, OneSplitIearnBase {
 
     function _iearnSwap(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256[] memory distribution,
         uint256 flags
     ) private {
-        if (fromToken == toToken) {
+        if (fromToken == destToken) {
             return;
         }
 
-        IIearn[13] memory yTokens = _yTokens();
+        if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_IEARN)) {
+            IIearn[13] memory yTokens = _yTokens();
 
-        if (!flags.check(FLAG_DISABLE_IEARN)) {
             for (uint i = 0; i < yTokens.length; i++) {
                 if (fromToken == IERC20(yTokens[i])) {
                     IERC20 underlying = yTokens[i].token();
                     yTokens[i].withdraw(amount);
-                    _iearnSwap(underlying, toToken, underlying.balanceOf(address(this)), distribution, flags);
+                    _iearnSwap(underlying, destToken, underlying.balanceOf(address(this)), distribution, flags);
                     return;
                 }
             }
 
             for (uint i = 0; i < yTokens.length; i++) {
-                if (toToken == IERC20(yTokens[i])) {
+                if (destToken == IERC20(yTokens[i])) {
                     IERC20 underlying = yTokens[i].token();
                     super._swap(fromToken, underlying, amount, distribution, flags);
-                    _infiniteApproveIfNeeded(underlying, address(yTokens[i]));
-                    yTokens[i].deposit(underlying.balanceOf(address(this)));
+
+                    uint256 underlyingBalance = underlying.balanceOf(address(this));
+                    underlying.universalApprove(address(yTokens[i]), underlyingBalance);
+                    yTokens[i].deposit(underlyingBalance);
                     return;
                 }
             }
         }
 
-        return super._swap(fromToken, toToken, amount, distribution, flags);
+        return super._swap(fromToken, destToken, amount, distribution, flags);
     }
 }

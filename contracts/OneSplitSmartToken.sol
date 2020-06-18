@@ -38,25 +38,27 @@ contract OneSplitSmartTokenBase {
 
 
 contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase {
-    function getExpectedReturn(
+    function getExpectedReturnWithGas(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 flags,
+        uint256 destTokenEthPriceTimesGasPrice
     )
         public
         view
         returns(
             uint256 returnAmount,
+            uint256 estimateGasAmount,
             uint256[] memory distribution
         )
     {
-        if (fromToken == toToken) {
-            return (amount, new uint256[](DEXES_COUNT));
+        if (fromToken == destToken) {
+            return (amount, 0, new uint256[](DEXES_COUNT));
         }
 
-        if (!flags.check(FLAG_DISABLE_SMART_TOKEN)) {
+        if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_SMART_TOKEN)) {
             distribution = new uint256[](DEXES_COUNT);
             if (smartTokenRegistry.isSmartToken(fromToken)) {
                 this;
@@ -66,7 +68,7 @@ contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase 
 
                 // for (uint256 i = 0; i < tokens.tokens.length; i++) {
                 //     uint256 srcAmount = smartTokenFormula.calculateLiquidateReturn(
-                //         toToken.totalSupply(),
+                //         destToken.totalSupply(),
                 //         tokens.tokens[i].balanceOf(address(converter)),
                 //         uint32(tokens.totalRatio),
                 //         amount
@@ -74,7 +76,7 @@ contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase 
 
                 //     (uint256 ret, uint256[] memory dist) = super.getExpectedReturn(
                 //         tokens.tokens[i],
-                //         toToken,
+                //         destToken,
                 //         srcAmount,
                 //         parts,
                 //         flags
@@ -88,7 +90,7 @@ contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase 
                 // return (returnAmount, distribution);
             }
 
-            if (smartTokenRegistry.isSmartToken(toToken)) {
+            if (smartTokenRegistry.isSmartToken(destToken)) {
                 this;
                 // ISmartTokenConverter converter = ISmartToken(address(fromToken)).owner();
 
@@ -108,7 +110,7 @@ contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase 
                 //         distribution[j] = distribution[j].add(dist[j] << (i * 8));
                 //     }
 
-                //     fundAmounts[i] = toToken.totalSupply()
+                //     fundAmounts[i] = destToken.totalSupply()
                 //         .mul(tokenAmount)
                 //         .div(tokens.tokens[i].balanceOf(address(converter)));
 
@@ -121,12 +123,12 @@ contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase 
                 // for (uint256 i = 0; i < tokens.tokens.length; i++) {
                 //     uint256 leftover = fundAmounts[i].sub(minFundAmount)
                 //         .mul(tokens.tokens[i].balanceOf(address(converter)))
-                //         .div(toToken.totalSupply());
+                //         .div(destToken.totalSupply());
 
                 //     if (leftover > 0) {
                 //         minFundAmount = minFundAmount.add(
                 //             smartTokenFormula.calculatePurchaseReturn(
-                //                 toToken.totalSupply(),
+                //                 destToken.totalSupply(),
                 //                 tokens.tokens[i].balanceOf(address(converter)),
                 //                 uint32(tokens.totalRatio),
                 //                 leftover
@@ -139,12 +141,13 @@ contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase 
             }
         }
 
-        return super.getExpectedReturn(
+        return super.getExpectedReturnWithGas(
             fromToken,
-            toToken,
+            destToken,
             amount,
             parts,
-            flags
+            flags,
+            destTokenEthPriceTimesGasPrice
         );
     }
 }
@@ -153,12 +156,12 @@ contract OneSplitSmartTokenView is OneSplitViewWrapBase, OneSplitSmartTokenBase 
 contract OneSplitSmartToken is OneSplitBaseWrap, OneSplitSmartTokenBase {
     function _swap(
         IERC20 fromToken,
-        IERC20 toToken,
+        IERC20 destToken,
         uint256 amount,
         uint256[] memory distribution,
         uint256 flags
     ) internal {
-        if (fromToken == toToken) {
+        if (fromToken == destToken) {
             return;
         }
 
@@ -166,7 +169,7 @@ contract OneSplitSmartToken is OneSplitBaseWrap, OneSplitSmartTokenBase {
 
         return super._swap(
             fromToken,
-            toToken,
+            destToken,
             amount,
             distribution,
             flags
