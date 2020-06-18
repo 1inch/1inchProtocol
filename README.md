@@ -84,7 +84,7 @@ In case of swap with transitional token each element of `distribution` (256 bits
 - [Mooniswap]()
 - [Dforce XSwap](https://trade.dforce.network/)
 - [Shell](https://www.shellprotocol.io/)
-- [mStable](ttps://app.mstable.org/)
+- [mStable](https://app.mstable.org/)
 - [CHAI](https://Chai.money/)
 - [BDAI]()
 - [Aave](https://aave.com/)
