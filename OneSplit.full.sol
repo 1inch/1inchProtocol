@@ -1158,6 +1158,24 @@ contract IMStable is IERC20 {
     )
         external
         returns (uint256 output);
+
+    function redeem(
+        IERC20 _basset,
+        uint256 _bassetQuantity
+    )
+        external
+        returns (uint256 massetRedeemed);
+}
+
+interface IMassetRedemptionValidator {
+    function getRedeemValidity(
+        IERC20 _mAsset,
+        uint256 _mAssetQuantity,
+        IERC20 _outputBasset
+    )
+        external
+        view
+        returns (bool, string memory, uint256 output);
 }
 
 // File: contracts/OneSplitBase.sol
@@ -1281,6 +1299,7 @@ contract OneSplitRoot {
     IUniswapV2Factory constant internal uniswapV2 = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
     IDForceSwap constant internal dforceSwap = IDForceSwap(0x03eF3f37856bD08eb47E2dE7ABc4Ddd2c19B60F2);
     IMStable constant internal musd = IMStable(0xe2f2a5C287993345a840Db3B0845fbC70f5935a5);
+    IMassetRedemptionValidator constant internal musd_helper = IMassetRedemptionValidator(0xe7e41f1b97F3EB2f218d99ecB22351Fa669D5944);
 
     function _buildBancorPath(
         IERC20 fromToken,
@@ -1737,20 +1756,30 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         uint256 parts,
         uint256 /*flags*/
     ) internal view returns(uint256[] memory rets, uint256 gas) {
+        rets = new uint256[](parts);
+
         if ((fromToken != usdc && fromToken != dai && fromToken != usdt && fromToken != tusd) ||
             (destToken != usdc && destToken != dai && destToken != usdt && destToken != tusd))
         {
-            return (new uint256[](parts), 0);
+            return (rets, 0);
         }
 
-        for (uint i = 1; parts > i; i *= 2) {
-            (,, uint256 maxRet) = musd.getSwapOutput(fromToken, destToken, amount / i);
-            if (maxRet > 0) {
-                rets = new uint256[](parts);
-                for (uint j = 0; j < parts / i; j++) {
-                    rets[i] = maxRet.mul(j + 1).mul(i).div(parts);
+        for (uint i = 1; i <= parts; i *= 2) {
+            (bool success, bytes memory data) = address(musd).staticcall(abi.encodeWithSelector(
+                musd.getSwapOutput.selector,
+                fromToken,
+                destToken,
+                amount.mul(parts.div(i)).div(parts)
+            ));
+
+            if (success && data.length > 0) {
+                (,, uint256 maxRet) = abi.decode(data, (bool,string,uint256));
+                if (maxRet > 0) {
+                    for (uint j = 0; j < parts.div(i); j++) {
+                        rets[j] = maxRet.mul(j + 1).div(parts.div(i));
+                    }
+                    break;
                 }
-                break;
             }
         }
 
@@ -4947,13 +4976,12 @@ contract OneSplitMStableView is OneSplitViewWrapBase {
         }
 
         if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_MSTABLE_MUSD)) {
-            if (fromToken == IERC20(musd)) {
-                // TODO: redeem
-                // (,, uint256 result) = musd.getSwapOutput(fromToken, destToken, amount);
-                // return (result, 300_000, new uint256[](DEXES_COUNT));
+            if (fromToken == IERC20(musd) && ((destToken == usdc || destToken == dai || destToken == usdt || destToken == tusd))) {
+                (,, uint256 result) = musd_helper.getRedeemValidity(fromToken, amount, destToken);
+                return (result, 300_000, new uint256[](DEXES_COUNT));
             }
 
-            if (destToken == IERC20(musd)) {
+            if (destToken == IERC20(musd) && ((fromToken == usdc || fromToken == dai || fromToken == usdt || fromToken == tusd))) {
                 (,, uint256 result) = musd.getSwapOutput(fromToken, destToken, amount);
                 return (result, 300_000, new uint256[](DEXES_COUNT));
             }
@@ -4984,18 +5012,16 @@ contract OneSplitMStable is OneSplitBaseWrap {
         }
 
         if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_MSTABLE_MUSD)) {
-            if (fromToken == IERC20(musd)) {
-                // TODO: redeem
-                // musd.swap(
-                //     fromToken,
-                //     destToken,
-                //     amount,
-                //     address(this)
-                // );
-                // return;
+            if (fromToken == IERC20(musd) && ((destToken == usdc || destToken == dai || destToken == usdt || destToken == tusd))) {
+                (,, uint256 result) = musd_helper.getRedeemValidity(fromToken, amount, destToken);
+                musd.redeem(
+                    destToken,
+                    result
+                );
+                return;
             }
 
-            if (destToken == IERC20(musd)) {
+            if (destToken == IERC20(musd) && ((fromToken == usdc || fromToken == dai || fromToken == usdt || fromToken == tusd))) {
                 musd.swap(
                     fromToken,
                     destToken,

@@ -21,4 +21,22 @@ contract IMStable is IERC20 {
     )
         external
         returns (uint256 output);
+
+    function redeem(
+        IERC20 _basset,
+        uint256 _bassetQuantity
+    )
+        external
+        returns (uint256 massetRedeemed);
+}
+
+interface IMassetRedemptionValidator {
+    function getRedeemValidity(
+        IERC20 _mAsset,
+        uint256 _mAssetQuantity,
+        IERC20 _outputBasset
+    )
+        external
+        view
+        returns (bool, string memory, uint256 output);
 }
