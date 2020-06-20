@@ -12,6 +12,7 @@ import "./OneSplitIdle.sol";
 import "./OneSplitAave.sol";
 import "./OneSplitWeth.sol";
 import "./OneSplitMStable.sol";
+import "./OneSplitDMM.sol";
 //import "./OneSplitSmartToken.sol";
 
 
@@ -26,7 +27,8 @@ contract OneSplitViewWrap is
     OneSplitCompoundView,
     OneSplitIearnView,
     OneSplitIdleView,
-    OneSplitWethView
+    OneSplitWethView,
+    OneSplitDMMView
     //OneSplitSmartTokenView
 {
     IOneSplitView public oneSplitView;
@@ -128,7 +130,8 @@ contract OneSplitWrap is
     OneSplitCompound,
     OneSplitIearn,
     OneSplitIdle,
-    OneSplitWeth
+    OneSplitWeth,
+    OneSplitDMM
     //OneSplitSmartToken
 {
     IOneSplitView public oneSplitView;
@@ -219,22 +222,14 @@ contract OneSplitWrap is
         uint256[] memory distribution,
         uint256 flags
     ) internal {
-        (bool success, bytes memory data) = address(oneSplit).delegatecall(
-            abi.encodeWithSelector(
-                this.swap.selector,
-                fromToken,
-                destToken,
-                amount,
-                0,
-                distribution,
-                flags
-            )
+        fromToken.universalApprove(address(oneSplit), amount);
+        oneSplit.swap.value(fromToken.isETH() ? amount : 0)(
+            fromToken,
+            destToken,
+            amount,
+            0,
+            distribution,
+            flags
         );
-
-        assembly {
-            switch success
-                // delegatecall returns 0 on error.
-                case 0 { revert(add(data, 32), returndatasize) }
-        }
     }
 }

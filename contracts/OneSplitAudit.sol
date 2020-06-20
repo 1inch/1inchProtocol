@@ -185,7 +185,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
 
         // Swap
         _fromToken().universalApprove(address(oneSplitImpl), confirmed);
-        oneSplitImpl.swap.value(msg.value)(
+        oneSplitImpl.swap.value(_fromToken().isETH() ? confirmed : 0)(
             _fromToken(),
             _destToken(),
             confirmed,

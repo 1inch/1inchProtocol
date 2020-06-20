@@ -78,6 +78,8 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_DISABLE_SHELL = 0x8000000000;
     uint256 internal constant FLAG_ENABLE_CHI_BURN = 0x10000000000;
     uint256 internal constant FLAG_DISABLE_MSTABLE_MUSD = 0x20000000000;
+    uint256 internal constant FLAG_DISABLE_CURVE_SBTC = 0x40000000000;
+    uint256 internal constant FLAG_DISABLE_DMM = 0x80000000000;
 }
 
 

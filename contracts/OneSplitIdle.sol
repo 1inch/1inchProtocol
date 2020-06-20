@@ -150,7 +150,7 @@ contract OneSplitIdle is OneSplitBaseWrap, OneSplitIdleBase {
         uint256 amount,
         uint256[] memory distribution,
         uint256 flags
-    ) public payable {
+    ) internal {
         if (!flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == !flags.check(FLAG_DISABLE_IDLE)) {
             IIdle[8] memory tokens = _idleTokens();
 

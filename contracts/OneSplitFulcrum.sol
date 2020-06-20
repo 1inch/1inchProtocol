@@ -8,7 +8,7 @@ import "./OneSplitBase.sol";
 contract OneSplitFulcrumBase {
     using UniversalERC20 for IERC20;
 
-    function _isFulcrumToken(IERC20 token) public view returns(IERC20) {
+    function _isFulcrumToken(IERC20 token) internal view returns(IERC20) {
         if (token.isETH()) {
             return IERC20(-1);
         }
