@@ -2742,7 +2742,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
-        uint256 /*minReturn*/,
+        uint256 minReturn,
         uint256[] memory distribution,
         uint256 /*flags*/  // See constants in IOneSplit.sol
     ) public payable returns(uint256 returnAmount) {
@@ -2788,9 +2788,17 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             }
         }
 
-        require(parts > 0, "OneSplit: distribution should contain non-zeros");
+        if (parts == 0) {
+            if (fromToken.isETH()) {
+                msg.sender.transfer(msg.value);
+                return msg.value;
+            }
+            return amount;
+        }
 
-        uint256 remainingAmount = amount;
+        fromToken.universalTransferFrom(msg.sender, address(this), amount);
+        uint256 remainingAmount = fromToken.universalBalanceOf(address(this));
+
         for (uint i = 0; i < distribution.length; i++) {
             if (distribution[i] == 0) {
                 continue;
@@ -2805,6 +2813,9 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         }
 
         returnAmount = destToken.universalBalanceOf(address(this));
+        require(returnAmount >= minReturn, "OneSplit: Return amount was not enough");
+        destToken.universalTransfer(msg.sender, returnAmount);
+        fromToken.universalTransfer(msg.sender, fromToken.universalBalanceOf(address(this)));
     }
 
     // Swap helpers
@@ -5069,6 +5080,7 @@ contract OneSplitMStable is OneSplitBaseWrap {
             }
 
             if (destToken == IERC20(musd) && ((fromToken == usdc || fromToken == dai || fromToken == usdt || fromToken == tusd))) {
+                fromToken.universalApprove(address(musd), amount);
                 musd.swap(
                     fromToken,
                     destToken,
@@ -5197,6 +5209,9 @@ contract OneSplitDMMView is OneSplitViewWrapBase, OneSplitDMMBase {
         if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_DMM)) {
             IERC20 underlying = _getDMMUnderlyingToken(fromToken);
             if (underlying != IERC20(-1)) {
+                if (underlying == weth) {
+                    underlying = ETH_ADDRESS;
+                }
                 uint256 dmmRate = _getDMMExchangeRate(IDMM(address(fromToken)));
                 (returnAmount, estimateGasAmount, distribution) = _dmmGetExpectedReturn(
                     underlying,
@@ -5211,6 +5226,9 @@ contract OneSplitDMMView is OneSplitViewWrapBase, OneSplitDMMBase {
 
             underlying = _getDMMUnderlyingToken(destToken);
             if (underlying != IERC20(-1)) {
+                if (underlying == weth) {
+                    underlying = ETH_ADDRESS;
+                }
                 uint256 dmmRate = _getDMMExchangeRate(IDMM(address(destToken)));
                 (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                     fromToken,
@@ -5268,26 +5286,35 @@ contract OneSplitDMM is OneSplitBaseWrap, OneSplitDMMBase {
             IERC20 underlying = _getDMMUnderlyingToken(fromToken);
             if (underlying != IERC20(-1)) {
                 IDMM(address(fromToken)).redeem(amount);
-                return _dmmSwap(
-                    underlying,
+                uint256 balance = underlying.universalBalanceOf(address(this));
+                if (underlying == weth) {
+                    weth.withdraw(balance);
+                }
+                _dmmSwap(
+                    (underlying == weth) ? ETH_ADDRESS : underlying,
                     destToken,
-                    underlying.universalBalanceOf(address(this)),
+                    balance,
                     distribution,
                     flags
                 );
+
             }
 
             underlying = _getDMMUnderlyingToken(destToken);
             if (underlying != IERC20(-1)) {
                 super._swap(
                     fromToken,
-                    underlying,
+                    (underlying == weth) ? ETH_ADDRESS : underlying,
                     amount,
                     distribution,
                     flags
                 );
 
-                uint256 underlyingAmount = underlying.universalBalanceOf(address(this));
+                uint256 underlyingAmount = ((underlying == weth) ? ETH_ADDRESS : underlying).universalBalanceOf(address(this));
+                if (underlying == weth) {
+                    weth.deposit.value(underlyingAmount);
+                }
+
                 underlying.universalApprove(address(destToken), underlyingAmount);
                 IDMM(address(destToken)).mint(underlyingAmount);
                 return;

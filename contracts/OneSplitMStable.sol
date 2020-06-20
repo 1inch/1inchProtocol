@@ -72,6 +72,7 @@ contract OneSplitMStable is OneSplitBaseWrap {
             }
 
             if (destToken == IERC20(musd) && ((fromToken == usdc || fromToken == dai || fromToken == usdt || fromToken == tusd))) {
+                fromToken.universalApprove(address(musd), amount);
                 musd.swap(
                     fromToken,
                     destToken,

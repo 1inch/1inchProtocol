@@ -1559,7 +1559,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
-        uint256 /*minReturn*/,
+        uint256 minReturn,
         uint256[] memory distribution,
         uint256 /*flags*/  // See constants in IOneSplit.sol
     ) public payable returns(uint256 returnAmount) {
@@ -1605,9 +1605,17 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             }
         }
 
-        require(parts > 0, "OneSplit: distribution should contain non-zeros");
+        if (parts == 0) {
+            if (fromToken.isETH()) {
+                msg.sender.transfer(msg.value);
+                return msg.value;
+            }
+            return amount;
+        }
 
-        uint256 remainingAmount = amount;
+        fromToken.universalTransferFrom(msg.sender, address(this), amount);
+        uint256 remainingAmount = fromToken.universalBalanceOf(address(this));
+
         for (uint i = 0; i < distribution.length; i++) {
             if (distribution[i] == 0) {
                 continue;
@@ -1622,6 +1630,9 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         }
 
         returnAmount = destToken.universalBalanceOf(address(this));
+        require(returnAmount >= minReturn, "OneSplit: Return amount was not enough");
+        destToken.universalTransfer(msg.sender, returnAmount);
+        fromToken.universalTransfer(msg.sender, fromToken.universalBalanceOf(address(this)));
     }
 
     // Swap helpers
