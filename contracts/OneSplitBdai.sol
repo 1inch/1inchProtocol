@@ -51,7 +51,7 @@ contract OneSplitBdaiView is OneSplitViewWrapBase, OneSplitBdaiBase {
                     amount,
                     parts,
                     flags,
-                    destTokenEthPriceTimesGasPrice
+                    _recalculatePrice(destToken, dai, destTokenEthPriceTimesGasPrice)
                 );
                 return (returnAmount, estimateGasAmount + 295_000, distribution);
             }

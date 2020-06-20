@@ -32,6 +32,41 @@ contract OneSplitMultiPathBase is IOneSplitConsts, OneSplitRoot {
             }
         }
     }
+
+    function _getFlagsByDistribution(uint256[] memory distribution) internal pure returns(uint256 flags) {
+        uint256[DEXES_COUNT] memory sourcesFlags = [
+            FLAG_DISABLE_UNISWAP,
+            FLAG_DISABLE_KYBER,
+            FLAG_DISABLE_BANCOR,
+            FLAG_DISABLE_OASIS,
+            FLAG_DISABLE_CURVE_COMPOUND,
+            FLAG_DISABLE_CURVE_USDT,
+            FLAG_DISABLE_CURVE_Y,
+            FLAG_DISABLE_CURVE_BINANCE,
+            FLAG_DISABLE_CURVE_SYNTHETIX,
+            FLAG_DISABLE_UNISWAP_COMPOUND,
+            FLAG_DISABLE_UNISWAP_CHAI,
+            FLAG_DISABLE_UNISWAP_AAVE,
+            FLAG_DISABLE_MOONISWAP,
+            FLAG_DISABLE_UNISWAP_V2,
+            FLAG_DISABLE_UNISWAP_V2_ETH,
+            FLAG_DISABLE_UNISWAP_V2_DAI,
+            FLAG_DISABLE_UNISWAP_V2_USDC,
+            FLAG_DISABLE_CURVE_PAX,
+            FLAG_DISABLE_CURVE_RENBTC,
+            FLAG_DISABLE_CURVE_TBTC,
+            FLAG_DISABLE_DFORCE_SWAP,
+            FLAG_DISABLE_SHELL,
+            FLAG_DISABLE_MSTABLE_MUSD,
+            FLAG_DISABLE_CURVE_SBTC
+        ];
+
+        for (uint i = 0; i < distribution.length; i++) {
+            if (distribution[i] > 0) {
+                flags |= sourcesFlags[i];
+            }
+        }
+    }
 }
 
 
@@ -76,14 +111,15 @@ contract OneSplitMultiPathView is OneSplitViewWrapBase, OneSplitMultiPathBase {
 
             // Stack too deep
             uint256 _flags = flags;
+            IERC20 _destToken = destToken;
 
             (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                 fromToken,
                 midToken,
                 amount,
                 parts,
-                _flags | FLAG_DISABLE_BANCOR | FLAG_DISABLE_CURVE_COMPOUND | FLAG_DISABLE_CURVE_USDT | FLAG_DISABLE_CURVE_Y | FLAG_DISABLE_CURVE_BINANCE | FLAG_DISABLE_CURVE_PAX,
-                destTokenEthPriceTimesGasPrice
+                _flags,
+                _recalculatePrice(_destToken, midToken, destTokenEthPriceTimesGasPrice)
             );
 
             uint256[] memory dist;
@@ -93,7 +129,7 @@ contract OneSplitMultiPathView is OneSplitViewWrapBase, OneSplitMultiPathBase {
                 destToken,
                 returnAmount,
                 parts,
-                _flags | FLAG_DISABLE_BANCOR | FLAG_DISABLE_CURVE_COMPOUND | FLAG_DISABLE_CURVE_USDT | FLAG_DISABLE_CURVE_Y | FLAG_DISABLE_CURVE_BINANCE | FLAG_DISABLE_CURVE_PAX,
+                _flags | _getFlagsByDistribution(distribution),
                 destTokenEthPriceTimesGasPrice
             );
             for (uint i = 0; i < distribution.length; i++) {
@@ -136,6 +172,7 @@ contract OneSplitMultiPath is OneSplitBaseWrap, OneSplitMultiPathBase {
                 dist,
                 flags
             );
+            uint256 additionalFlags = _getFlagsByDistribution(distribution);
 
             for (uint i = 0; i < distribution.length; i++) {
                 dist[i] = (distribution[i] >> 8) & 0xFF;
@@ -145,7 +182,7 @@ contract OneSplitMultiPath is OneSplitBaseWrap, OneSplitMultiPathBase {
                 destToken,
                 midToken.universalBalanceOf(address(this)),
                 dist,
-                flags
+                flags | additionalFlags
             );
             return;
         }

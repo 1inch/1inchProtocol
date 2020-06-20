@@ -18,7 +18,6 @@ import "./OneSplitDMM.sol";
 
 contract OneSplitViewWrap is
     OneSplitViewWrapBase,
-    OneSplitMultiPathView,
     OneSplitMStableView,
     OneSplitChaiView,
     OneSplitBdaiView,
@@ -28,7 +27,8 @@ contract OneSplitViewWrap is
     OneSplitIearnView,
     OneSplitIdleView,
     OneSplitWethView,
-    OneSplitDMMView
+    OneSplitDMMView,
+    OneSplitMultiPathView
     //OneSplitSmartTokenView
 {
     IOneSplitView public oneSplitView;
@@ -121,7 +121,6 @@ contract OneSplitViewWrap is
 
 contract OneSplitWrap is
     OneSplitBaseWrap,
-    OneSplitMultiPath,
     OneSplitMStable,
     OneSplitChai,
     OneSplitBdai,
@@ -131,7 +130,8 @@ contract OneSplitWrap is
     OneSplitIearn,
     OneSplitIdle,
     OneSplitWeth,
-    OneSplitDMM
+    OneSplitDMM,
+    OneSplitMultiPath
     //OneSplitSmartToken
 {
     IOneSplitView public oneSplitView;

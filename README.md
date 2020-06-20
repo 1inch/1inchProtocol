@@ -156,7 +156,7 @@ If you need Ether instead of any token use `address(0)` or `address(0xEeeeeEeeeE
   | amount | uint256 | Amount for `fromToken` |
   | parts | uint256 | Number of pieces source volume could be splitted (Works like granularity, higly affects gas usage. Should be called offchain, but could be called onchain if user swaps not his own funds, but this is still considered as not safe) |
   | flags | uint256 | Flags for enabling and disabling some features (default: `0`), see flags description |
-  | destTokenEthPriceTimesGasPrice | uint256 | `returnAmount * gas_price`, where `returnAmount` is result of `getExpectedReturn(fromToken, destTokem, amount, parts, flags)` |
+  | destTokenEthPriceTimesGasPrice | uint256 | `returnAmount * gas_price`, where `returnAmount` is result of `getExpectedReturn(fromToken, destToken, amount, parts, flags)` |
   
   Return values: 
 
