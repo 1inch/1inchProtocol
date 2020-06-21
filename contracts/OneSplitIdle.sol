@@ -118,19 +118,6 @@ contract OneSplitIdleView is OneSplitViewWrapBase, OneSplitIdleBase {
 
 
 contract OneSplitIdle is OneSplitBaseWrap, OneSplitIdleBase {
-    function _superOneSplitIdleSwap(
-        IERC20 fromToken,
-        IERC20 destToken,
-        uint256 amount,
-        uint256[] calldata distribution,
-        uint256 flags
-    )
-        external
-    {
-        require(msg.sender == address(this));
-        return super._swap(fromToken, destToken, amount, distribution, flags);
-    }
-
     function _swap(
         IERC20 fromToken,
         IERC20 destToken,

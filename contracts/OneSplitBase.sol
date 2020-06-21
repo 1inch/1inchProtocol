@@ -330,6 +330,10 @@ contract OneSplitRoot {
 
         return 0;
     }
+
+    function _tokensEqual(IERC20 tokenA, IERC20 tokenB) internal pure returns(bool) {
+        return ((tokenA.isETH() && tokenB.isETH()) || tokenA == tokenB);
+    }
 }
 
 
@@ -2023,6 +2027,9 @@ contract OneSplit is IOneSplit, OneSplitRoot {
     ) internal returns(uint256) {
         IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
         address[] memory path = _buildBancorPath(fromToken, destToken);
+        if (!fromToken.isETH()) {
+            fromToken.universalTransfer(address(bancorNetwork), amount);
+        }
         return bancorNetwork.convert.value(fromToken.isETH() ? amount : 0)(path, amount, 1);
     }
 

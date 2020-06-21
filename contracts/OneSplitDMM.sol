@@ -179,7 +179,6 @@ contract OneSplitDMM is OneSplitBaseWrap, OneSplitDMMBase {
                     distribution,
                     flags
                 );
-
             }
 
             underlying = _getDMMUnderlyingToken(destToken);

@@ -1515,6 +1515,10 @@ contract OneSplitRoot {
 
         return 0;
     }
+
+    function _tokensEqual(IERC20 tokenA, IERC20 tokenB) internal pure returns(bool) {
+        return ((tokenA.isETH() && tokenB.isETH()) || tokenA == tokenB);
+    }
 }
 
 
@@ -3208,6 +3212,9 @@ contract OneSplit is IOneSplit, OneSplitRoot {
     ) internal returns(uint256) {
         IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
         address[] memory path = _buildBancorPath(fromToken, destToken);
+        if (!fromToken.isETH()) {
+            fromToken.universalTransfer(address(bancorNetwork), amount);
+        }
         return bancorNetwork.convert.value(fromToken.isETH() ? amount : 0)(path, amount, 1);
     }
 
@@ -3428,11 +3435,7 @@ contract OneSplitMultiPathView is OneSplitViewWrapBase, OneSplitMultiPathBase {
         IERC20 midToken = _getMultiPathToken(flags);
 
         if (midToken != IERC20(0)) {
-            if ((fromToken.isETH() && midToken.isETH()) ||
-                (destToken.isETH() && midToken.isETH()) ||
-                fromToken == midToken ||
-                destToken == midToken)
-            {
+            if (_tokensEqual(fromToken, midToken) || _tokensEqual(midToken, destToken)) {
                 return super.getExpectedReturnWithGas(
                     fromToken,
                     destToken,
@@ -3494,7 +3497,7 @@ contract OneSplitMultiPath is OneSplitBaseWrap, OneSplitMultiPathBase {
     ) internal {
         IERC20 midToken = _getMultiPathToken(flags);
 
-        if (midToken != IERC20(0)) {
+        if (midToken != IERC20(0) && !_tokensEqual(fromToken, midToken) && !_tokensEqual(midToken, destToken)) {
             uint256[] memory dist = new uint256[](distribution.length);
             for (uint i = 0; i < distribution.length; i++) {
                 dist[i] = distribution[i] & 0xFF;
@@ -4640,19 +4643,6 @@ contract OneSplitIdleView is OneSplitViewWrapBase, OneSplitIdleBase {
 
 
 contract OneSplitIdle is OneSplitBaseWrap, OneSplitIdleBase {
-    function _superOneSplitIdleSwap(
-        IERC20 fromToken,
-        IERC20 destToken,
-        uint256 amount,
-        uint256[] calldata distribution,
-        uint256 flags
-    )
-        external
-    {
-        require(msg.sender == address(this));
-        return super._swap(fromToken, destToken, amount, distribution, flags);
-    }
-
     function _swap(
         IERC20 fromToken,
         IERC20 destToken,
@@ -5392,7 +5382,6 @@ contract OneSplitDMM is OneSplitBaseWrap, OneSplitDMMBase {
                     distribution,
                     flags
                 );
-
             }
 
             underlying = _getDMMUnderlyingToken(destToken);

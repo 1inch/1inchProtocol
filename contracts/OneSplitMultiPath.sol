@@ -94,11 +94,7 @@ contract OneSplitMultiPathView is OneSplitViewWrapBase, OneSplitMultiPathBase {
         IERC20 midToken = _getMultiPathToken(flags);
 
         if (midToken != IERC20(0)) {
-            if ((fromToken.isETH() && midToken.isETH()) ||
-                (destToken.isETH() && midToken.isETH()) ||
-                fromToken == midToken ||
-                destToken == midToken)
-            {
+            if (_tokensEqual(fromToken, midToken) || _tokensEqual(midToken, destToken)) {
                 return super.getExpectedReturnWithGas(
                     fromToken,
                     destToken,
@@ -160,7 +156,7 @@ contract OneSplitMultiPath is OneSplitBaseWrap, OneSplitMultiPathBase {
     ) internal {
         IERC20 midToken = _getMultiPathToken(flags);
 
-        if (midToken != IERC20(0)) {
+        if (midToken != IERC20(0) && !_tokensEqual(fromToken, midToken) && !_tokensEqual(midToken, destToken)) {
             uint256[] memory dist = new uint256[](distribution.length);
             for (uint i = 0; i < distribution.length; i++) {
                 dist[i] = distribution[i] & 0xFF;
