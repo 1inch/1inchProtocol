@@ -8,7 +8,7 @@ First ever fully on-chain DEX aggregator protocol by 1inch
 
 # Integration
 
-Latest version is always accessible at [1split.eth](https://etherscan.io/address/1split.eth)
+Latest version is always accessible at [1proto.eth](https://etherscan.io/address/1proto.eth)
 
 Start with checking out solidity interface: [IOneSplit.sol](https://github.com/CryptoManiacsZone/1split/blob/master/contracts/IOneSplit.sol)
 
@@ -21,47 +21,53 @@ So far the service works with 2 types of exchages: `split` and `wrap`.
 List of `split` exchanges: 
 ```
 let splitExchanges = [
-  "Uniswap",
-  "Kyber",
-  "Bancor",
-  "Oasis",
-  "Curve Compound",
-  "Curve USDT",
-  "Curve Y",
-  "Curve Binance",
-  "Curve Synthetix",
-  "Uniswap Compound",
-  "Uniswap CHAI",
-  "Uniswap Aave",
-  "Mooniswap",
-  "Uniswap V2",
-  "Uniswap V2 ETH",
-  "Uniswap V2 DAI",
-  "Uniswap V2 USDC",
-  "Curve Pax",
-  "Curve renBTC",
-  "Curve tBTC",
-  "Dforce XSwap",
-  "Shell",
-  "mStable mUSD"
+    "Uniswap",
+    "Kyber",
+    "Bancor",
+    "Oasis",
+    "Curve Compound",
+    "Curve USDT",
+    "Curve Y",
+    "Curve Binance",
+    "Curve Synthetix",
+    "Uniswap Compound",
+    "Uniswap CHAI",
+    "Uniswap Aave",
+    "Mooniswap",
+    "Uniswap V2",
+    "Uniswap V2 ETH",
+    "Uniswap V2 DAI",
+    "Uniswap V2 USDC",
+    "Curve Pax",
+    "Curve renBTC",
+    "Curve tBTC",
+    "Dforce XSwap",
+    "Shell",
+    "mStable mUSD"
 ]
 ```
 
 List of `wrap` exchanges:  
 ```
 let wrapExchanges = [
-  "CHAI",
-  "BDAI",
-  "Aave",
-  "Fulcrum",
-  "Compound",
-  "Iearn",
-  "Idle",
-  "WETH"
+    "CHAI",
+    "BDAI",
+    "Aave",
+    "Fulcrum",
+    "Compound",
+    "Iearn",
+    "Idle",
+    "WETH"
 ]
 ```
 
-![How it works](./img/scheme.png)
+![How it works](./img/howitworks.png)
+
+## How to use it
+
+To use this service you have call methods at [OneSplitAudit](https://github.com/CryptoManiacsZone/1inchProtocol/blob/master/contracts/OneSplitAudit.sol)
+
+![How to use it](./img/scheme.png)
 
 First of all call method `getExpectedReturn` (see methods section), it returns `distribution` array. Each element of this array matches element of `splitExchanges` (see above) and represents fraction of trading volume.<br>
 Then call `getExpectedReturnWithGas` to take into account gas when splitting. This method returns more profitable `distribution` array for exchange.<br>
@@ -132,16 +138,16 @@ If you need Ether instead of any token use `address(0)` or `address(0xEeeeeEeeeE
 
   let contract = new web3.eth.Contract(ABI, CONTRACT_ADDRESS)
   contract.methods.getExpectedReturn(
-    "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-    "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359",
-    100,
-    10, 
-    0
+      "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359",
+      100,
+      10, 
+      0
   ).call().then(data => {
-    console.log(`returnAmount: ${data.returnAmount.toString()}`)
-    console.log(`distribution: ${JSON.stringify(data.distribution)}`)
+      console.log(`returnAmount: ${data.returnAmount.toString()}`)
+      console.log(`distribution: ${JSON.stringify(data.distribution)}`)
   }).catch(error => {
-    // TO DO: ...
+      // TO DO: ...
   });
   ```
 
@@ -231,7 +237,7 @@ If you need Ether instead of any token use `address(0)` or `address(0xEeeeeEeeeE
 ### Flag types
   There are basically 3 types of flags:
   1. **Exchange switch**<br>
-  This flags allow `1split.eth` to enable or disable using exchange pools for swap. This can be applied for exchanges in genereral, for example: `split`, `wrap`, or this can be applied for a specific exchange type, for example: `bancor`, `oasis`.<br>
+  This flags allow `1proto.eth` to enable or disable using exchange pools for swap. This can be applied for exchanges in genereral, for example: `split`, `wrap`, or this can be applied for a specific exchange type, for example: `bancor`, `oasis`.<br>
   This flags may be used in any combination.<br>
   
   2. **Transitional token selector**<br>
@@ -243,7 +249,7 @@ If you need Ether instead of any token use `address(0)` or `address(0xEeeeeEeeeE
   This flags may be used in any combination.
 
 ### Flags description
-`flags` param in `1split.eth` methods is sum  of flags values, for example:
+`flags` param in `1proto.eth` methods is sum  of flags values, for example:
 ```
 flags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_KYBER + ...
 ```
@@ -264,9 +270,9 @@ flags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_KYBER + ...
   | FLAG_DISABLE_CURVE_Y | `0x4000` | Exclude `CurveY` exchange from swap |
   | FLAG_DISABLE_CURVE_BINANCE | `0x8000` | Exclude `CurveBinance` exchange from swap |
   | FLAG_DISABLE_CURVE_SYNTHETIX | `0x40000` | Exclude `CurveSynthetix` exchange from swap |
-  | FLAG_ENABLE_UNISWAP_COMPOUND | `0x100000` | Permit `Uniswap` use `Compound`, by default it is forbidden. Works only when one of assets is `ETH` or `FLAG_ENABLE_MULTI_PATH_ETH` |
-  | FLAG_ENABLE_UNISWAP_CHAI | `0x200000` | Permit `Uniswap` use `Chai`, by default it is forbidden. Works only when `ETH<>DAI` or `FLAG_ENABLE_MULTI_PATH_ETH` |
-  | FLAG_ENABLE_UNISWAP_AAVE | `0x400000` | Permit `Uniswap` use `Aave`, by default it is forbidden. Works only when one of assets is `ETH` or `FLAG_ENABLE_MULTI_PATH_ETH` |
+  | FLAG_DISABLE_UNISWAP_COMPOUND | `0x100000` | Forbid `Uniswap` use `Compound`, by default it is permitted. Works only when one of assets is `ETH` or `FLAG_ENABLE_MULTI_PATH_ETH` |
+  | FLAG_DISABLE_UNISWAP_CHAI | `0x200000` | Forbid `Uniswap` use `Chai`, by default it is permitted. Works only when `ETH<>DAI` or `FLAG_ENABLE_MULTI_PATH_ETH` |
+  | FLAG_DISABLE_UNISWAP_AAVE | `0x400000` | Forbid `Uniswap` use `Aave`, by default it is permitted. Works only when one of assets is `ETH` or `FLAG_ENABLE_MULTI_PATH_ETH` |
   | FLAG_DISABLE_MOONISWAP | `0x1000000` | Exclude `Mooniswap` exchange from swap |
   | FLAG_DISABLE_UNISWAP_V2_ALL | `0x1E000000` | Exclude all exchanges with `UniswapV2` prefix from swap |
   | FLAG_DISABLE_UNISWAP_V2 | `0x2000000` | Exclude `UniswapV2` exchange from swap |
@@ -291,25 +297,25 @@ flags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_KYBER + ...
   let CONTRACT_ADDRESS = "0xC586BeF4a0992C495Cf22e1aeEE4E446CECDee0E"
 
   let splitExchanges = [
-    "Uniswap", "Kyber", "Bancor", "Oasis", "CurveCompound", "CurveUsdt", "CurveY", "CurveBinance", "CurveSynthetix", "UniswapCompound", "UniswapChai", "UniswapAave", "Mooniswap", "UniswapV2", "UniswapV2ETH", "UniswapV2DAI", "UniswapV2USDC", "CurvePax", "CurveRenBtc", "CurveTBtc", "DforceSwap", "Shellexchangers"
+      "Uniswap", "Kyber", "Bancor", "Oasis", "CurveCompound", "CurveUsdt", "CurveY", "CurveBinance", "CurveSynthetix", "UniswapCompound", "UniswapChai", "UniswapAave", "Mooniswap", "UniswapV2", "UniswapV2ETH", "UniswapV2DAI", "UniswapV2USDC", "CurvePax", "CurveRenBtc", "CurveTBtc", "DforceSwap", "Shellexchangers"
   ]
   
   let parts = 10
   
   let contract = new web3.eth.Contract(ABI, CONTRACT_ADDRESS)
   contract.methods.getExpectedReturn(
-    "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-    "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359",
-    100,
-    parts, 
-    0x04
+      "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359",
+      100,
+      parts, 
+      0x04
   ).call().then(data => {
   
-    data.distribution.forEach(function(value, index) {
-      console.log(`${splitExchanges[index]}: ${value*100/parts}%`)
-    })
+      data.distribution.forEach(function(value, index) {
+          console.log(`${splitExchanges[index]}: ${value*100/parts}%`)
+      })
   }).catch(error => {
-    // TO DO: ...
+      // TO DO: ...
   });
   ```
 
@@ -351,26 +357,26 @@ flags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_KYBER + ...
   let CONTRACT_ADDRESS = "0xC586BeF4a0992C495Cf22e1aeEE4E446CECDee0E";
 
   let splitExchanges = [
-    "Uniswap", "Kyber", "Bancor", "Oasis", "CurveCompound", "CurveUsdt", "CurveY", "CurveBinance", "CurveSynthetix", "UniswapCompound", "UniswapChai", "UniswapAave", "Mooniswap", "UniswapV2", "UniswapV2ETH", "UniswapV2DAI", "UniswapV2USDC", "CurvePax", "CurveRenBtc", "CurveTBtc", "DforceSwap", "Shellexchangers"
+      "Uniswap", "Kyber", "Bancor", "Oasis", "CurveCompound", "CurveUsdt", "CurveY", "CurveBinance", "CurveSynthetix", "UniswapCompound", "UniswapChai", "UniswapAave", "Mooniswap", "UniswapV2", "UniswapV2ETH", "UniswapV2DAI", "UniswapV2USDC", "CurvePax", "CurveRenBtc", "CurveTBtc", "DforceSwap", "Shellexchangers"
   ]
 
   let parts = 10
 
   let contract = new web3.eth.Contract(ABI, CONTRACT_ADDRESS)
   contract.methods.getExpectedReturn(
-    "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-    "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359",
-    100,
-    parts, 
-    0x20000
+      "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359",
+      100,
+      parts, 
+      0x20000
   ).call().then(data => {
   
-    data.distribution.forEach(function(value, index) {
-      console.log(`${splitExchanges[index]} token1 to USDC: ${((value >> 8) & 0xFF)*100/parts}%`)
-      console.log(`${splitExchanges[index]} USDC to token2: ${(value % 256)*100/parts}%`)
-    })
+      data.distribution.forEach(function(value, index) {
+          console.log(`${splitExchanges[index]} token1 to USDC: ${((value >> 8) & 0xFF)*100/parts}%`)
+          console.log(`${splitExchanges[index]} USDC to token2: ${(value % 256)*100/parts}%`)
+      })
   }).catch(error => {
-    // TO DO: ...
+      // TO DO: ...
   })
   ```
   
@@ -378,5 +384,5 @@ flags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_KYBER + ...
 
   | Flag | Value | Description |
   | ---- | ---- | ---- |
-  | FLAG_ENABLE_CHI_BURN | `0x10000000000` | Burns `CHI` token to save gas. Make sure to approve `CHI` token to `1split.eth` smart contract |
+  | FLAG_ENABLE_CHI_BURN | `0x10000000000` | Burns `CHI` token to save gas. Make sure to approve `CHI` token to `1proto.eth` smart contract |
 
