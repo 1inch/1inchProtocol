@@ -67,7 +67,7 @@ let wrapExchanges = [
 
 To use this service you have to call methods at [OneSplitAudit](https://github.com/CryptoManiacsZone/1inchProtocol/blob/master/contracts/OneSplitAudit.sol)
 
-![How to use it](./img/scheme.png)
+![How to use it](./img/howtouseit.png)
 
 First of all call method `getExpectedReturn` (see methods section), it returns `distribution` array. Each element of this array matches element of `splitExchanges` (see above) and represents fraction of trading volume.<br>
 Then call `getExpectedReturnWithGas` to take into account gas when splitting. This method returns more profitable `distribution` array for exchange.<br>
