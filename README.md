@@ -65,7 +65,7 @@ let wrapExchanges = [
 
 ## How to use it
 
-To use this service you have call methods at [OneSplitAudit](https://github.com/CryptoManiacsZone/1inchProtocol/blob/master/contracts/OneSplitAudit.sol)
+To use this service you have to call methods at [OneSplitAudit](https://github.com/CryptoManiacsZone/1inchProtocol/blob/master/contracts/OneSplitAudit.sol)
 
 ![How to use it](./img/scheme.png)
 
