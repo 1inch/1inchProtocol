@@ -82,6 +82,7 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_DISABLE_UNISWAP_ALL = 0x100000000000;
     uint256 internal constant FLAG_DISABLE_CURVE_ALL = 0x200000000000;
     uint256 internal constant FLAG_DISABLE_UNISWAP_V2_ALL = 0x400000000000;
+    uint256 internal constant FLAG_DISABLE_SPLIT_RECALCULATION = 0x800000000000;
 }
 
 

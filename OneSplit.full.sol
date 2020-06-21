@@ -163,6 +163,7 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_DISABLE_UNISWAP_ALL = 0x100000000000;
     uint256 internal constant FLAG_DISABLE_CURVE_ALL = 0x200000000000;
     uint256 internal constant FLAG_DISABLE_UNISWAP_V2_ALL = 0x400000000000;
+    uint256 internal constant FLAG_DISABLE_SPLIT_RECALCULATION = 0x800000000000;
 }
 
 
@@ -1481,13 +1482,13 @@ contract OneSplitRoot is IOneSplitView {
             destToken,
             amount,
             1,
+            FLAG_DISABLE_SPLIT_RECALCULATION |
             FLAG_DISABLE_ALL_SPLIT_SOURCES |
             FLAG_DISABLE_UNISWAP_V2_ALL |
             FLAG_DISABLE_UNISWAP,
             0
         );
     }
-
 
     function _tokensEqual(IERC20 tokenA, IERC20 tokenB) internal pure returns(bool) {
         return ((tokenA.isETH() && tokenB.isETH()) || tokenA == tokenB);
@@ -1688,32 +1689,94 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
 
         int256[][DEXES_COUNT] memory matrix;
         uint256[DEXES_COUNT] memory gases;
+        uint256[] memory rets;
         for (uint i = 0; i < DEXES_COUNT; i++) {
-            uint256[] memory rets;
             (rets, gases[i]) = reserves[i](fromToken, destToken, amount, parts, flags);
 
-            // Prepend zero
+            // Prepend zero and sub gas
+            int256 gas = int256(gases[i].mul(destTokenEthPriceTimesGasPrice).div(1e18));
             matrix[i] = new int256[](parts + 1);
             for (uint j = 0; j < parts; j++) {
-                matrix[i][j + 1] = int256(rets[j]);
+                matrix[i][j + 1] = int256(rets[j]) - gas;
             }
-
-            // Respect gas in first part
-            matrix[i][1] -= int256(gases[i].mul(destTokenEthPriceTimesGasPrice).div(1e18));
         }
 
         (, distribution) = _findBestDistribution(parts, matrix);
 
-        // Recalculate exact returnAmount
+        (returnAmount, estimateGasAmount) = _getReturnAndGasByDistribution(
+            Args({
+                fromToken: fromToken,
+                destToken: destToken,
+                amount: amount,
+                parts: parts,
+                flags: flags,
+                destTokenEthPriceTimesGasPrice: destTokenEthPriceTimesGasPrice,
+                distribution: distribution,
+                matrix: matrix,
+                gases: gases,
+                reserves: reserves
+            })
+        );
+        return (returnAmount, estimateGasAmount, distribution);
+    }
+
+    struct Args {
+        IERC20 fromToken;
+        IERC20 destToken;
+        uint256 amount;
+        uint256 parts;
+        uint256 flags;
+        uint256 destTokenEthPriceTimesGasPrice;
+        uint256[] distribution;
+        int256[][DEXES_COUNT] matrix;
+        uint256[DEXES_COUNT] gases;
+        function(IERC20,IERC20,uint256,uint256,uint256) view returns(uint256[] memory, uint256)[DEXES_COUNT] reserves;
+    }
+
+    function _getReturnAndGasByDistribution(
+        Args memory args
+    ) internal view returns(uint256 returnAmount, uint256 estimateGasAmount) {
+        bool[DEXES_COUNT] memory exact = [
+            true,  // "Uniswap",
+            false, // "Kyber",
+            false, // "Bancor",
+            false, // "Oasis",
+            false, // "Curve Compound",
+            false, // "Curve USDT",
+            false, // "Curve Y",
+            false, // "Curve Binance",
+            false, // "CurveSynthetix",
+            true,  // "Uniswap Compound",
+            true,  // "Uniswap CHAI",
+            true,  // "Uniswap Aave",
+            false, // "Mooniswap",
+            true,  // "Uniswap V2",
+            true,  // "Uniswap V2 (ETH)",
+            true,  // "Uniswap V2 (DAI)",
+            true,  // "Uniswap V2 (USDC)",
+            false, // "Curve Pax",
+            false, // "Curve RenBTC",
+            false, // "Curve tBTC",
+            true,  // "Dforce XSwap",
+            false, // "Shell",
+            false, // "mStable",
+            false  // "Curve sBTC"
+        ];
+
         for (uint i = 0; i < DEXES_COUNT; i++) {
-            if (distribution[i] > 0) {
-                estimateGasAmount = estimateGasAmount.add(gases[i]);
-                returnAmount = returnAmount.add(
-                    uint256(
-                        matrix[i][distribution[i]] +
-                        ((distribution[i] == 1) ? int256(gases[i].mul(destTokenEthPriceTimesGasPrice).div(1e18)) : 0)
-                    )
-                );
+            if (args.distribution[i] > 0) {
+                if (args.distribution[i] == args.parts || exact[i] || args.flags.check(FLAG_DISABLE_SPLIT_RECALCULATION)) {
+                    estimateGasAmount = estimateGasAmount.add(args.gases[i]);
+                    returnAmount = returnAmount.add(uint256(
+                        args.matrix[i][args.distribution[i]] +
+                        int256(args.gases[i].mul(args.destTokenEthPriceTimesGasPrice).div(1e18))
+                    ));
+                }
+                else {
+                    (uint256[] memory rets, uint256 gas) = args.reserves[i](args.fromToken, args.destToken, args.amount.mul(args.distribution[i]).div(args.parts), 1, args.flags);
+                    estimateGasAmount = estimateGasAmount.add(gas);
+                    returnAmount = returnAmount.add(rets[0]);
+                }
             }
         }
     }
