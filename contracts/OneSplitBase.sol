@@ -2027,9 +2027,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
     ) internal returns(uint256) {
         IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
         address[] memory path = _buildBancorPath(fromToken, destToken);
-        if (!fromToken.isETH()) {
-            fromToken.universalTransfer(address(bancorNetwork), amount);
-        }
+        fromToken.universalApprove(address(bancorNetwork), amount);
         return bancorNetwork.convert.value(fromToken.isETH() ? amount : 0)(path, amount, 1);
     }
 
