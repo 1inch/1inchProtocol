@@ -108,16 +108,17 @@ contract OneSplitDMMView is OneSplitViewWrapBase, OneSplitDMMBase {
                 if (underlying == weth) {
                     underlying = ETH_ADDRESS;
                 }
+                uint256 price = _getDMMExchangeRate(IDMM(address(destToken)));
                 (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                     fromToken,
                     underlying,
                     amount,
                     parts,
                     flags,
-                    _recalculatePrice(destToken, underlying, destTokenEthPriceTimesGasPrice)
+                    destTokenEthPriceTimesGasPrice.mul(price).div(1e18)
                 );
                 return (
-                    returnAmount.mul(1e18).div(_getDMMExchangeRate(IDMM(address(destToken)))),
+                    returnAmount.mul(1e18).div(price),
                     estimateGasAmount + 430_000,
                     distribution
                 );

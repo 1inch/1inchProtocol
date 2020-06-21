@@ -89,8 +89,8 @@ contract OneSplitIdleView is OneSplitViewWrapBase, OneSplitIdleBase {
 
             for (uint i = 0; i < tokens.length; i++) {
                 if (destToken == IERC20(tokens[i])) {
-                    IERC20 _destToken = destToken;
                     uint256 _destTokenEthPriceTimesGasPrice = destTokenEthPriceTimesGasPrice;
+                    uint256 _price = tokens[i].tokenPrice();
                     IERC20 token = tokens[i].token();
                     (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                         fromToken,
@@ -98,9 +98,9 @@ contract OneSplitIdleView is OneSplitViewWrapBase, OneSplitIdleBase {
                         amount,
                         parts,
                         flags,
-                        _recalculatePrice(_destToken, token, _destTokenEthPriceTimesGasPrice)
+                        _destTokenEthPriceTimesGasPrice.mul(_price).div(1e18)
                     );
-                    return (returnAmount.mul(1e18).div(tokens[i].tokenPrice()), estimateGasAmount + 1_300_000, distribution);
+                    return (returnAmount.mul(1e18).div(_price), estimateGasAmount + 1_300_000, distribution);
                 }
             }
         }

@@ -67,7 +67,7 @@ library DisableFlags {
 }
 
 
-contract OneSplitRoot {
+contract OneSplitRoot is IOneSplitView {
     using SafeMath for uint256;
     using DisableFlags for uint256;
 
@@ -286,49 +286,21 @@ contract OneSplitRoot {
         return IAaveToken(0);
     }
 
-    function _recalculatePrice(
+    function _cheapGetPrice(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount
-    ) internal view returns(uint256) {
-        if (fromToken == destToken) {
-            return amount;
-        }
-
-        IUniswapExchange fromExchange;
-        IUniswapExchange destExchange;
-        if (!fromToken.isETH()) {
-            fromExchange = uniswapFactory.getExchange(fromToken);
-        }
-        if (!destToken.isETH()) {
-            destExchange = uniswapFactory.getExchange(destToken);
-        }
-
-        if (fromExchange != IUniswapExchange(0) && destExchange != IUniswapExchange(0)) {
-            uint256 fromBalance = fromToken.balanceOf(address(fromExchange));
-            uint256 destBalance = destToken.balanceOf(address(destExchange));
-            return amount
-                .mul(
-                    destBalance
-                        .mul(address(fromExchange).balance)
-                        .div(address(destExchange).balance)
-                )
-                .div(fromBalance);
-        }
-
-        if (fromExchange != IUniswapExchange(0)) {
-            return amount
-                .mul(address(fromExchange).balance)
-                .div(fromToken.balanceOf(address(fromExchange)));
-        }
-
-        if (destExchange != IUniswapExchange(0)) {
-            return amount
-                .mul(destToken.balanceOf(address(destExchange)))
-                .div(address(destExchange).balance);
-        }
-
-        return 0;
+    ) internal view returns(uint256 returnAmount) {
+        (returnAmount,,) = getExpectedReturnWithGas(
+            fromToken,
+            destToken,
+            amount,
+            1,
+            FLAG_DISABLE_ALL_SPLIT_SOURCES |
+            FLAG_DISABLE_UNISWAP_V2_ALL |
+            FLAG_DISABLE_UNISWAP,
+            0
+        );
     }
 
     function _tokensEqual(IERC20 tokenA, IERC20 tokenB) internal pure returns(bool) {
@@ -551,13 +523,11 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             if (distribution[i] > 0) {
                 estimateGasAmount = estimateGasAmount.add(gases[i]);
                 returnAmount = returnAmount.add(
-                    uint256(matrix[i][distribution[i]])
+                    uint256(
+                        matrix[i][distribution[i]] +
+                        ((distribution[i] == 1) ? int256(gases[i].mul(destTokenEthPriceTimesGasPrice).div(1e18)) : 0)
+                    )
                 );
-                if (distribution[i] == 1) {
-                    returnAmount = returnAmount.add(
-                        gases[i].mul(destTokenEthPriceTimesGasPrice).div(1e18)
-                    );
-                }
             }
         }
     }

@@ -26,14 +26,45 @@ contract OneSplitMStableView is OneSplitViewWrapBase {
         }
 
         if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_MSTABLE_MUSD)) {
-            if (fromToken == IERC20(musd) && ((destToken == usdc || destToken == dai || destToken == usdt || destToken == tusd))) {
-                (,, uint256 result) = musd_helper.getRedeemValidity(fromToken, amount, destToken);
-                return (result, 300_000, new uint256[](DEXES_COUNT));
+            if (fromToken == IERC20(musd)) {
+                if (destToken == usdc || destToken == dai || destToken == usdt || destToken == tusd) {
+                    (,, returnAmount) = musd_helper.getRedeemValidity(fromToken, amount, destToken);
+                    return (returnAmount, 300_000, new uint256[](DEXES_COUNT));
+                }
+                else {
+                    (,, returnAmount) = musd_helper.getRedeemValidity(fromToken, amount, dai);
+                    (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
+                        dai,
+                        destToken,
+                        returnAmount,
+                        parts,
+                        flags,
+                        destTokenEthPriceTimesGasPrice
+                    );
+                    return (returnAmount, estimateGasAmount + 300_000, distribution);
+                }
             }
 
-            if (destToken == IERC20(musd) && ((fromToken == usdc || fromToken == dai || fromToken == usdt || fromToken == tusd))) {
-                (,, uint256 result) = musd.getSwapOutput(fromToken, destToken, amount);
-                return (result, 300_000, new uint256[](DEXES_COUNT));
+            if (destToken == IERC20(musd)) {
+                if (fromToken == usdc || fromToken == dai || fromToken == usdt || fromToken == tusd) {
+                    (,, returnAmount) = musd.getSwapOutput(fromToken, destToken, amount);
+                    return (returnAmount, 300_000, new uint256[](DEXES_COUNT));
+                }
+                else {
+                    IERC20 _destToken = destToken;
+                    (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
+                        fromToken,
+                        dai,
+                        amount,
+                        parts,
+                        flags,
+                        destTokenEthPriceTimesGasPrice
+                            .mul(_cheapGetPrice(ETH_ADDRESS, dai, 1e16))
+                            .div(_cheapGetPrice(ETH_ADDRESS, _destToken, 1e16))
+                    );
+                    (,, returnAmount) = musd_helper.getRedeemValidity(dai, returnAmount, destToken);
+                    return (returnAmount, estimateGasAmount + 300_000, distribution);
+                }
             }
         }
 

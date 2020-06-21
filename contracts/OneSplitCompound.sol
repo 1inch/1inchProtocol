@@ -100,7 +100,7 @@ contract OneSplitCompoundView is OneSplitViewWrapBase, OneSplitCompoundBase {
 
             underlying = _getCompoundUnderlyingToken(destToken);
             if (underlying != IERC20(-1)) {
-                IERC20 _destToken = destToken;
+                uint256 _destTokenEthPriceTimesGasPrice = destTokenEthPriceTimesGasPrice;
                 uint256 compoundRate = ICompoundToken(address(destToken)).exchangeRateStored();
                 (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                     fromToken,
@@ -108,7 +108,7 @@ contract OneSplitCompoundView is OneSplitViewWrapBase, OneSplitCompoundBase {
                     amount,
                     parts,
                     flags,
-                    _recalculatePrice(_destToken, underlying, destTokenEthPriceTimesGasPrice)
+                    _destTokenEthPriceTimesGasPrice.mul(compoundRate).div(1e18)
                 );
                 return (returnAmount.mul(1e18).div(compoundRate), estimateGasAmount + 430_000, distribution);
             }

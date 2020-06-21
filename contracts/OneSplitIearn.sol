@@ -93,7 +93,6 @@ contract OneSplitIearnView is OneSplitViewWrapBase, OneSplitIearnBase {
 
             for (uint i = 0; i < yTokens.length; i++) {
                 if (destToken == IERC20(yTokens[i])) {
-                    IERC20 _destToken = destToken;
                     uint256 _destTokenEthPriceTimesGasPrice = destTokenEthPriceTimesGasPrice;
                     IERC20 token = yTokens[i].token();
                     (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
@@ -102,7 +101,9 @@ contract OneSplitIearnView is OneSplitViewWrapBase, OneSplitIearnBase {
                         amount,
                         parts,
                         flags,
-                        _recalculatePrice(_destToken, token, _destTokenEthPriceTimesGasPrice)
+                        _destTokenEthPriceTimesGasPrice
+                            .mul(yTokens[i].calcPoolValueInToken())
+                            .div(yTokens[i].totalSupply())
                     );
 
                     return(

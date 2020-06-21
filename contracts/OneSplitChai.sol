@@ -39,15 +39,16 @@ contract OneSplitChaiView is OneSplitViewWrapBase {
             }
 
             if (destToken == IERC20(chai)) {
+                uint256 price = chai.chaiPrice();
                 (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                     fromToken,
                     dai,
                     amount,
                     parts,
                     flags,
-                    _recalculatePrice(destToken, dai, destTokenEthPriceTimesGasPrice)
+                    destTokenEthPriceTimesGasPrice.mul(1e18).div(price)
                 );
-                return (chai.daiToChai(returnAmount), estimateGasAmount + 168_000, distribution);
+                return (returnAmount.mul(price).div(1e18), estimateGasAmount + 168_000, distribution);
             }
         }
 

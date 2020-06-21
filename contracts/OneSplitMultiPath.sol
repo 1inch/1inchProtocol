@@ -108,6 +108,7 @@ contract OneSplitMultiPathView is OneSplitViewWrapBase, OneSplitMultiPathBase {
             // Stack too deep
             uint256 _flags = flags;
             IERC20 _destToken = destToken;
+            uint256 _destTokenEthPriceTimesGasPrice = destTokenEthPriceTimesGasPrice;
 
             (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                 fromToken,
@@ -115,7 +116,9 @@ contract OneSplitMultiPathView is OneSplitViewWrapBase, OneSplitMultiPathBase {
                 amount,
                 parts,
                 _flags,
-                _recalculatePrice(_destToken, midToken, destTokenEthPriceTimesGasPrice)
+                _destTokenEthPriceTimesGasPrice
+                    .mul(_cheapGetPrice(ETH_ADDRESS, midToken, 1e16))
+                    .div(_cheapGetPrice(ETH_ADDRESS, _destToken, 1e16))
             );
 
             uint256[] memory dist;

@@ -133,7 +133,7 @@ contract OneSplitAaveView is OneSplitViewWrapBase, OneSplitAaveBase {
                     amount,
                     parts,
                     flags,
-                    _recalculatePrice(destToken, underlying, destTokenEthPriceTimesGasPrice)
+                    destTokenEthPriceTimesGasPrice
                 );
                 return (returnAmount, estimateGasAmount + 310_000, distribution);
             }

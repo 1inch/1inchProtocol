@@ -1252,7 +1252,7 @@ library DisableFlags {
 }
 
 
-contract OneSplitRoot {
+contract OneSplitRoot is IOneSplitView {
     using SafeMath for uint256;
     using DisableFlags for uint256;
 
@@ -1471,50 +1471,23 @@ contract OneSplitRoot {
         return IAaveToken(0);
     }
 
-    function _recalculatePrice(
+    function _cheapGetPrice(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount
-    ) internal view returns(uint256) {
-        if (fromToken == destToken) {
-            return amount;
-        }
-
-        IUniswapExchange fromExchange;
-        IUniswapExchange destExchange;
-        if (!fromToken.isETH()) {
-            fromExchange = uniswapFactory.getExchange(fromToken);
-        }
-        if (!destToken.isETH()) {
-            destExchange = uniswapFactory.getExchange(destToken);
-        }
-
-        if (fromExchange != IUniswapExchange(0) && destExchange != IUniswapExchange(0)) {
-            uint256 fromBalance = fromToken.balanceOf(address(fromExchange));
-            uint256 destBalance = destToken.balanceOf(address(destExchange));
-            return amount
-                .mul(
-                    destBalance
-                        .mul(address(fromExchange).balance)
-                        .div(address(destExchange).balance)
-                )
-                .div(fromBalance);
-        }
-
-        if (fromExchange != IUniswapExchange(0)) {
-            return amount
-                .mul(address(fromExchange).balance)
-                .div(fromToken.balanceOf(address(fromExchange)));
-        }
-
-        if (destExchange != IUniswapExchange(0)) {
-            return amount
-                .mul(destToken.balanceOf(address(destExchange)))
-                .div(address(destExchange).balance);
-        }
-
-        return 0;
+    ) internal view returns(uint256 returnAmount) {
+        (returnAmount,,) = getExpectedReturnWithGas(
+            fromToken,
+            destToken,
+            amount,
+            1,
+            FLAG_DISABLE_ALL_SPLIT_SOURCES |
+            FLAG_DISABLE_UNISWAP_V2_ALL |
+            FLAG_DISABLE_UNISWAP,
+            0
+        );
     }
+
 
     function _tokensEqual(IERC20 tokenA, IERC20 tokenB) internal pure returns(bool) {
         return ((tokenA.isETH() && tokenB.isETH()) || tokenA == tokenB);
@@ -1736,13 +1709,11 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             if (distribution[i] > 0) {
                 estimateGasAmount = estimateGasAmount.add(gases[i]);
                 returnAmount = returnAmount.add(
-                    uint256(matrix[i][distribution[i]])
+                    uint256(
+                        matrix[i][distribution[i]] +
+                        ((distribution[i] == 1) ? int256(gases[i].mul(destTokenEthPriceTimesGasPrice).div(1e18)) : 0)
+                    )
                 );
-                if (distribution[i] == 1) {
-                    returnAmount = returnAmount.add(
-                        gases[i].mul(destTokenEthPriceTimesGasPrice).div(1e18)
-                    );
-                }
             }
         }
     }
@@ -3447,6 +3418,7 @@ contract OneSplitMultiPathView is OneSplitViewWrapBase, OneSplitMultiPathBase {
             // Stack too deep
             uint256 _flags = flags;
             IERC20 _destToken = destToken;
+            uint256 _destTokenEthPriceTimesGasPrice = destTokenEthPriceTimesGasPrice;
 
             (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                 fromToken,
@@ -3454,7 +3426,9 @@ contract OneSplitMultiPathView is OneSplitViewWrapBase, OneSplitMultiPathBase {
                 amount,
                 parts,
                 _flags,
-                _recalculatePrice(_destToken, midToken, destTokenEthPriceTimesGasPrice)
+                _destTokenEthPriceTimesGasPrice
+                    .mul(_cheapGetPrice(ETH_ADDRESS, midToken, 1e16))
+                    .div(_cheapGetPrice(ETH_ADDRESS, _destToken, 1e16))
             );
 
             uint256[] memory dist;
@@ -3635,7 +3609,7 @@ contract OneSplitCompoundView is OneSplitViewWrapBase, OneSplitCompoundBase {
 
             underlying = _getCompoundUnderlyingToken(destToken);
             if (underlying != IERC20(-1)) {
-                IERC20 _destToken = destToken;
+                uint256 _destTokenEthPriceTimesGasPrice = destTokenEthPriceTimesGasPrice;
                 uint256 compoundRate = ICompoundToken(address(destToken)).exchangeRateStored();
                 (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                     fromToken,
@@ -3643,7 +3617,7 @@ contract OneSplitCompoundView is OneSplitViewWrapBase, OneSplitCompoundBase {
                     amount,
                     parts,
                     flags,
-                    _recalculatePrice(_destToken, underlying, destTokenEthPriceTimesGasPrice)
+                    _destTokenEthPriceTimesGasPrice.mul(compoundRate).div(1e18)
                 );
                 return (returnAmount.mul(1e18).div(compoundRate), estimateGasAmount + 430_000, distribution);
             }
@@ -3931,7 +3905,7 @@ contract OneSplitFulcrumView is OneSplitViewWrapBase, OneSplitFulcrumBase {
 
             underlying = _isFulcrumToken(destToken);
             if (underlying != IERC20(-1)) {
-                IERC20 _destToken = destToken;
+                uint256 _destTokenEthPriceTimesGasPrice = destTokenEthPriceTimesGasPrice;
                 uint256 fulcrumRate = IFulcrumToken(address(destToken)).tokenPrice();
                 (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                     fromToken,
@@ -3939,7 +3913,7 @@ contract OneSplitFulcrumView is OneSplitViewWrapBase, OneSplitFulcrumBase {
                     amount,
                     parts,
                     flags,
-                    _recalculatePrice(_destToken, underlying, destTokenEthPriceTimesGasPrice)
+                    _destTokenEthPriceTimesGasPrice.mul(fulcrumRate).div(1e18)
                 );
                 return (returnAmount.mul(1e18).div(fulcrumRate), estimateGasAmount + 354_000, distribution);
             }
@@ -4079,15 +4053,16 @@ contract OneSplitChaiView is OneSplitViewWrapBase {
             }
 
             if (destToken == IERC20(chai)) {
+                uint256 price = chai.chaiPrice();
                 (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                     fromToken,
                     dai,
                     amount,
                     parts,
                     flags,
-                    _recalculatePrice(destToken, dai, destTokenEthPriceTimesGasPrice)
+                    destTokenEthPriceTimesGasPrice.mul(1e18).div(price)
                 );
-                return (chai.daiToChai(returnAmount), estimateGasAmount + 168_000, distribution);
+                return (returnAmount.mul(price).div(1e18), estimateGasAmount + 168_000, distribution);
             }
         }
 
@@ -4220,7 +4195,7 @@ contract OneSplitBdaiView is OneSplitViewWrapBase, OneSplitBdaiBase {
                     amount,
                     parts,
                     flags,
-                    _recalculatePrice(destToken, dai, destTokenEthPriceTimesGasPrice)
+                    destTokenEthPriceTimesGasPrice
                 );
                 return (returnAmount, estimateGasAmount + 295_000, distribution);
             }
@@ -4408,7 +4383,6 @@ contract OneSplitIearnView is OneSplitViewWrapBase, OneSplitIearnBase {
 
             for (uint i = 0; i < yTokens.length; i++) {
                 if (destToken == IERC20(yTokens[i])) {
-                    IERC20 _destToken = destToken;
                     uint256 _destTokenEthPriceTimesGasPrice = destTokenEthPriceTimesGasPrice;
                     IERC20 token = yTokens[i].token();
                     (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
@@ -4417,7 +4391,9 @@ contract OneSplitIearnView is OneSplitViewWrapBase, OneSplitIearnBase {
                         amount,
                         parts,
                         flags,
-                        _recalculatePrice(_destToken, token, _destTokenEthPriceTimesGasPrice)
+                        _destTokenEthPriceTimesGasPrice
+                            .mul(yTokens[i].calcPoolValueInToken())
+                            .div(yTokens[i].totalSupply())
                     );
 
                     return(
@@ -4612,8 +4588,8 @@ contract OneSplitIdleView is OneSplitViewWrapBase, OneSplitIdleBase {
 
             for (uint i = 0; i < tokens.length; i++) {
                 if (destToken == IERC20(tokens[i])) {
-                    IERC20 _destToken = destToken;
                     uint256 _destTokenEthPriceTimesGasPrice = destTokenEthPriceTimesGasPrice;
+                    uint256 _price = tokens[i].tokenPrice();
                     IERC20 token = tokens[i].token();
                     (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                         fromToken,
@@ -4621,9 +4597,9 @@ contract OneSplitIdleView is OneSplitViewWrapBase, OneSplitIdleBase {
                         amount,
                         parts,
                         flags,
-                        _recalculatePrice(_destToken, token, _destTokenEthPriceTimesGasPrice)
+                        _destTokenEthPriceTimesGasPrice.mul(_price).div(1e18)
                     );
-                    return (returnAmount.mul(1e18).div(tokens[i].tokenPrice()), estimateGasAmount + 1_300_000, distribution);
+                    return (returnAmount.mul(1e18).div(_price), estimateGasAmount + 1_300_000, distribution);
                 }
             }
         }
@@ -4829,7 +4805,7 @@ contract OneSplitAaveView is OneSplitViewWrapBase, OneSplitAaveBase {
                     amount,
                     parts,
                     flags,
-                    _recalculatePrice(destToken, underlying, destTokenEthPriceTimesGasPrice)
+                    destTokenEthPriceTimesGasPrice
                 );
                 return (returnAmount, estimateGasAmount + 310_000, distribution);
             }
@@ -5114,14 +5090,45 @@ contract OneSplitMStableView is OneSplitViewWrapBase {
         }
 
         if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_MSTABLE_MUSD)) {
-            if (fromToken == IERC20(musd) && ((destToken == usdc || destToken == dai || destToken == usdt || destToken == tusd))) {
-                (,, uint256 result) = musd_helper.getRedeemValidity(fromToken, amount, destToken);
-                return (result, 300_000, new uint256[](DEXES_COUNT));
+            if (fromToken == IERC20(musd)) {
+                if (destToken == usdc || destToken == dai || destToken == usdt || destToken == tusd) {
+                    (,, returnAmount) = musd_helper.getRedeemValidity(fromToken, amount, destToken);
+                    return (returnAmount, 300_000, new uint256[](DEXES_COUNT));
+                }
+                else {
+                    (,, returnAmount) = musd_helper.getRedeemValidity(fromToken, amount, dai);
+                    (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
+                        dai,
+                        destToken,
+                        returnAmount,
+                        parts,
+                        flags,
+                        destTokenEthPriceTimesGasPrice
+                    );
+                    return (returnAmount, estimateGasAmount + 300_000, distribution);
+                }
             }
 
-            if (destToken == IERC20(musd) && ((fromToken == usdc || fromToken == dai || fromToken == usdt || fromToken == tusd))) {
-                (,, uint256 result) = musd.getSwapOutput(fromToken, destToken, amount);
-                return (result, 300_000, new uint256[](DEXES_COUNT));
+            if (destToken == IERC20(musd)) {
+                if (fromToken == usdc || fromToken == dai || fromToken == usdt || fromToken == tusd) {
+                    (,, returnAmount) = musd.getSwapOutput(fromToken, destToken, amount);
+                    return (returnAmount, 300_000, new uint256[](DEXES_COUNT));
+                }
+                else {
+                    IERC20 _destToken = destToken;
+                    (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
+                        fromToken,
+                        dai,
+                        amount,
+                        parts,
+                        flags,
+                        destTokenEthPriceTimesGasPrice
+                            .mul(_cheapGetPrice(ETH_ADDRESS, dai, 1e16))
+                            .div(_cheapGetPrice(ETH_ADDRESS, _destToken, 1e16))
+                    );
+                    (,, returnAmount) = musd_helper.getRedeemValidity(dai, returnAmount, destToken);
+                    return (returnAmount, estimateGasAmount + 300_000, distribution);
+                }
             }
         }
 
@@ -5309,16 +5316,17 @@ contract OneSplitDMMView is OneSplitViewWrapBase, OneSplitDMMBase {
                 if (underlying == weth) {
                     underlying = ETH_ADDRESS;
                 }
+                uint256 price = _getDMMExchangeRate(IDMM(address(destToken)));
                 (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                     fromToken,
                     underlying,
                     amount,
                     parts,
                     flags,
-                    _recalculatePrice(destToken, underlying, destTokenEthPriceTimesGasPrice)
+                    destTokenEthPriceTimesGasPrice.mul(price).div(1e18)
                 );
                 return (
-                    returnAmount.mul(1e18).div(_getDMMExchangeRate(IDMM(address(destToken)))),
+                    returnAmount.mul(1e18).div(price),
                     estimateGasAmount + 430_000,
                     distribution
                 );
