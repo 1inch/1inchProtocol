@@ -109,7 +109,7 @@ contract OneSplitMStable is OneSplitBaseWrap {
                         dai,
                         result
                     );
-                    super.swap(
+                    super._swap(
                         dai,
                         destToken,
                         dai.balanceOf(address(this)),
@@ -131,7 +131,7 @@ contract OneSplitMStable is OneSplitBaseWrap {
                     );
                 }
                 else {
-                    super.swap(
+                    super._swap(
                         fromToken,
                         dai,
                         amount,
