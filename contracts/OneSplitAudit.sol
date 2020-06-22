@@ -38,6 +38,17 @@ contract OneSplitAudit is IOneSplit, Ownable {
         }
     }
 
+    event Swapped(
+        IERC20 indexed fromToken,
+        IERC20 indexed destToken,
+        uint256 fromTokenAmount,
+        uint256 destTokenAmount,
+        uint256 minReturn,
+        uint256[] distribution,
+        uint256 flags,
+        address referral
+    );
+
     constructor(IOneSplit impl) public {
         setNewImpl(impl);
     }
@@ -204,6 +215,17 @@ contract OneSplitAudit is IOneSplit, Ownable {
         require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
         _destToken().universalTransfer(referral, returnAmount.mul(feePercent).div(1e18));
         _destToken().universalTransfer(msg.sender, returnAmount.sub(returnAmount.mul(feePercent).div(1e18)));
+
+        emit Swapped(
+            _fromToken(),
+            _destToken(),
+            amount,
+            returnAmount,
+            minReturn,
+            distribution,
+            flags,
+            referral
+        );
 
         // Return remainder
         if (afterBalances.ofFromToken > beforeBalances.ofFromToken) {

@@ -245,12 +245,11 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_ENABLE_MULTI_PATH_USDC = 0x20000; // Turned off by default
     uint256 internal constant FLAG_DISABLE_CURVE_SYNTHETIX = 0x40000;
     uint256 internal constant FLAG_DISABLE_WETH = 0x80000;
-    uint256 internal constant FLAG_ENABLE_UNISWAP_COMPOUND = 0x100000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
-    uint256 internal constant FLAG_ENABLE_UNISWAP_CHAI = 0x200000; // Works only when ETH<>DAI or FLAG_ENABLE_MULTI_PATH_ETH
-    uint256 internal constant FLAG_ENABLE_UNISWAP_AAVE = 0x400000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
+    uint256 internal constant FLAG_DISABLE_UNISWAP_COMPOUND = 0x100000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
+    uint256 internal constant FLAG_DISABLE_UNISWAP_CHAI = 0x200000; // Works only when ETH<>DAI or FLAG_ENABLE_MULTI_PATH_ETH
+    uint256 internal constant FLAG_DISABLE_UNISWAP_AAVE = 0x400000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
     uint256 internal constant FLAG_DISABLE_IDLE = 0x800000;
     uint256 internal constant FLAG_DISABLE_MOONISWAP = 0x1000000;
-    uint256 internal constant FLAG_DISABLE_UNISWAP_V2_ALL = 0x1E000000;
     uint256 internal constant FLAG_DISABLE_UNISWAP_V2 = 0x2000000;
     uint256 internal constant FLAG_DISABLE_UNISWAP_V2_ETH = 0x4000000;
     uint256 internal constant FLAG_DISABLE_UNISWAP_V2_DAI = 0x8000000;
@@ -270,6 +269,10 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_DISABLE_MSTABLE_MUSD = 0x20000000000;
     uint256 internal constant FLAG_DISABLE_CURVE_SBTC = 0x40000000000;
     uint256 internal constant FLAG_DISABLE_DMM = 0x80000000000;
+    uint256 internal constant FLAG_DISABLE_UNISWAP_ALL = 0x100000000000;
+    uint256 internal constant FLAG_DISABLE_CURVE_ALL = 0x200000000000;
+    uint256 internal constant FLAG_DISABLE_UNISWAP_V2_ALL = 0x400000000000;
+    uint256 internal constant FLAG_DISABLE_SPLIT_RECALCULATION = 0x800000000000;
 }
 
 
@@ -781,6 +784,17 @@ contract OneSplitAudit is IOneSplit, Ownable {
         }
     }
 
+    event Swapped(
+        IERC20 indexed fromToken,
+        IERC20 indexed destToken,
+        uint256 fromTokenAmount,
+        uint256 destTokenAmount,
+        uint256 minReturn,
+        uint256[] distribution,
+        uint256 flags,
+        address referral
+    );
+
     constructor(IOneSplit impl) public {
         setNewImpl(impl);
     }
@@ -947,6 +961,17 @@ contract OneSplitAudit is IOneSplit, Ownable {
         require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
         _destToken().universalTransfer(referral, returnAmount.mul(feePercent).div(1e18));
         _destToken().universalTransfer(msg.sender, returnAmount.sub(returnAmount.mul(feePercent).div(1e18)));
+
+        emit Swapped(
+            _fromToken(),
+            _destToken(),
+            amount,
+            returnAmount,
+            minReturn,
+            distribution,
+            flags,
+            referral
+        );
 
         // Return remainder
         if (afterBalances.ofFromToken > beforeBalances.ofFromToken) {

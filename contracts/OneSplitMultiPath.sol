@@ -116,9 +116,11 @@ contract OneSplitMultiPathView is OneSplitViewWrapBase, OneSplitMultiPathBase {
                 amount,
                 parts,
                 _flags,
-                _destTokenEthPriceTimesGasPrice
-                    .mul(_cheapGetPrice(ETH_ADDRESS, midToken, 1e16))
-                    .div(_cheapGetPrice(ETH_ADDRESS, _destToken, 1e16))
+                _scaleDestTokenEthPriceTimesGasPrice(
+                    _destToken,
+                    midToken,
+                    _destTokenEthPriceTimesGasPrice
+                )
             );
 
             uint256[] memory dist;

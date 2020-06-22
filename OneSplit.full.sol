@@ -1472,12 +1472,25 @@ contract OneSplitRoot is IOneSplitView {
         return IAaveToken(0);
     }
 
+    function _scaleDestTokenEthPriceTimesGasPrice(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 destTokenEthPriceTimesGasPrice
+    ) internal view returns(uint256) {
+        uint256 mul = _cheapGetPrice(ETH_ADDRESS, destToken, 1e16);
+        uint256 div = _cheapGetPrice(ETH_ADDRESS, fromToken, 1e16);
+        if (div > 0) {
+            return destTokenEthPriceTimesGasPrice.mul(mul).div(div);
+        }
+        return 0;
+    }
+
     function _cheapGetPrice(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount
     ) internal view returns(uint256 returnAmount) {
-        (returnAmount,,) = getExpectedReturnWithGas(
+        (returnAmount,,) = this.getExpectedReturnWithGas(
             fromToken,
             destToken,
             amount,
@@ -1759,7 +1772,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             false, // "Curve tBTC",
             true,  // "Dforce XSwap",
             false, // "Shell",
-            false, // "mStable",
+            true,  // "mStable",
             false  // "Curve sBTC"
         ];
 
@@ -3489,9 +3502,11 @@ contract OneSplitMultiPathView is OneSplitViewWrapBase, OneSplitMultiPathBase {
                 amount,
                 parts,
                 _flags,
-                _destTokenEthPriceTimesGasPrice
-                    .mul(_cheapGetPrice(ETH_ADDRESS, midToken, 1e16))
-                    .div(_cheapGetPrice(ETH_ADDRESS, _destToken, 1e16))
+                _scaleDestTokenEthPriceTimesGasPrice(
+                    _destToken,
+                    midToken,
+                    _destTokenEthPriceTimesGasPrice
+                )
             );
 
             uint256[] memory dist;
@@ -5185,9 +5200,11 @@ contract OneSplitMStableView is OneSplitViewWrapBase {
                         amount,
                         parts,
                         flags,
-                        destTokenEthPriceTimesGasPrice
-                            .mul(_cheapGetPrice(ETH_ADDRESS, dai, 1e16))
-                            .div(_cheapGetPrice(ETH_ADDRESS, _destToken, 1e16))
+                        _scaleDestTokenEthPriceTimesGasPrice(
+                            _destToken,
+                            dai,
+                            destTokenEthPriceTimesGasPrice
+                        )
                     );
                     (,, returnAmount) = musd_helper.getRedeemValidity(dai, returnAmount, destToken);
                     return (returnAmount, estimateGasAmount + 300_000, distribution);

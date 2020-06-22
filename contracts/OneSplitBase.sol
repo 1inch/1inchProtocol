@@ -286,12 +286,25 @@ contract OneSplitRoot is IOneSplitView {
         return IAaveToken(0);
     }
 
+    function _scaleDestTokenEthPriceTimesGasPrice(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 destTokenEthPriceTimesGasPrice
+    ) internal view returns(uint256) {
+        uint256 mul = _cheapGetPrice(ETH_ADDRESS, destToken, 1e16);
+        uint256 div = _cheapGetPrice(ETH_ADDRESS, fromToken, 1e16);
+        if (div > 0) {
+            return destTokenEthPriceTimesGasPrice.mul(mul).div(div);
+        }
+        return 0;
+    }
+
     function _cheapGetPrice(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount
     ) internal view returns(uint256 returnAmount) {
-        (returnAmount,,) = getExpectedReturnWithGas(
+        (returnAmount,,) = this.getExpectedReturnWithGas(
             fromToken,
             destToken,
             amount,
