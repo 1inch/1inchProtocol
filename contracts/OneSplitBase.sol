@@ -393,6 +393,8 @@ contract OneSplitViewWrapBase is IOneSplitView, OneSplitRoot {
 
 
 contract OneSplitView is IOneSplitView, OneSplitRoot {
+    int256 internal constant VERY_NEGATIVE_VALUE = -1e72;
+
     function _findBestDistribution(
         uint256 s,                            // parts
         int256[][DEXES_COUNT] memory amounts // exchangesReturns
@@ -437,7 +439,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             partsLeft = parent[curExchange][partsLeft];
         }
 
-        returnAmount = (answer[n - 1][s] == -1e72) ? 0 : answer[n - 1][s];
+        returnAmount = (answer[n - 1][s] == VERY_NEGATIVE_VALUE) ? 0 : answer[n - 1][s];
     }
 
     function getExchangeName(uint256 i) public pure returns(string memory) {
@@ -537,7 +539,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             for (uint i = 0; i < DEXES_COUNT; i++) {
                 for (uint j = 1; j < parts + 1; j++) {
                     if (matrix[i][j] == 0) {
-                        matrix[i][j] = -1e72;
+                        matrix[i][j] = VERY_NEGATIVE_VALUE;
                     }
                 }
             }
@@ -609,8 +611,9 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             if (args.distribution[i] > 0) {
                 if (args.distribution[i] == args.parts || exact[i] || args.flags.check(FLAG_DISABLE_SPLIT_RECALCULATION)) {
                     estimateGasAmount = estimateGasAmount.add(args.gases[i]);
+                    int256 value = args.matrix[i][args.distribution[i]];
                     returnAmount = returnAmount.add(uint256(
-                        args.matrix[i][args.distribution[i]] +
+                        (value == VERY_NEGATIVE_VALUE ? 0 : value) +
                         int256(args.gases[i].mul(args.destTokenEthPriceTimesGasPrice).div(1e18))
                     ));
                 }
