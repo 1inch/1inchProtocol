@@ -1,6 +1,6 @@
-pragma solidity ^0.5.0;
+pragma solidity >=0.5.0;
 
-import "@openzeppelin/contracts/ownership/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "./IOneSplit.sol";
 import "./UniversalERC20.sol";
 
@@ -53,7 +53,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
         setNewImpl(impl);
     }
 
-    function() external payable {
+    receive() external payable {
         // solium-disable-next-line security/no-tx-origin
         require(msg.sender != tx.origin, "OneSplit: do not send ETH directly");
     }
