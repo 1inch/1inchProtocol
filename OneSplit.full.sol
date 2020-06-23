@@ -1595,6 +1595,9 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
 
         for (uint j = 0; j <= s; j++) {
             answer[0][j] = amounts[0][j];
+            for (uint i = 1; i < n; i++) {
+                answer[i][j] = -1e72;
+            }
             parent[0][j] = 0;
         }
 
@@ -1620,7 +1623,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             partsLeft = parent[curExchange][partsLeft];
         }
 
-        returnAmount = answer[n - 1][s];
+        returnAmount = (answer[n - 1][s] == -1e72) ? 0 : answer[n - 1][s];
     }
 
     function getExchangeName(uint256 i) public pure returns(string memory) {
@@ -1702,8 +1705,9 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
 
         int256[][DEXES_COUNT] memory matrix;
         uint256[DEXES_COUNT] memory gases;
-        uint256[] memory rets;
+        bool atLeastOnePositive = false;
         for (uint i = 0; i < DEXES_COUNT; i++) {
+            uint256[] memory rets;
             (rets, gases[i]) = reserves[i](fromToken, destToken, amount, parts, flags);
 
             // Prepend zero and sub gas
@@ -1711,6 +1715,17 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             matrix[i] = new int256[](parts + 1);
             for (uint j = 0; j < parts; j++) {
                 matrix[i][j + 1] = int256(rets[j]) - gas;
+                atLeastOnePositive = atLeastOnePositive || (matrix[i][j + 1] > 0);
+            }
+        }
+
+        if (!atLeastOnePositive) {
+            for (uint i = 0; i < DEXES_COUNT; i++) {
+                for (uint j = 1; j < parts + 1; j++) {
+                    if (matrix[i][j] == 0) {
+                        matrix[i][j] = -1e72;
+                    }
+                }
             }
         }
 
