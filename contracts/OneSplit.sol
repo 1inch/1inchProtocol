@@ -1,4 +1,4 @@
-pragma solidity >=0.5.0;
+pragma solidity ^0.5.0;
 
 import "./IOneSplit.sol";
 import "./OneSplitBase.sol";
@@ -142,7 +142,7 @@ contract OneSplitWrap is
         oneSplit = _oneSplit;
     }
 
-    receive() external payable {
+    function() external payable {
         // solium-disable-next-line security/no-tx-origin
         require(msg.sender != tx.origin);
     }

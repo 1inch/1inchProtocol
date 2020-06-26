@@ -1,4 +1,4 @@
-pragma solidity >=0.5.0;
+pragma solidity ^0.5.0;
 
 import "./interface/IAaveToken.sol";
 import "./OneSplitBase.sol";

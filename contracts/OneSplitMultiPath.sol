@@ -1,4 +1,4 @@
-pragma solidity >=0.5.0;
+pragma solidity ^0.5.0;
 
 import "./OneSplitBase.sol";
 
@@ -59,7 +59,9 @@ contract OneSplitMultiPathBase is IOneSplitConsts, OneSplitRoot {
             FLAG_DISABLE_SHELL,
             FLAG_DISABLE_MSTABLE_MUSD,
             FLAG_DISABLE_CURVE_SBTC,
-            FLAG_DISABLE_BALANCER
+            0,
+            0,
+            0
         ];
 
         for (uint i = 0; i < distribution.length; i++) {
