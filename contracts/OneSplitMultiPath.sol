@@ -58,7 +58,10 @@ contract OneSplitMultiPathBase is IOneSplitConsts, OneSplitRoot {
             FLAG_DISABLE_DFORCE_SWAP,
             FLAG_DISABLE_SHELL,
             FLAG_DISABLE_MSTABLE_MUSD,
-            FLAG_DISABLE_CURVE_SBTC
+            FLAG_DISABLE_CURVE_SBTC,
+            0,
+            0,
+            0
         ];
 
         for (uint i = 0; i < distribution.length; i++) {

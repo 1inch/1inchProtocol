@@ -1,6 +1,5 @@
 pragma solidity ^0.5.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20Detailed.sol";
 import "./interface/IAaveToken.sol";
 import "./OneSplitBase.sol";
 

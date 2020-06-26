@@ -1,6 +1,5 @@
 pragma solidity ^0.5.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20Detailed.sol";
 import "./interface/IFulcrum.sol";
 import "./OneSplitBase.sol";
 
@@ -13,8 +12,8 @@ contract OneSplitFulcrumBase {
             return IERC20(-1);
         }
 
-        (bool success, bytes memory data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
-            ERC20Detailed(address(token)).name.selector
+        (bool success, bytes memory data) = address(token).staticcall.gas(5000)(abi.encodeWithSignature(
+            "name()"
         ));
         if (!success) {
             return IERC20(-1);
