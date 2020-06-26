@@ -109,7 +109,7 @@ contract OneSplitRoot is IOneSplitView {
     ICurve constant internal curveBinance = ICurve(0x79a8C46DeA5aDa233ABaFFD40F3A0A2B1e5A4F27);
     ICurve constant internal curveSynthetix = ICurve(0xA5407eAE9Ba41422680e2e00537571bcC53efBfD);
     ICurve constant internal curvePAX = ICurve(0x06364f10B501e868329afBc005b3492902d6C763);
-    ICurve constant internal curveRenBTC = ICurve(0x8474c1236F0Bc23830A23a41aBB81B2764bA9f4F);
+    ICurve constant internal curveRenBTC = ICurve(0x93054188d876f558f4a66B2EF1d97d16eDf0895B);
     ICurve constant internal curveTBTC = ICurve(0x9726e9314eF1b96E45f40056bEd61A088897313E);
     ICurve constant internal curveSBTC = ICurve(0x7fC77b5c7614E1533320Ea6DDc2Eb61fa00A9714);
     IShell constant internal shell = IShell(0xA8253a440Be331dC4a7395B73948cCa6F19Dc97D);
@@ -121,7 +121,7 @@ contract OneSplitRoot is IOneSplitView {
     IDForceSwap constant internal dforceSwap = IDForceSwap(0x03eF3f37856bD08eb47E2dE7ABc4Ddd2c19B60F2);
     IMStable constant internal musd = IMStable(0xe2f2a5C287993345a840Db3B0845fbC70f5935a5);
     IMassetRedemptionValidator constant internal musd_helper = IMassetRedemptionValidator(0x4c5e03065bC52cCe84F3ac94DF14bbAC27eac89b);
-    IBalancerRegistry constant internal balancerRegistry = IBalancerRegistry(0xdF0307e0e66b48FCd01a85Ed2B110bB4aeba1948);
+    IBalancerRegistry constant internal balancerRegistry = IBalancerRegistry(0x65e67cbc342712DF67494ACEfc06fe951EE93982);
 
     int256 internal constant VERY_NEGATIVE_VALUE = -1e72;
 
@@ -694,7 +694,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
                 address(destToken.isETH() ? weth : destToken),
                 _linearInterpolation(amount, parts)
             ),
-            500_000
+            100_000
         );
     }
 
