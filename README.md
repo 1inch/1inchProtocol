@@ -8,7 +8,7 @@ First ever fully on-chain DEX aggregator protocol by 1inch
 
 # Integration
 
-Latest version is always accessible at [1split.eth](https://etherscan.io/address/1split.eth)
+Latest version is always accessible at [1split.eth](https://etherscan.io/address/1split.eth) (beta on [1proto.eth](https://etherscan.io/address/1proto.eth))
 
 Start with checking out solidity interface: [IOneSplit.sol](https://github.com/CryptoManiacsZone/1split/blob/master/contracts/IOneSplit.sol)
 
