@@ -350,6 +350,10 @@ contract OneSplitRoot is IOneSplitView {
         IERC20 destToken,
         uint256 destTokenEthPriceTimesGasPrice
     ) internal view returns(uint256) {
+        if (fromToken == destToken) {
+            return destTokenEthPriceTimesGasPrice;
+        }
+
         uint256 mul = _cheapGetPrice(ETH_ADDRESS, destToken, 1e16);
         uint256 div = _cheapGetPrice(ETH_ADDRESS, fromToken, 1e16);
         if (div > 0) {
