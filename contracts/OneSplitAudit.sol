@@ -9,6 +9,14 @@ interface IFreeFromUpTo {
     function freeFromUpTo(address from, uint256 value) external returns (uint256 freed);
 }
 
+interface IReferralGasSponsor {
+    function makeGasDiscount(
+        uint256 gasSpent,
+        uint256 returnAmount,
+        bytes calldata msgSenderCalldata
+    ) external;
+}
+
 
 //
 // Security assumptions:
@@ -28,15 +36,6 @@ contract OneSplitAudit is IOneSplit, Ownable {
     IOneSplit public oneSplitImpl;
 
     event ImplementationUpdated(address indexed newImpl);
-
-    modifier makeGasDiscount(uint256 flags) {
-        uint256 gasStart = gasleft();
-        _;
-        if ((flags & FLAG_ENABLE_CHI_BURN) > 0) {
-            uint256 gasSpent = 21000 + gasStart - gasleft() + 5 * msg.data.length;
-            chi.freeFromUpTo(msg.sender, (gasSpent + 14154) / 41947);
-        }
-    }
 
     event Swapped(
         IERC20 indexed fromToken,
@@ -180,10 +179,12 @@ contract OneSplitAudit is IOneSplit, Ownable {
         uint256 flags, // See contants in IOneSplit.sol
         address referral,
         uint256 feePercent
-    ) public payable makeGasDiscount(flags) returns(uint256 returnAmount) {
+    ) public payable returns(uint256 returnAmount) {
         require(_fromToken() != _destToken() && amount > 0, "OneSplit: swap makes no sense");
         require((msg.value != 0) == _fromToken().isETH(), "OneSplit: msg.value should be used only for ETH swap");
         require(feePercent <= 0.03e18, "OneSplit: feePercent out of range");
+
+        uint256 gasStart = gasleft();
 
         Balances memory beforeBalances = Balances({
             ofFromToken: uint128(_fromToken().universalBalanceOf(address(this)).sub(msg.value)),
@@ -230,6 +231,15 @@ contract OneSplitAudit is IOneSplit, Ownable {
         // Return remainder
         if (afterBalances.ofFromToken > beforeBalances.ofFromToken) {
             _fromToken().universalTransfer(msg.sender, uint256(afterBalances.ofFromToken).sub(beforeBalances.ofFromToken));
+        }
+
+        if ((flags & FLAG_ENABLE_CHI_BURN) > 0) {
+            uint256 gasSpent = 21000 + gasStart - gasleft() + 16 * msg.data.length;
+            chi.freeFromUpTo(msg.sender, (gasSpent + 14154) / 41947);
+        }
+        else if ((flags & FLAG_ENABLE_REFERRAL_GAS_SPONSORSHIP) > 0) {
+            uint256 gasSpent = 21000 + gasStart - gasleft() + 16 * msg.data.length;
+            IReferralGasSponsor(referral).makeGasDiscount(gasSpent, returnAmount, msg.data);
         }
     }
 
