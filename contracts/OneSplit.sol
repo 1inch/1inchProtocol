@@ -207,14 +207,14 @@ contract OneSplitWrap is
         public
         view
         returns(
-            uint256 returnAmount,
+            uint256[] memory returnAmounts,
             uint256 estimateGasAmount,
             uint256[] memory distribution
         )
     {
-        returnAmount = amount;
         uint256[] memory dist;
 
+        returnAmounts = new uint256[](tokens.length - 1);
         for (uint i = 1; i < tokens.length; i++) {
             if (tokens[i - 1] == tokens[i]) {
                 continue;
@@ -223,13 +223,13 @@ contract OneSplitWrap is
             IERC20[] memory _tokens = tokens;
 
             (
-                returnAmount,
+                returnAmounts[i - 1],
                 amount,
                 dist
             ) = getExpectedReturnWithGas(
                 _tokens[i - 1],
                 _tokens[i],
-                returnAmount,
+                (i == 1) ? amount : returnAmounts[i - 2],
                 parts,
                 flags,
                 _scaleDestTokenEthPriceTimesGasPrice(
@@ -244,7 +244,7 @@ contract OneSplitWrap is
                 distribution = new uint256[](dist.length);
             }
             for (uint j = 0; j < distribution.length; j++) {
-                distribution[j] = distribution[j].add(dist[i] << (8 * (i - 1)));
+                distribution[j] = distribution[j].add(dist[j] << (8 * (i - 1)));
             }
         }
     }
