@@ -5886,6 +5886,10 @@ contract OneSplitWrap is
                 )
             );
             estimateGasAmount = estimateGasAmount.add(amount);
+
+            if (distribution.length == 0) {
+                distribution = new uint256[](dist.length);
+            }
             for (uint j = 0; j < distribution.length; j++) {
                 distribution[j] = distribution[j].add(dist[i] << (8 * (i - 1)));
             }
