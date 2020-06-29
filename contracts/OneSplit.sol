@@ -12,12 +12,12 @@ import "./OneSplitIdle.sol";
 import "./OneSplitAave.sol";
 import "./OneSplitWeth.sol";
 import "./OneSplitMStable.sol";
+import "./OneSplitDMM.sol";
 //import "./OneSplitSmartToken.sol";
 
 
 contract OneSplitViewWrap is
     OneSplitViewWrapBase,
-    OneSplitMultiPathView,
     OneSplitMStableView,
     OneSplitChaiView,
     OneSplitBdaiView,
@@ -26,7 +26,9 @@ contract OneSplitViewWrap is
     OneSplitCompoundView,
     OneSplitIearnView,
     OneSplitIdleView,
-    OneSplitWethView
+    OneSplitWethView,
+    OneSplitDMMView,
+    OneSplitMultiPathView
     //OneSplitSmartTokenView
 {
     IOneSplitView public oneSplitView;
@@ -119,7 +121,6 @@ contract OneSplitViewWrap is
 
 contract OneSplitWrap is
     OneSplitBaseWrap,
-    OneSplitMultiPath,
     OneSplitMStable,
     OneSplitChai,
     OneSplitBdai,
@@ -128,7 +129,9 @@ contract OneSplitWrap is
     OneSplitCompound,
     OneSplitIearn,
     OneSplitIdle,
-    OneSplitWeth
+    OneSplitWeth,
+    OneSplitDMM,
+    OneSplitMultiPath
     //OneSplitSmartToken
 {
     IOneSplitView public oneSplitView;
@@ -199,8 +202,8 @@ contract OneSplitWrap is
         IERC20 destToken,
         uint256 amount,
         uint256 minReturn,
-        uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
-        uint256 flags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
+        uint256[] memory distribution,
+        uint256 flags
     ) public payable returns(uint256 returnAmount) {
         fromToken.universalTransferFrom(msg.sender, address(this), amount);
         uint256 confirmed = fromToken.universalBalanceOf(address(this));
@@ -219,22 +222,14 @@ contract OneSplitWrap is
         uint256[] memory distribution,
         uint256 flags
     ) internal {
-        (bool success, bytes memory data) = address(oneSplit).delegatecall(
-            abi.encodeWithSelector(
-                this.swap.selector,
-                fromToken,
-                destToken,
-                amount,
-                0,
-                distribution,
-                flags
-            )
+        fromToken.universalApprove(address(oneSplit), amount);
+        oneSplit.swap.value(fromToken.isETH() ? amount : 0)(
+            fromToken,
+            destToken,
+            amount,
+            0,
+            distribution,
+            flags
         );
-
-        assembly {
-            switch success
-                // delegatecall returns 0 on error.
-                case 0 { revert(add(data, 32), returndatasize) }
-        }
     }
 }

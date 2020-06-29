@@ -115,9 +115,6 @@ contract IOneSplitConsts {
     // flags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_KYBER + ...
     uint256 internal constant FLAG_DISABLE_UNISWAP = 0x01;
     uint256 internal constant FLAG_DISABLE_KYBER = 0x02;
-    uint256 internal constant FLAG_ENABLE_KYBER_UNISWAP_RESERVE = 0x100000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_KYBER_OASIS_RESERVE = 0x200000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_KYBER_BANCOR_RESERVE = 0x400000000; // Turned off by default
     uint256 internal constant FLAG_DISABLE_BANCOR = 0x04;
     uint256 internal constant FLAG_DISABLE_OASIS = 0x08;
     uint256 internal constant FLAG_DISABLE_COMPOUND = 0x10;
@@ -136,12 +133,11 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_ENABLE_MULTI_PATH_USDC = 0x20000; // Turned off by default
     uint256 internal constant FLAG_DISABLE_CURVE_SYNTHETIX = 0x40000;
     uint256 internal constant FLAG_DISABLE_WETH = 0x80000;
-    uint256 internal constant FLAG_ENABLE_UNISWAP_COMPOUND = 0x100000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
-    uint256 internal constant FLAG_ENABLE_UNISWAP_CHAI = 0x200000; // Works only when ETH<>DAI or FLAG_ENABLE_MULTI_PATH_ETH
-    uint256 internal constant FLAG_ENABLE_UNISWAP_AAVE = 0x400000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
+    uint256 internal constant FLAG_DISABLE_UNISWAP_COMPOUND = 0x100000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
+    uint256 internal constant FLAG_DISABLE_UNISWAP_CHAI = 0x200000; // Works only when ETH<>DAI or FLAG_ENABLE_MULTI_PATH_ETH
+    uint256 internal constant FLAG_DISABLE_UNISWAP_AAVE = 0x400000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
     uint256 internal constant FLAG_DISABLE_IDLE = 0x800000;
     uint256 internal constant FLAG_DISABLE_MOONISWAP = 0x1000000;
-    uint256 internal constant FLAG_DISABLE_UNISWAP_V2_ALL = 0x1E000000;
     uint256 internal constant FLAG_DISABLE_UNISWAP_V2 = 0x2000000;
     uint256 internal constant FLAG_DISABLE_UNISWAP_V2_ETH = 0x4000000;
     uint256 internal constant FLAG_DISABLE_UNISWAP_V2_DAI = 0x8000000;
@@ -159,6 +155,19 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_DISABLE_SHELL = 0x8000000000;
     uint256 internal constant FLAG_ENABLE_CHI_BURN = 0x10000000000;
     uint256 internal constant FLAG_DISABLE_MSTABLE_MUSD = 0x20000000000;
+    uint256 internal constant FLAG_DISABLE_CURVE_SBTC = 0x40000000000;
+    uint256 internal constant FLAG_DISABLE_DMM = 0x80000000000;
+    uint256 internal constant FLAG_DISABLE_UNISWAP_ALL = 0x100000000000;
+    uint256 internal constant FLAG_DISABLE_CURVE_ALL = 0x200000000000;
+    uint256 internal constant FLAG_DISABLE_UNISWAP_V2_ALL = 0x400000000000;
+    uint256 internal constant FLAG_DISABLE_SPLIT_RECALCULATION = 0x800000000000;
+    uint256 internal constant FLAG_DISABLE_BALANCER_ALL = 0x1000000000000;
+    uint256 internal constant FLAG_DISABLE_BALANCER_1 = 0x2000000000000;
+    uint256 internal constant FLAG_DISABLE_BALANCER_2 = 0x4000000000000;
+    uint256 internal constant FLAG_DISABLE_BALANCER_3 = 0x8000000000000;
+    uint256 internal constant FLAG_ENABLE_KYBER_UNISWAP_RESERVE = 0x1000000000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_KYBER_OASIS_RESERVE = 0x2000000000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_KYBER_BANCOR_RESERVE = 0x4000000000000; // Turned off by default
 }
 
 
@@ -1178,6 +1187,90 @@ interface IMassetRedemptionValidator {
         returns (bool, string memory, uint256 output);
 }
 
+// File: contracts/interface/IBalancerRegistry.sol
+
+pragma solidity ^0.5.0;
+
+
+
+interface IBalancerPool {
+    function swapExactAmountIn(
+        IERC20 tokenIn,
+        uint256 tokenAmountIn,
+        IERC20 tokenOut,
+        uint256 minAmountOut,
+        uint256 maxPrice
+    )
+        external
+        returns (uint256 tokenAmountOut, uint256 spotPriceAfter);
+}
+
+
+pragma solidity ^0.5.0;
+
+
+interface IBalancerRegistry {
+    event PoolAdded(
+        address indexed pool
+    );
+    event PoolTokenPairAdded(
+        address indexed pool,
+        address indexed fromToken,
+        address indexed destToken
+    );
+    event IndicesUpdated(
+        address indexed fromToken,
+        address indexed destToken,
+        bytes32 oldIndices,
+        bytes32 newIndices
+    );
+
+    // Get info about pool pair for 1 SLOAD
+    function getPairInfo(address pool, address fromToken, address destToken)
+        external view returns(uint256 weight1, uint256 weight2, uint256 swapFee);
+
+    // Pools
+    function checkAddedPools(address pool)
+        external view returns(bool);
+    function getAddedPoolsLength()
+        external view returns(uint256);
+    function getAddedPools()
+        external view returns(address[] memory);
+    function getAddedPoolsWithLimit(uint256 offset, uint256 limit)
+        external view returns(address[] memory result);
+
+    // Tokens
+    function getAllTokensLength()
+        external view returns(uint256);
+    function getAllTokens()
+        external view returns(address[] memory);
+    function getAllTokensWithLimit(uint256 offset, uint256 limit)
+        external view returns(address[] memory result);
+
+    // Pairs
+    function getPoolsLength(address fromToken, address destToken)
+        external view returns(uint256);
+    function getPools(address fromToken, address destToken)
+        external view returns(address[] memory);
+    function getPoolsWithLimit(address fromToken, address destToken, uint256 offset, uint256 limit)
+        external view returns(address[] memory result);
+    function getBestPools(address fromToken, address destToken)
+        external view returns(address[] memory pools);
+    function getBestPoolsWithLimit(address fromToken, address destToken, uint256 limit)
+        external view returns(address[] memory pools);
+
+    // Get swap rates
+    function getPoolReturn(address pool, address fromToken, address destToken, uint256 amount)
+        external view returns(uint256);
+    function getPoolReturns(address pool, address fromToken, address destToken, uint256[] calldata amounts)
+        external view returns(uint256[] memory result);
+
+    // Add and update registry
+    function addPool(address pool) external returns(uint256 listed);
+    function addPools(address[] calldata pools) external returns(uint256[] memory listed);
+    function updatedIndices(address[] calldata tokens, uint256 lengthLimit) external;
+}
+
 // File: contracts/OneSplitBase.sol
 
 pragma solidity ^0.5.0;
@@ -1191,6 +1284,7 @@ pragma solidity ^0.5.0;
 
 
 //import "./interface/IBancorNetworkPathFinder.sol";
+
 
 
 
@@ -1248,19 +1342,21 @@ library DisableFlags {
 }
 
 
-contract OneSplitRoot {
+contract OneSplitRoot is IOneSplitView {
     using SafeMath for uint256;
     using DisableFlags for uint256;
 
     using UniversalERC20 for IERC20;
     using UniversalERC20 for IWETH;
-    using UniversalERC20 for IBancorEtherToken;
     using UniswapV2ExchangeLib for IUniswapV2Exchange;
     using ChaiHelper for IChai;
 
-    uint256 constant public DEXES_COUNT = 23;
+    uint256 constant internal DEXES_COUNT = 27;
     IERC20 constant internal ETH_ADDRESS = IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
+    IBancorEtherToken constant internal bancorEtherToken = IBancorEtherToken(0xc0829421C1d260BD3cB3E0F06cfE2D52db2cE315);
+    IWETH constant internal weth = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+    IChai constant internal chai = IChai(0x06AF07097C9Eeb7fD685c692751D5C66dB49c215);
     IERC20 constant internal dai = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
     IERC20 constant internal bnt = IERC20(0x1F573D6Fb3F13d689FF844B4cE37794d79a7FF1C);
     IERC20 constant internal usdc = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
@@ -1269,13 +1365,11 @@ contract OneSplitRoot {
     IERC20 constant internal busd = IERC20(0x4Fabb145d64652a948d72533023f6E7A623C7C53);
     IERC20 constant internal susd = IERC20(0x57Ab1ec28D129707052df4dF418D58a2D46d5f51);
     IERC20 constant internal pax = IERC20(0x8E870D67F660D95d5be530380D0eC0bd388289E1);
-    IWETH constant internal weth = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-    IBancorEtherToken constant internal bancorEtherToken = IBancorEtherToken(0xc0829421C1d260BD3cB3E0F06cfE2D52db2cE315);
-    IChai constant internal chai = IChai(0x06AF07097C9Eeb7fD685c692751D5C66dB49c215);
-    IERC20 constant internal renbtc = IERC20(0x93054188d876f558f4a66B2EF1d97d16eDf0895B);
+    IERC20 constant internal renbtc = IERC20(0xEB4C2781e4ebA804CE9a9803C67d0893436bB27D);
     IERC20 constant internal wbtc = IERC20(0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599);
     IERC20 constant internal tbtc = IERC20(0x1bBE271d15Bb64dF0bc6CD28Df9Ff322F2eBD847);
     IERC20 constant internal hbtc = IERC20(0x0316EB71485b0Ab14103307bf65a021042c6d380);
+    IERC20 constant internal sbtc = IERC20(0xfE18be6b3Bd88A2D2A7f928d00292E7a9963CfC6);
 
     IKyberNetworkProxy constant internal kyberNetworkProxy = IKyberNetworkProxy(0x818E6FECD516Ecc3849DAf6845e3EC868087B755);
     IUniswapFactory constant internal uniswapFactory = IUniswapFactory(0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95);
@@ -1284,13 +1378,14 @@ contract OneSplitRoot {
     //IBancorConverterRegistry constant internal bancorConverterRegistry = IBancorConverterRegistry(0xf6E2D7F616B67E46D708e4410746E9AAb3a4C518);
     IOasisExchange constant internal oasisExchange = IOasisExchange(0x794e6e91555438aFc3ccF1c5076A74F42133d08D);
     ICurve constant internal curveCompound = ICurve(0xA2B47E3D5c44877cca798226B7B8118F9BFb7A56);
-    ICurve constant internal curveUsdt = ICurve(0x52EA46506B9CC5Ef470C5bf89f17Dc28bB35D85C);
+    ICurve constant internal curveUSDT = ICurve(0x52EA46506B9CC5Ef470C5bf89f17Dc28bB35D85C);
     ICurve constant internal curveY = ICurve(0x45F783CCE6B7FF23B2ab2D70e416cdb7D6055f51);
     ICurve constant internal curveBinance = ICurve(0x79a8C46DeA5aDa233ABaFFD40F3A0A2B1e5A4F27);
     ICurve constant internal curveSynthetix = ICurve(0xA5407eAE9Ba41422680e2e00537571bcC53efBfD);
-    ICurve constant internal curvePax = ICurve(0x06364f10B501e868329afBc005b3492902d6C763);
-    ICurve constant internal curveRenBtc = ICurve(0x8474c1236F0Bc23830A23a41aBB81B2764bA9f4F);
-    ICurve constant internal curveTBtc = ICurve(0x9726e9314eF1b96E45f40056bEd61A088897313E);
+    ICurve constant internal curvePAX = ICurve(0x06364f10B501e868329afBc005b3492902d6C763);
+    ICurve constant internal curveRenBTC = ICurve(0x93054188d876f558f4a66B2EF1d97d16eDf0895B);
+    ICurve constant internal curveTBTC = ICurve(0x9726e9314eF1b96E45f40056bEd61A088897313E);
+    ICurve constant internal curveSBTC = ICurve(0x7fC77b5c7614E1533320Ea6DDc2Eb61fa00A9714);
     IShell constant internal shell = IShell(0xA8253a440Be331dC4a7395B73948cCa6F19Dc97D);
     IAaveLendingPool constant internal aave = IAaveLendingPool(0x398eC7346DcD622eDc5ae82352F02bE94C62d119);
     ICompound constant internal compound = ICompound(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
@@ -1299,7 +1394,64 @@ contract OneSplitRoot {
     IUniswapV2Factory constant internal uniswapV2 = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
     IDForceSwap constant internal dforceSwap = IDForceSwap(0x03eF3f37856bD08eb47E2dE7ABc4Ddd2c19B60F2);
     IMStable constant internal musd = IMStable(0xe2f2a5C287993345a840Db3B0845fbC70f5935a5);
-    IMassetRedemptionValidator constant internal musd_helper = IMassetRedemptionValidator(0xe7e41f1b97F3EB2f218d99ecB22351Fa669D5944);
+    IMassetRedemptionValidator constant internal musd_helper = IMassetRedemptionValidator(0x4c5e03065bC52cCe84F3ac94DF14bbAC27eac89b);
+    IBalancerRegistry constant internal balancerRegistry = IBalancerRegistry(0x65e67cbc342712DF67494ACEfc06fe951EE93982);
+
+    int256 internal constant VERY_NEGATIVE_VALUE = -1e72;
+
+    function _findBestDistribution(
+        uint256 s,                // parts
+        int256[][] memory amounts // exchangesReturns
+    )
+        internal
+        pure
+        returns(
+            int256 returnAmount,
+            uint256[] memory distribution
+        )
+    {
+        uint256 n = amounts.length;
+
+        int256[][] memory answer = new int256[][](n); // int[n][s+1]
+        uint256[][] memory parent = new uint256[][](n); // int[n][s+1]
+
+        for (uint i = 0; i < n; i++) {
+            answer[i] = new int256[](s + 1);
+            parent[i] = new uint256[](s + 1);
+        }
+
+        for (uint j = 0; j <= s; j++) {
+            answer[0][j] = amounts[0][j];
+            for (uint i = 1; i < n; i++) {
+                answer[i][j] = -1e72;
+            }
+            parent[0][j] = 0;
+        }
+
+        for (uint i = 1; i < n; i++) {
+            for (uint j = 0; j <= s; j++) {
+                answer[i][j] = answer[i - 1][j];
+                parent[i][j] = j;
+
+                for (uint k = 1; k <= j; k++) {
+                    if (answer[i - 1][j - k] + amounts[i][k] > answer[i][j]) {
+                        answer[i][j] = answer[i - 1][j - k] + amounts[i][k];
+                        parent[i][j] = j - k;
+                    }
+                }
+            }
+        }
+
+        distribution = new uint256[](DEXES_COUNT);
+
+        uint256 partsLeft = s;
+        for (uint curExchange = n - 1; partsLeft > 0; curExchange--) {
+            distribution[curExchange] = partsLeft - parent[curExchange][partsLeft];
+            partsLeft = parent[curExchange][partsLeft];
+        }
+
+        returnAmount = (answer[n - 1][s] == VERY_NEGATIVE_VALUE) ? 0 : answer[n - 1][s];
+    }
 
     function _buildBancorPath(
         IERC20 fromToken,
@@ -1465,6 +1617,51 @@ contract OneSplitRoot {
 
         return IAaveToken(0);
     }
+
+    function _scaleDestTokenEthPriceTimesGasPrice(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 destTokenEthPriceTimesGasPrice
+    ) internal view returns(uint256) {
+        uint256 mul = _cheapGetPrice(ETH_ADDRESS, destToken, 1e16);
+        uint256 div = _cheapGetPrice(ETH_ADDRESS, fromToken, 1e16);
+        if (div > 0) {
+            return destTokenEthPriceTimesGasPrice.mul(mul).div(div);
+        }
+        return 0;
+    }
+
+    function _cheapGetPrice(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount
+    ) internal view returns(uint256 returnAmount) {
+        (returnAmount,,) = this.getExpectedReturnWithGas(
+            fromToken,
+            destToken,
+            amount,
+            1,
+            FLAG_DISABLE_SPLIT_RECALCULATION |
+            FLAG_DISABLE_ALL_SPLIT_SOURCES |
+            FLAG_DISABLE_UNISWAP_V2_ALL |
+            FLAG_DISABLE_UNISWAP,
+            0
+        );
+    }
+
+    function _linearInterpolation(
+        uint256 value,
+        uint256 parts
+    ) internal pure returns(uint256[] memory rets) {
+        rets = new uint256[](parts);
+        for (uint i = 0; i < parts; i++) {
+            rets[i] = value.mul(i + 1).div(parts);
+        }
+    }
+
+    function _tokensEqual(IERC20 tokenA, IERC20 tokenB) internal pure returns(bool) {
+        return ((tokenA.isETH() && tokenB.isETH()) || tokenA == tokenB);
+    }
 }
 
 
@@ -1538,78 +1735,6 @@ contract OneSplitViewWrapBase is IOneSplitView, OneSplitRoot {
 
 
 contract OneSplitView is IOneSplitView, OneSplitRoot {
-    function _findBestDistribution(
-        uint256 s,                            // parts
-        int256[][DEXES_COUNT] memory amounts // exchangesReturns
-    ) internal pure returns(int256 returnAmount, uint256[] memory distribution) {
-        uint256 n = amounts.length;
-
-        int256[][] memory answer = new int256[][](n); // int[n][s+1]
-        uint256[][] memory parent = new uint256[][](n); // int[n][s+1]
-
-        for (uint i = 0; i < n; i++) {
-            answer[i] = new int256[](s + 1);
-            parent[i] = new uint256[](s + 1);
-        }
-
-        for (uint j = 0; j <= s; j++) {
-            answer[0][j] = amounts[0][j];
-            parent[0][j] = 0;
-        }
-
-        for (uint i = 1; i < n; i++) {
-            for (uint j = 0; j <= s; j++) {
-                answer[i][j] = answer[i - 1][j];
-                parent[i][j] = j;
-
-                for (uint k = 1; k <= j; k++) {
-                    if (answer[i - 1][j - k] + amounts[i][k] > answer[i][j]) {
-                        answer[i][j] = answer[i - 1][j - k] + amounts[i][k];
-                        parent[i][j] = j - k;
-                    }
-                }
-            }
-        }
-
-        distribution = new uint256[](DEXES_COUNT);
-
-        uint256 partsLeft = s;
-        for (uint curExchange = n - 1; partsLeft > 0; curExchange--) {
-            distribution[curExchange] = partsLeft - parent[curExchange][partsLeft];
-            partsLeft = parent[curExchange][partsLeft];
-        }
-
-        returnAmount = answer[n - 1][s];
-    }
-
-    function getExchangeName(uint256 i) public pure returns(string memory) {
-        return [
-            "Uniswap",
-            "Kyber",
-            "Bancor",
-            "Oasis",
-            "Curve Compound",
-            "Curve USDT",
-            "Curve Y",
-            "Curve Binance",
-            "CurveSynthetix",
-            "Uniswap Compound",
-            "Uniswap CHAI",
-            "Uniswap Aave",
-            "Mooniswap",
-            "Uniswap V2",
-            "Uniswap V2 (ETH)",
-            "Uniswap V2 (DAI)",
-            "Uniswap V2 (USDC)",
-            "Curve Pax",
-            "Curve RenBTC",
-            "Curve tBTC",
-            "Dforce XSwap",
-            "Shell",
-            "mStable"
-        ][i];
-    }
-
     function getExpectedReturn(
         IERC20 fromToken,
         IERC20 destToken,
@@ -1658,35 +1783,111 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
 
         function(IERC20,IERC20,uint256,uint256,uint256) view returns(uint256[] memory, uint256)[DEXES_COUNT] memory reserves = _getAllReserves(flags);
 
-        int256[][DEXES_COUNT] memory matrix;
+        int256[][] memory matrix = new int256[][](DEXES_COUNT);
         uint256[DEXES_COUNT] memory gases;
+        bool atLeastOnePositive = false;
         for (uint i = 0; i < DEXES_COUNT; i++) {
             uint256[] memory rets;
             (rets, gases[i]) = reserves[i](fromToken, destToken, amount, parts, flags);
 
-            // Prepend zero
+            // Prepend zero and sub gas
+            int256 gas = int256(gases[i].mul(destTokenEthPriceTimesGasPrice).div(1e18));
             matrix[i] = new int256[](parts + 1);
             for (uint j = 0; j < parts; j++) {
-                matrix[i][j + 1] = int256(rets[j]);
+                matrix[i][j + 1] = int256(rets[j]) - gas;
+                atLeastOnePositive = atLeastOnePositive || (matrix[i][j + 1] > 0);
             }
+        }
 
-            // Respect gas in first part
-            matrix[i][1] -= int256(gases[i].mul(destTokenEthPriceTimesGasPrice).div(1e18));
+        if (!atLeastOnePositive) {
+            for (uint i = 0; i < DEXES_COUNT; i++) {
+                for (uint j = 1; j < parts + 1; j++) {
+                    if (matrix[i][j] == 0) {
+                        matrix[i][j] = VERY_NEGATIVE_VALUE;
+                    }
+                }
+            }
         }
 
         (, distribution) = _findBestDistribution(parts, matrix);
 
-        // Recalculate exact returnAmount
+        (returnAmount, estimateGasAmount) = _getReturnAndGasByDistribution(
+            Args({
+                fromToken: fromToken,
+                destToken: destToken,
+                amount: amount,
+                parts: parts,
+                flags: flags,
+                destTokenEthPriceTimesGasPrice: destTokenEthPriceTimesGasPrice,
+                distribution: distribution,
+                matrix: matrix,
+                gases: gases,
+                reserves: reserves
+            })
+        );
+        return (returnAmount, estimateGasAmount, distribution);
+    }
+
+    struct Args {
+        IERC20 fromToken;
+        IERC20 destToken;
+        uint256 amount;
+        uint256 parts;
+        uint256 flags;
+        uint256 destTokenEthPriceTimesGasPrice;
+        uint256[] distribution;
+        int256[][] matrix;
+        uint256[DEXES_COUNT] gases;
+        function(IERC20,IERC20,uint256,uint256,uint256) view returns(uint256[] memory, uint256)[DEXES_COUNT] reserves;
+    }
+
+    function _getReturnAndGasByDistribution(
+        Args memory args
+    ) internal view returns(uint256 returnAmount, uint256 estimateGasAmount) {
+        bool[DEXES_COUNT] memory exact = [
+            true,  // "Uniswap",
+            false, // "Kyber",
+            false, // "Bancor",
+            false, // "Oasis",
+            false, // "Curve Compound",
+            false, // "Curve USDT",
+            false, // "Curve Y",
+            false, // "Curve Binance",
+            false, // "CurveSynthetix",
+            true,  // "Uniswap Compound",
+            true,  // "Uniswap CHAI",
+            true,  // "Uniswap Aave",
+            false, // "Mooniswap",
+            true,  // "Uniswap V2",
+            true,  // "Uniswap V2 (ETH)",
+            true,  // "Uniswap V2 (DAI)",
+            true,  // "Uniswap V2 (USDC)",
+            false, // "Curve Pax",
+            false, // "Curve RenBTC",
+            false, // "Curve tBTC",
+            true,  // "Dforce XSwap",
+            false, // "Shell",
+            true,  // "mStable",
+            false, // "Curve sBTC"
+            true,  // "Balancer 1"
+            true,  // "Balancer 2"
+            true   // "Balancer 3"
+        ];
+
         for (uint i = 0; i < DEXES_COUNT; i++) {
-            if (distribution[i] > 0) {
-                estimateGasAmount = estimateGasAmount.add(gases[i]);
-                returnAmount = returnAmount.add(
-                    uint256(matrix[i][distribution[i]])
-                );
-                if (distribution[i] == 1) {
-                    returnAmount = returnAmount.add(
-                        gases[i].mul(destTokenEthPriceTimesGasPrice).div(1e18)
-                    );
+            if (args.distribution[i] > 0) {
+                if (args.distribution[i] == args.parts || exact[i] || args.flags.check(FLAG_DISABLE_SPLIT_RECALCULATION)) {
+                    estimateGasAmount = estimateGasAmount.add(args.gases[i]);
+                    int256 value = args.matrix[i][args.distribution[i]];
+                    returnAmount = returnAmount.add(uint256(
+                        (value == VERY_NEGATIVE_VALUE ? 0 : value) +
+                        int256(args.gases[i].mul(args.destTokenEthPriceTimesGasPrice).div(1e18))
+                    ));
+                }
+                else {
+                    (uint256[] memory rets, uint256 gas) = args.reserves[i](args.fromToken, args.destToken, args.amount.mul(args.distribution[i]).div(args.parts), 1, args.flags);
+                    estimateGasAmount = estimateGasAmount.add(gas);
+                    returnAmount = returnAmount.add(rets[0]);
                 }
             }
         }
@@ -1699,29 +1900,33 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
     {
         bool invert = flags.check(FLAG_DISABLE_ALL_SPLIT_SOURCES);
         return [
-            invert != flags.check(FLAG_DISABLE_UNISWAP)          ? _calculateNoReturn : calculateUniswapReturn,
-            invert != flags.check(FLAG_DISABLE_KYBER)            ? _calculateNoReturn : calculateKyberReturn,
-            invert != flags.check(FLAG_DISABLE_BANCOR)           ? _calculateNoReturn : calculateBancorReturn,
-            invert != flags.check(FLAG_DISABLE_OASIS)            ? _calculateNoReturn : calculateOasisReturn,
-            invert != flags.check(FLAG_DISABLE_CURVE_COMPOUND)   ? _calculateNoReturn : calculateCurveCompound,
-            invert != flags.check(FLAG_DISABLE_CURVE_USDT)       ? _calculateNoReturn : calculateCurveUsdt,
-            invert != flags.check(FLAG_DISABLE_CURVE_Y)          ? _calculateNoReturn : calculateCurveY,
-            invert != flags.check(FLAG_DISABLE_CURVE_BINANCE)    ? _calculateNoReturn : calculateCurveBinance,
-            invert != flags.check(FLAG_DISABLE_CURVE_SYNTHETIX)  ? _calculateNoReturn : calculateCurveSynthetix,
-            (true) != flags.check(FLAG_ENABLE_UNISWAP_COMPOUND)  ? _calculateNoReturn : calculateUniswapCompound,
-            (true) != flags.check(FLAG_ENABLE_UNISWAP_CHAI)      ? _calculateNoReturn : calculateUniswapChai,
-            (true) != flags.check(FLAG_ENABLE_UNISWAP_AAVE)      ? _calculateNoReturn : calculateUniswapAave,
-            invert != flags.check(FLAG_DISABLE_MOONISWAP)        ? _calculateNoReturn : calculateMooniswap,
-            invert != flags.check(FLAG_DISABLE_UNISWAP_V2)       ? _calculateNoReturn : calculateUniswapV2,
-            invert != flags.check(FLAG_DISABLE_UNISWAP_V2_ETH)   ? _calculateNoReturn : calculateUniswapV2ETH,
-            invert != flags.check(FLAG_DISABLE_UNISWAP_V2_DAI)   ? _calculateNoReturn : calculateUniswapV2DAI,
-            invert != flags.check(FLAG_DISABLE_UNISWAP_V2_USDC)  ? _calculateNoReturn : calculateUniswapV2USDC,
-            invert != flags.check(FLAG_DISABLE_CURVE_PAX)        ? _calculateNoReturn : calculateCurvePax,
-            invert != flags.check(FLAG_DISABLE_CURVE_RENBTC)     ? _calculateNoReturn : calculateCurveRenBtc,
-            invert != flags.check(FLAG_DISABLE_CURVE_TBTC)       ? _calculateNoReturn : calculateCurveTBtc,
-            invert != flags.check(FLAG_DISABLE_DFORCE_SWAP)      ? _calculateNoReturn : calculateDforceSwap,
-            invert != flags.check(FLAG_DISABLE_SHELL)            ? _calculateNoReturn : calculateShell,
-            invert != flags.check(FLAG_DISABLE_MSTABLE_MUSD)     ? _calculateNoReturn : calculateMStableMUSD
+            invert != flags.check(FLAG_DISABLE_UNISWAP_ALL | FLAG_DISABLE_UNISWAP)            ? _calculateNoReturn : calculateUniswap,
+            invert != flags.check(FLAG_DISABLE_KYBER)                                         ? _calculateNoReturn : calculateKyber,
+            invert != flags.check(FLAG_DISABLE_BANCOR)                                        ? _calculateNoReturn : calculateBancor,
+            invert != flags.check(FLAG_DISABLE_OASIS)                                         ? _calculateNoReturn : calculateOasis,
+            invert != flags.check(FLAG_DISABLE_CURVE_ALL | FLAG_DISABLE_CURVE_COMPOUND)       ? _calculateNoReturn : calculateCurveCompound,
+            invert != flags.check(FLAG_DISABLE_CURVE_ALL | FLAG_DISABLE_CURVE_USDT)           ? _calculateNoReturn : calculateCurveUSDT,
+            invert != flags.check(FLAG_DISABLE_CURVE_ALL | FLAG_DISABLE_CURVE_Y)              ? _calculateNoReturn : calculateCurveY,
+            invert != flags.check(FLAG_DISABLE_CURVE_ALL | FLAG_DISABLE_CURVE_BINANCE)        ? _calculateNoReturn : calculateCurveBinance,
+            invert != flags.check(FLAG_DISABLE_CURVE_ALL | FLAG_DISABLE_CURVE_SYNTHETIX)      ? _calculateNoReturn : calculateCurveSynthetix,
+            invert != flags.check(FLAG_DISABLE_UNISWAP_ALL | FLAG_DISABLE_UNISWAP_COMPOUND)   ? _calculateNoReturn : calculateUniswapCompound,
+            invert != flags.check(FLAG_DISABLE_UNISWAP_ALL | FLAG_DISABLE_UNISWAP_CHAI)       ? _calculateNoReturn : calculateUniswapChai,
+            invert != flags.check(FLAG_DISABLE_UNISWAP_ALL | FLAG_DISABLE_UNISWAP_AAVE)       ? _calculateNoReturn : calculateUniswapAave,
+            invert != flags.check(FLAG_DISABLE_MOONISWAP)                                     ? _calculateNoReturn : calculateMooniswap,
+            invert != flags.check(FLAG_DISABLE_UNISWAP_V2_ALL | FLAG_DISABLE_UNISWAP_V2)      ? _calculateNoReturn : calculateUniswapV2,
+            invert != flags.check(FLAG_DISABLE_UNISWAP_V2_ALL | FLAG_DISABLE_UNISWAP_V2_ETH)  ? _calculateNoReturn : calculateUniswapV2ETH,
+            invert != flags.check(FLAG_DISABLE_UNISWAP_V2_ALL | FLAG_DISABLE_UNISWAP_V2_DAI)  ? _calculateNoReturn : calculateUniswapV2DAI,
+            invert != flags.check(FLAG_DISABLE_UNISWAP_V2_ALL | FLAG_DISABLE_UNISWAP_V2_USDC) ? _calculateNoReturn : calculateUniswapV2USDC,
+            invert != flags.check(FLAG_DISABLE_CURVE_ALL | FLAG_DISABLE_CURVE_PAX)            ? _calculateNoReturn : calculateCurvePAX,
+            invert != flags.check(FLAG_DISABLE_CURVE_ALL | FLAG_DISABLE_CURVE_RENBTC)         ? _calculateNoReturn : calculateCurveRenBTC,
+            invert != flags.check(FLAG_DISABLE_CURVE_ALL | FLAG_DISABLE_CURVE_TBTC)           ? _calculateNoReturn : calculateCurveTBTC,
+            invert != flags.check(FLAG_DISABLE_DFORCE_SWAP)                                   ? _calculateNoReturn : calculateDforceSwap,
+            invert != flags.check(FLAG_DISABLE_SHELL)                                         ? _calculateNoReturn : calculateShell,
+            invert != flags.check(FLAG_DISABLE_MSTABLE_MUSD)                                  ? _calculateNoReturn : calculateMStableMUSD,
+            invert != flags.check(FLAG_DISABLE_CURVE_ALL | FLAG_DISABLE_CURVE_SBTC)           ? _calculateNoReturn : calculateCurveSBTC,
+            invert != flags.check(FLAG_DISABLE_BALANCER_ALL | FLAG_DISABLE_BALANCER_1)        ? _calculateNoReturn : calculateBalancer1,
+            invert != flags.check(FLAG_DISABLE_BALANCER_ALL | FLAG_DISABLE_BALANCER_2)        ? _calculateNoReturn : calculateBalancer2,
+            invert != flags.check(FLAG_DISABLE_BALANCER_ALL | FLAG_DISABLE_BALANCER_3)        ? _calculateNoReturn : calculateBalancer3
         ];
     }
 
@@ -1739,14 +1944,83 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
 
     // View Helpers
 
-    function _linearInterpolation(
-        uint256 value,
-        uint256 parts
-    ) internal pure returns(uint256[] memory rets) {
-        rets = new uint256[](parts);
-        for (uint i = 0; i < parts; i++) {
-            rets[i] = value.mul(i + 1).div(parts);
+    function _calculateBalancer(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 /*flags*/,
+        uint256 poolIndex
+    ) internal view returns(uint256[] memory rets, uint256 gas) {
+        address[] memory pools = balancerRegistry.getBestPoolsWithLimit(
+            address(fromToken.isETH() ? weth : fromToken),
+            address(destToken.isETH() ? weth : destToken),
+            poolIndex + 1
+        );
+        if (poolIndex >= pools.length) {
+            return (new uint256[](parts), 0);
         }
+
+        return (
+            balancerRegistry.getPoolReturns(
+                pools[poolIndex],
+                address(fromToken.isETH() ? weth : fromToken),
+                address(destToken.isETH() ? weth : destToken),
+                _linearInterpolation(amount, parts)
+            ),
+            100_000
+        );
+    }
+
+    function calculateBalancer1(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags
+    ) internal view returns(uint256[] memory rets, uint256 gas) {
+        return _calculateBalancer(
+            fromToken,
+            destToken,
+            amount,
+            parts,
+            flags,
+            0
+        );
+    }
+
+    function calculateBalancer2(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags
+    ) internal view returns(uint256[] memory rets, uint256 gas) {
+        return _calculateBalancer(
+            fromToken,
+            destToken,
+            amount,
+            parts,
+            flags,
+            1
+        );
+    }
+
+    function calculateBalancer3(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags
+    ) internal view returns(uint256[] memory rets, uint256 gas) {
+        return _calculateBalancer(
+            fromToken,
+            destToken,
+            amount,
+            parts,
+            flags,
+            2
+        );
     }
 
     function calculateMStableMUSD(
@@ -1822,48 +2096,6 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return _linearInterpolation(maxRet, parts);
     }
 
-    function _calculateCurveUnderlying(
-        ICurve curve,
-        IERC20[] memory tokens,
-        IERC20 fromToken,
-        IERC20 destToken,
-        uint256 amount,
-        uint256 parts,
-        uint256 flags
-    ) internal view returns(uint256[] memory rets) {
-        return _calculateCurveSelector(
-            curve,
-            curve.get_dy_underlying.selector,
-            tokens,
-            fromToken,
-            destToken,
-            amount,
-            parts,
-            flags
-        );
-    }
-
-    function _calculateCurve(
-        ICurve curve,
-        IERC20[] memory tokens,
-        IERC20 fromToken,
-        IERC20 destToken,
-        uint256 amount,
-        uint256 parts,
-        uint256 flags
-    ) internal view returns(uint256[] memory rets) {
-        return _calculateCurveSelector(
-            curve,
-            curve.get_dy.selector,
-            tokens,
-            fromToken,
-            destToken,
-            amount,
-            parts,
-            flags
-        );
-    }
-
     function calculateCurveCompound(
         IERC20 fromToken,
         IERC20 destToken,
@@ -1874,8 +2106,9 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20[] memory tokens = new IERC20[](2);
         tokens[0] = dai;
         tokens[1] = usdc;
-        return (_calculateCurveUnderlying(
+        return (_calculateCurveSelector(
             curveCompound,
+            curveCompound.get_dy_underlying.selector,
             tokens,
             fromToken,
             destToken,
@@ -1885,7 +2118,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         ), 720_000);
     }
 
-    function calculateCurveUsdt(
+    function calculateCurveUSDT(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
@@ -1896,8 +2129,9 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         tokens[0] = dai;
         tokens[1] = usdc;
         tokens[2] = usdt;
-        return (_calculateCurveUnderlying(
-            curveUsdt,
+        return (_calculateCurveSelector(
+            curveUSDT,
+            curveUSDT.get_dy_underlying.selector,
             tokens,
             fromToken,
             destToken,
@@ -1919,8 +2153,9 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         tokens[1] = usdc;
         tokens[2] = usdt;
         tokens[3] = tusd;
-        return (_calculateCurveUnderlying(
+        return (_calculateCurveSelector(
             curveY,
+            curveY.get_dy_underlying.selector,
             tokens,
             fromToken,
             destToken,
@@ -1942,8 +2177,9 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         tokens[1] = usdc;
         tokens[2] = usdt;
         tokens[3] = busd;
-        return (_calculateCurveUnderlying(
+        return (_calculateCurveSelector(
             curveBinance,
+            curveBinance.get_dy_underlying.selector,
             tokens,
             fromToken,
             destToken,
@@ -1965,8 +2201,9 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         tokens[1] = usdc;
         tokens[2] = usdt;
         tokens[3] = susd;
-        return (_calculateCurveUnderlying(
+        return (_calculateCurveSelector(
             curveSynthetix,
+            curveSynthetix.get_dy_underlying.selector,
             tokens,
             fromToken,
             destToken,
@@ -1976,7 +2213,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         ), 200_000);
     }
 
-    function calculateCurvePax(
+    function calculateCurvePAX(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
@@ -1988,8 +2225,9 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         tokens[1] = usdc;
         tokens[2] = usdt;
         tokens[3] = pax;
-        return (_calculateCurveUnderlying(
-            curvePax,
+        return (_calculateCurveSelector(
+            curvePAX,
+            curvePAX.get_dy_underlying.selector,
             tokens,
             fromToken,
             destToken,
@@ -1999,7 +2237,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         ), 1_000_000);
     }
 
-    function calculateCurveRenBtc(
+    function calculateCurveRenBTC(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
@@ -2009,8 +2247,9 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20[] memory tokens = new IERC20[](2);
         tokens[0] = renbtc;
         tokens[1] = wbtc;
-        return (_calculateCurve(
-            curveRenBtc,
+        return (_calculateCurveSelector(
+            curveRenBTC,
+            curveRenBTC.get_dy.selector,
             tokens,
             fromToken,
             destToken,
@@ -2020,7 +2259,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         ), 130_000);
     }
 
-    function calculateCurveTBtc(
+    function calculateCurveTBTC(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
@@ -2031,8 +2270,9 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         tokens[0] = tbtc;
         tokens[1] = wbtc;
         tokens[2] = hbtc;
-        return (_calculateCurve(
-            curveTBtc,
+        return (_calculateCurveSelector(
+            curveTBTC,
+            curveTBTC.get_dy.selector,
             tokens,
             fromToken,
             destToken,
@@ -2040,6 +2280,29 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             parts,
             flags
         ), 145_000);
+    }
+
+    function calculateCurveSBTC(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags
+    ) internal view returns(uint256[] memory rets, uint256 gas) {
+        IERC20[] memory tokens = new IERC20[](3);
+        tokens[0] = renbtc;
+        tokens[1] = wbtc;
+        tokens[2] = sbtc;
+        return (_calculateCurveSelector(
+            curveSBTC,
+            curveSBTC.get_dy.selector,
+            tokens,
+            fromToken,
+            destToken,
+            amount,
+            parts,
+            flags
+        ), 150_000);
     }
 
     function calculateShell(
@@ -2098,7 +2361,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         );
     }
 
-    function _calculateUniswapReturn(
+    function _calculateUniswap(
         IERC20 fromToken,
         IERC20 destToken,
         uint256[] memory amounts,
@@ -2137,14 +2400,14 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return (rets, fromToken.isETH() || destToken.isETH() ? 60_000 : 100_000);
     }
 
-    function calculateUniswapReturn(
+    function calculateUniswap(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
         uint256 parts,
         uint256 flags
     ) internal view returns(uint256[] memory rets, uint256 gas) {
-        return _calculateUniswapReturn(
+        return _calculateUniswap(
             fromToken,
             destToken,
             _linearInterpolation(amount, parts),
@@ -2164,7 +2427,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         uint256 gas2
     ) internal view returns(uint256[] memory rets, uint256 gas) {
         if (!fromToken.isETH() && destToken.isETH()) {
-            (rets, gas) = _calculateUniswapReturn(
+            (rets, gas) = _calculateUniswap(
                 midToken,
                 destToken,
                 _linearInterpolation(amount.mul(1e18).div(midTokenPrice), parts),
@@ -2173,7 +2436,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             return (rets, gas + gas1);
         }
         else if (fromToken.isETH() && !destToken.isETH()) {
-            (rets, gas) = _calculateUniswapReturn(
+            (rets, gas) = _calculateUniswap(
                 fromToken,
                 midToken,
                 _linearInterpolation(amount, parts),
@@ -2285,7 +2548,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return (new uint256[](parts), 0);
     }
 
-    function _calculateKyberReturn(
+    function _calculateKyber(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
@@ -2301,26 +2564,26 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IKyberNetworkContract kyberNetworkContract = IKyberNetworkContract(abi.decode(data, (address)));
 
         if (fromToken.isETH() || destToken.isETH()) {
-            return _calculateKyberReturnWithEth(kyberNetworkContract, fromToken, destToken, amount, flags);
+            return _calculateKyberWithEth(kyberNetworkContract, fromToken, destToken, amount, flags);
         }
 
-        (uint256 value, uint256 gasFee) = _calculateKyberReturnWithEth(kyberNetworkContract, fromToken, ETH_ADDRESS, amount, flags);
+        (uint256 value, uint256 gasFee) = _calculateKyberWithEth(kyberNetworkContract, fromToken, ETH_ADDRESS, amount, flags);
         if (value == 0) {
             return (0, 0);
         }
 
-        (uint256 value2, uint256 gasFee2) =  _calculateKyberReturnWithEth(kyberNetworkContract, ETH_ADDRESS, destToken, value, flags);
+        (uint256 value2, uint256 gasFee2) =  _calculateKyberWithEth(kyberNetworkContract, ETH_ADDRESS, destToken, value, flags);
         return (value2, gasFee + gasFee2);
     }
 
-    function _calculateKyberReturnWithEth(
+    function _calculateKyberWithEth(
         IKyberNetworkContract kyberNetworkContract,
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
         uint256 flags
     ) internal view returns(uint256 returnAmount, uint256 gas) {
-        require(fromToken.isETH() || destToken.isETH(), "One of the tokens should be ETH");
+        require(fromToken.isETH() || destToken.isETH(), "2ETH");
 
         (bool success, bytes memory data) = address(kyberNetworkContract).staticcall.gas(1500000)(abi.encodeWithSelector(
             kyberNetworkContract.searchBestRate.selector,
@@ -2382,7 +2645,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         );
     }
 
-    function calculateKyberReturn(
+    function calculateKyber(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
@@ -2391,7 +2654,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
     ) internal view returns(uint256[] memory rets, uint256 gas) {
         rets = new uint256[](parts);
         for (uint i = 0; i < parts; i++) {
-            (rets[i], gas) = _calculateKyberReturn(fromToken, destToken, amount.mul(i + 1).div(parts), flags);
+            (rets[i], gas) = _calculateKyber(fromToken, destToken, amount.mul(i + 1).div(parts), flags);
             if (rets[i] == 0) {
                 break;
             }
@@ -2400,7 +2663,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return (rets, gas);
     }
 
-    function calculateBancorReturn(
+    function calculateBancor(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
@@ -2433,7 +2696,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return (rets, path.length.mul(150_000));
     }
 
-    function calculateOasisReturn(
+    function calculateOasis(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
@@ -2715,7 +2978,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
-        uint256 /*minReturn*/,
+        uint256 minReturn,
         uint256[] memory distribution,
         uint256 /*flags*/  // See constants in IOneSplit.sol
     ) public payable returns(uint256 returnAmount) {
@@ -2729,7 +2992,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             _swapOnBancor,
             _swapOnOasis,
             _swapOnCurveCompound,
-            _swapOnCurveUsdt,
+            _swapOnCurveUSDT,
             _swapOnCurveY,
             _swapOnCurveBinance,
             _swapOnCurveSynthetix,
@@ -2741,12 +3004,16 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             _swapOnUniswapV2ETH,
             _swapOnUniswapV2DAI,
             _swapOnUniswapV2USDC,
-            _swapOnCurvePax,
-            _swapOnCurveRenBtc,
-            _swapOnCurveTBtc,
+            _swapOnCurvePAX,
+            _swapOnCurveRenBTC,
+            _swapOnCurveTBTC,
             _swapOnDforceSwap,
             _swapOnShell,
-            _swapOnMStableMUSD
+            _swapOnMStableMUSD,
+            _swapOnCurveSBTC,
+            _swapOnBalancer1,
+            _swapOnBalancer2,
+            _swapOnBalancer3
         ];
 
         require(distribution.length <= reserves.length, "OneSplit: Distribution array should not exceed reserves array size");
@@ -2760,9 +3027,17 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             }
         }
 
-        require(parts > 0, "OneSplit: distribution should contain non-zeros");
+        if (parts == 0) {
+            if (fromToken.isETH()) {
+                msg.sender.transfer(msg.value);
+                return msg.value;
+            }
+            return amount;
+        }
 
-        uint256 remainingAmount = amount;
+        fromToken.universalTransferFrom(msg.sender, address(this), amount);
+        uint256 remainingAmount = fromToken.universalBalanceOf(address(this));
+
         for (uint i = 0; i < distribution.length; i++) {
             if (distribution[i] == 0) {
                 continue;
@@ -2777,6 +3052,9 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         }
 
         returnAmount = destToken.universalBalanceOf(address(this));
+        require(returnAmount >= minReturn, "OneSplit: Return amount was not enough");
+        destToken.universalTransfer(msg.sender, returnAmount);
+        fromToken.universalTransfer(msg.sender, fromToken.universalBalanceOf(address(this)));
     }
 
     // Swap helpers
@@ -2796,7 +3074,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         curveCompound.exchange_underlying(i - 1, j - 1, amount, 0);
     }
 
-    function _swapOnCurveUsdt(
+    function _swapOnCurveUSDT(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount
@@ -2811,8 +3089,8 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             return 0;
         }
 
-        fromToken.universalApprove(address(curveUsdt), amount);
-        curveUsdt.exchange_underlying(i - 1, j - 1, amount, 0);
+        fromToken.universalApprove(address(curveUSDT), amount);
+        curveUSDT.exchange_underlying(i - 1, j - 1, amount, 0);
     }
 
     function _swapOnCurveY(
@@ -2878,7 +3156,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         curveSynthetix.exchange_underlying(i - 1, j - 1, amount, 0);
     }
 
-    function _swapOnCurvePax(
+    function _swapOnCurvePAX(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount
@@ -2895,8 +3173,8 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             return 0;
         }
 
-        fromToken.universalApprove(address(curvePax), amount);
-        curvePax.exchange_underlying(i - 1, j - 1, amount, 0);
+        fromToken.universalApprove(address(curvePAX), amount);
+        curvePAX.exchange_underlying(i - 1, j - 1, amount, 0);
     }
 
     function _swapOnShell(
@@ -2928,7 +3206,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         );
     }
 
-    function _swapOnCurveRenBtc(
+    function _swapOnCurveRenBTC(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount
@@ -2941,11 +3219,11 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             return 0;
         }
 
-        fromToken.universalApprove(address(curveRenBtc), amount);
-        curveRenBtc.exchange(i - 1, j - 1, amount, 0);
+        fromToken.universalApprove(address(curveRenBTC), amount);
+        curveRenBTC.exchange(i - 1, j - 1, amount, 0);
     }
 
-    function _swapOnCurveTBtc(
+    function _swapOnCurveTBTC(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount
@@ -2960,8 +3238,27 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             return 0;
         }
 
-        fromToken.universalApprove(address(curveTBtc), amount);
-        curveTBtc.exchange(i - 1, j - 1, amount, 0);
+        fromToken.universalApprove(address(curveTBTC), amount);
+        curveTBTC.exchange(i - 1, j - 1, amount, 0);
+    }
+
+    function _swapOnCurveSBTC(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount
+    ) internal returns(uint256) {
+        int128 i = (fromToken == renbtc ? 1 : 0) +
+            (fromToken == wbtc ? 2 : 0) +
+            (fromToken == sbtc ? 3 : 0);
+        int128 j = (destToken == renbtc ? 1 : 0) +
+            (destToken == wbtc ? 2 : 0) +
+            (destToken == sbtc ? 3 : 0);
+        if (i == 0 || j == 0) {
+            return 0;
+        }
+
+        fromToken.universalApprove(address(curveSBTC), amount);
+        curveSBTC.exchange(i - 1, j - 1, amount, 0);
     }
 
     function _swapOnDforceSwap(
@@ -3103,6 +3400,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
     ) internal returns(uint256) {
         IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
         address[] memory path = _buildBancorPath(fromToken, destToken);
+        fromToken.universalApprove(address(bancorNetwork), amount);
         return bancorNetwork.convert.value(fromToken.isETH() ? amount : 0)(path, amount, 1);
     }
 
@@ -3224,6 +3522,60 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             amount
         );
     }
+
+    function _swapOnBalancerX(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 poolIndex
+    ) internal returns(uint256) {
+        address[] memory pools = balancerRegistry.getBestPoolsWithLimit(
+            address(fromToken.isETH() ? weth : fromToken),
+            address(destToken.isETH() ? weth : destToken),
+            poolIndex + 1
+        );
+
+        if (fromToken.isETH()) {
+            weth.deposit.value(amount)();
+        }
+
+        (fromToken.isETH() ? weth : destToken).universalApprove(pools[poolIndex], amount);
+        IBalancerPool(pools[poolIndex]).swapExactAmountIn(
+            fromToken.isETH() ? weth : fromToken,
+            amount,
+            destToken.isETH() ? weth : destToken,
+            0,
+            uint256(-1)
+        );
+
+        if (destToken.isETH()) {
+            weth.withdraw(weth.balanceOf(address(this)));
+        }
+    }
+
+    function _swapOnBalancer1(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount
+    ) internal returns(uint256) {
+        _swapOnBalancerX(fromToken, destToken, amount, 0);
+    }
+
+    function _swapOnBalancer2(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount
+    ) internal returns(uint256) {
+        _swapOnBalancerX(fromToken, destToken, amount, 1);
+    }
+
+    function _swapOnBalancer3(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount
+    ) internal returns(uint256) {
+        _swapOnBalancerX(fromToken, destToken, amount, 2);
+    }
 }
 
 // File: contracts/OneSplitMultiPath.sol
@@ -3261,6 +3613,44 @@ contract OneSplitMultiPathBase is IOneSplitConsts, OneSplitRoot {
             }
         }
     }
+
+    function _getFlagsByDistribution(uint256[] memory distribution) internal pure returns(uint256 flags) {
+        uint256[DEXES_COUNT] memory sourcesFlags = [
+            FLAG_DISABLE_UNISWAP,
+            FLAG_DISABLE_KYBER,
+            FLAG_DISABLE_BANCOR,
+            FLAG_DISABLE_OASIS,
+            FLAG_DISABLE_CURVE_COMPOUND,
+            FLAG_DISABLE_CURVE_USDT,
+            FLAG_DISABLE_CURVE_Y,
+            FLAG_DISABLE_CURVE_BINANCE,
+            FLAG_DISABLE_CURVE_SYNTHETIX,
+            FLAG_DISABLE_UNISWAP_COMPOUND,
+            FLAG_DISABLE_UNISWAP_CHAI,
+            FLAG_DISABLE_UNISWAP_AAVE,
+            FLAG_DISABLE_MOONISWAP,
+            FLAG_DISABLE_UNISWAP_V2,
+            FLAG_DISABLE_UNISWAP_V2_ETH,
+            FLAG_DISABLE_UNISWAP_V2_DAI,
+            FLAG_DISABLE_UNISWAP_V2_USDC,
+            FLAG_DISABLE_CURVE_PAX,
+            FLAG_DISABLE_CURVE_RENBTC,
+            FLAG_DISABLE_CURVE_TBTC,
+            FLAG_DISABLE_DFORCE_SWAP,
+            FLAG_DISABLE_SHELL,
+            FLAG_DISABLE_MSTABLE_MUSD,
+            FLAG_DISABLE_CURVE_SBTC,
+            0,
+            0,
+            0
+        ];
+
+        for (uint i = 0; i < distribution.length; i++) {
+            if (distribution[i] > 0) {
+                flags |= sourcesFlags[i];
+            }
+        }
+    }
 }
 
 
@@ -3288,11 +3678,7 @@ contract OneSplitMultiPathView is OneSplitViewWrapBase, OneSplitMultiPathBase {
         IERC20 midToken = _getMultiPathToken(flags);
 
         if (midToken != IERC20(0)) {
-            if ((fromToken.isETH() && midToken.isETH()) ||
-                (destToken.isETH() && midToken.isETH()) ||
-                fromToken == midToken ||
-                destToken == midToken)
-            {
+            if (_tokensEqual(fromToken, midToken) || _tokensEqual(midToken, destToken)) {
                 return super.getExpectedReturnWithGas(
                     fromToken,
                     destToken,
@@ -3305,14 +3691,20 @@ contract OneSplitMultiPathView is OneSplitViewWrapBase, OneSplitMultiPathBase {
 
             // Stack too deep
             uint256 _flags = flags;
+            IERC20 _destToken = destToken;
+            uint256 _destTokenEthPriceTimesGasPrice = destTokenEthPriceTimesGasPrice;
 
             (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                 fromToken,
                 midToken,
                 amount,
                 parts,
-                _flags | FLAG_DISABLE_BANCOR | FLAG_DISABLE_CURVE_COMPOUND | FLAG_DISABLE_CURVE_USDT | FLAG_DISABLE_CURVE_Y | FLAG_DISABLE_CURVE_BINANCE | FLAG_DISABLE_CURVE_PAX,
-                destTokenEthPriceTimesGasPrice
+                _flags,
+                _scaleDestTokenEthPriceTimesGasPrice(
+                    _destToken,
+                    midToken,
+                    _destTokenEthPriceTimesGasPrice
+                )
             );
 
             uint256[] memory dist;
@@ -3322,7 +3714,7 @@ contract OneSplitMultiPathView is OneSplitViewWrapBase, OneSplitMultiPathBase {
                 destToken,
                 returnAmount,
                 parts,
-                _flags | FLAG_DISABLE_BANCOR | FLAG_DISABLE_CURVE_COMPOUND | FLAG_DISABLE_CURVE_USDT | FLAG_DISABLE_CURVE_Y | FLAG_DISABLE_CURVE_BINANCE | FLAG_DISABLE_CURVE_PAX,
+                _flags | _getFlagsByDistribution(distribution),
                 destTokenEthPriceTimesGasPrice
             );
             for (uint i = 0; i < distribution.length; i++) {
@@ -3353,7 +3745,7 @@ contract OneSplitMultiPath is OneSplitBaseWrap, OneSplitMultiPathBase {
     ) internal {
         IERC20 midToken = _getMultiPathToken(flags);
 
-        if (midToken != IERC20(0)) {
+        if (midToken != IERC20(0) && !_tokensEqual(fromToken, midToken) && !_tokensEqual(midToken, destToken)) {
             uint256[] memory dist = new uint256[](distribution.length);
             for (uint i = 0; i < distribution.length; i++) {
                 dist[i] = distribution[i] & 0xFF;
@@ -3365,6 +3757,7 @@ contract OneSplitMultiPath is OneSplitBaseWrap, OneSplitMultiPathBase {
                 dist,
                 flags
             );
+            uint256 additionalFlags = _getFlagsByDistribution(distribution);
 
             for (uint i = 0; i < distribution.length; i++) {
                 dist[i] = (distribution[i] >> 8) & 0xFF;
@@ -3374,7 +3767,7 @@ contract OneSplitMultiPath is OneSplitBaseWrap, OneSplitMultiPathBase {
                 destToken,
                 midToken.universalBalanceOf(address(this)),
                 dist,
-                flags
+                flags | additionalFlags
             );
             return;
         }
@@ -3492,6 +3885,7 @@ contract OneSplitCompoundView is OneSplitViewWrapBase, OneSplitCompoundBase {
 
             underlying = _getCompoundUnderlyingToken(destToken);
             if (underlying != IERC20(-1)) {
+                uint256 _destTokenEthPriceTimesGasPrice = destTokenEthPriceTimesGasPrice;
                 uint256 compoundRate = ICompoundToken(address(destToken)).exchangeRateStored();
                 (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                     fromToken,
@@ -3499,7 +3893,7 @@ contract OneSplitCompoundView is OneSplitViewWrapBase, OneSplitCompoundBase {
                     amount,
                     parts,
                     flags,
-                    destTokenEthPriceTimesGasPrice
+                    _destTokenEthPriceTimesGasPrice.mul(compoundRate).div(1e18)
                 );
                 return (returnAmount.mul(1e18).div(compoundRate), estimateGasAmount + 430_000, distribution);
             }
@@ -3525,7 +3919,7 @@ contract OneSplitCompound is OneSplitBaseWrap, OneSplitCompoundBase {
         uint256[] memory distribution,
         uint256 flags
     ) internal {
-        _compundSwap(
+        _compoundSwap(
             fromToken,
             destToken,
             amount,
@@ -3534,7 +3928,7 @@ contract OneSplitCompound is OneSplitBaseWrap, OneSplitCompoundBase {
         );
     }
 
-    function _compundSwap(
+    function _compoundSwap(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
@@ -3551,7 +3945,7 @@ contract OneSplitCompound is OneSplitBaseWrap, OneSplitCompoundBase {
                 ICompoundToken(address(fromToken)).redeem(amount);
                 uint256 underlyingAmount = underlying.universalBalanceOf(address(this));
 
-                return _compundSwap(
+                return _compoundSwap(
                     underlying,
                     destToken,
                     underlyingAmount,
@@ -3592,62 +3986,6 @@ contract OneSplitCompound is OneSplitBaseWrap, OneSplitCompoundBase {
     }
 }
 
-// File: @openzeppelin/contracts/token/ERC20/ERC20Detailed.sol
-
-pragma solidity ^0.5.0;
-
-
-/**
- * @dev Optional functions from the ERC20 standard.
- */
-contract ERC20Detailed is IERC20 {
-    string private _name;
-    string private _symbol;
-    uint8 private _decimals;
-
-    /**
-     * @dev Sets the values for `name`, `symbol`, and `decimals`. All three of
-     * these values are immutable: they can only be set once during
-     * construction.
-     */
-    constructor (string memory name, string memory symbol, uint8 decimals) public {
-        _name = name;
-        _symbol = symbol;
-        _decimals = decimals;
-    }
-
-    /**
-     * @dev Returns the name of the token.
-     */
-    function name() public view returns (string memory) {
-        return _name;
-    }
-
-    /**
-     * @dev Returns the symbol of the token, usually a shorter version of the
-     * name.
-     */
-    function symbol() public view returns (string memory) {
-        return _symbol;
-    }
-
-    /**
-     * @dev Returns the number of decimals used to get its user representation.
-     * For example, if `decimals` equals `2`, a balance of `505` tokens should
-     * be displayed to a user as `5,05` (`505 / 10 ** 2`).
-     *
-     * Tokens usually opt for a value of 18, imitating the relationship between
-     * Ether and Wei.
-     *
-     * NOTE: This information is only used for _display_ purposes: it in
-     * no way affects any of the arithmetic of the contract, including
-     * {IERC20-balanceOf} and {IERC20-transfer}.
-     */
-    function decimals() public view returns (uint8) {
-        return _decimals;
-    }
-}
-
 // File: contracts/interface/IFulcrum.sol
 
 pragma solidity ^0.5.0;
@@ -3677,17 +4015,16 @@ pragma solidity ^0.5.0;
 
 
 
-
 contract OneSplitFulcrumBase {
     using UniversalERC20 for IERC20;
 
-    function _isFulcrumToken(IERC20 token) public view returns(IERC20) {
+    function _isFulcrumToken(IERC20 token) internal view returns(IERC20) {
         if (token.isETH()) {
             return IERC20(-1);
         }
 
-        (bool success, bytes memory data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
-            ERC20Detailed(address(token)).name.selector
+        (bool success, bytes memory data) = address(token).staticcall.gas(5000)(abi.encodeWithSignature(
+            "name()"
         ));
         if (!success) {
             return IERC20(-1);
@@ -3787,6 +4124,7 @@ contract OneSplitFulcrumView is OneSplitViewWrapBase, OneSplitFulcrumBase {
 
             underlying = _isFulcrumToken(destToken);
             if (underlying != IERC20(-1)) {
+                uint256 _destTokenEthPriceTimesGasPrice = destTokenEthPriceTimesGasPrice;
                 uint256 fulcrumRate = IFulcrumToken(address(destToken)).tokenPrice();
                 (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                     fromToken,
@@ -3794,7 +4132,7 @@ contract OneSplitFulcrumView is OneSplitViewWrapBase, OneSplitFulcrumBase {
                     amount,
                     parts,
                     flags,
-                    destTokenEthPriceTimesGasPrice
+                    _destTokenEthPriceTimesGasPrice.mul(fulcrumRate).div(1e18)
                 );
                 return (returnAmount.mul(1e18).div(fulcrumRate), estimateGasAmount + 354_000, distribution);
             }
@@ -3934,15 +4272,16 @@ contract OneSplitChaiView is OneSplitViewWrapBase {
             }
 
             if (destToken == IERC20(chai)) {
+                uint256 price = chai.chaiPrice();
                 (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                     fromToken,
                     dai,
                     amount,
                     parts,
                     flags,
-                    destTokenEthPriceTimesGasPrice
+                    destTokenEthPriceTimesGasPrice.mul(1e18).div(price)
                 );
-                return (chai.daiToChai(returnAmount), estimateGasAmount + 168_000, distribution);
+                return (returnAmount.mul(price).div(1e18), estimateGasAmount + 168_000, distribution);
             }
         }
 
@@ -4029,8 +4368,8 @@ pragma solidity ^0.5.0;
 
 
 contract OneSplitBdaiBase {
-    IBdai public bdai = IBdai(0x6a4FFAafa8DD400676Df8076AD6c724867b0e2e8);
-    IERC20 public btu = IERC20(0xb683D83a532e2Cb7DFa5275eED3698436371cc9f);
+    IBdai internal constant bdai = IBdai(0x6a4FFAafa8DD400676Df8076AD6c724867b0e2e8);
+    IERC20 internal constant btu = IERC20(0xb683D83a532e2Cb7DFa5275eED3698436371cc9f);
 }
 
 
@@ -4263,13 +4602,17 @@ contract OneSplitIearnView is OneSplitViewWrapBase, OneSplitIearnBase {
 
             for (uint i = 0; i < yTokens.length; i++) {
                 if (destToken == IERC20(yTokens[i])) {
+                    uint256 _destTokenEthPriceTimesGasPrice = destTokenEthPriceTimesGasPrice;
+                    IERC20 token = yTokens[i].token();
                     (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                         fromToken,
-                        yTokens[i].token(),
+                        token,
                         amount,
                         parts,
                         flags,
-                        destTokenEthPriceTimesGasPrice
+                        _destTokenEthPriceTimesGasPrice
+                            .mul(yTokens[i].calcPoolValueInToken())
+                            .div(yTokens[i].totalSupply())
                     );
 
                     return(
@@ -4464,15 +4807,18 @@ contract OneSplitIdleView is OneSplitViewWrapBase, OneSplitIdleBase {
 
             for (uint i = 0; i < tokens.length; i++) {
                 if (destToken == IERC20(tokens[i])) {
+                    uint256 _destTokenEthPriceTimesGasPrice = destTokenEthPriceTimesGasPrice;
+                    uint256 _price = tokens[i].tokenPrice();
+                    IERC20 token = tokens[i].token();
                     (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                         fromToken,
-                        tokens[i].token(),
+                        token,
                         amount,
                         parts,
                         flags,
-                        destTokenEthPriceTimesGasPrice
+                        _destTokenEthPriceTimesGasPrice.mul(_price).div(1e18)
                     );
-                    return (returnAmount.mul(1e18).div(tokens[i].tokenPrice()), estimateGasAmount + 1_300_000, distribution);
+                    return (returnAmount.mul(1e18).div(_price), estimateGasAmount + 1_300_000, distribution);
                 }
             }
         }
@@ -4490,19 +4836,6 @@ contract OneSplitIdleView is OneSplitViewWrapBase, OneSplitIdleBase {
 
 
 contract OneSplitIdle is OneSplitBaseWrap, OneSplitIdleBase {
-    function _superOneSplitIdleSwap(
-        IERC20 fromToken,
-        IERC20 destToken,
-        uint256 amount,
-        uint256[] calldata distribution,
-        uint256 flags
-    )
-        external
-    {
-        require(msg.sender == address(this));
-        return super._swap(fromToken, destToken, amount, distribution, flags);
-    }
-
     function _swap(
         IERC20 fromToken,
         IERC20 destToken,
@@ -4525,7 +4858,7 @@ contract OneSplitIdle is OneSplitBaseWrap, OneSplitIdleBase {
         uint256 amount,
         uint256[] memory distribution,
         uint256 flags
-    ) public payable {
+    ) internal {
         if (!flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == !flags.check(FLAG_DISABLE_IDLE)) {
             IIdle[8] memory tokens = _idleTokens();
 
@@ -4558,7 +4891,6 @@ contract OneSplitIdle is OneSplitBaseWrap, OneSplitIdleBase {
 // File: contracts/OneSplitAave.sol
 
 pragma solidity ^0.5.0;
-
 
 
 
@@ -4976,14 +5308,47 @@ contract OneSplitMStableView is OneSplitViewWrapBase {
         }
 
         if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_MSTABLE_MUSD)) {
-            if (fromToken == IERC20(musd) && ((destToken == usdc || destToken == dai || destToken == usdt || destToken == tusd))) {
-                (,, uint256 result) = musd_helper.getRedeemValidity(fromToken, amount, destToken);
-                return (result, 300_000, new uint256[](DEXES_COUNT));
+            if (fromToken == IERC20(musd)) {
+                if (destToken == usdc || destToken == dai || destToken == usdt || destToken == tusd) {
+                    (,, returnAmount) = musd_helper.getRedeemValidity(fromToken, amount, destToken);
+                    return (returnAmount, 300_000, new uint256[](DEXES_COUNT));
+                }
+                else {
+                    (,, returnAmount) = musd_helper.getRedeemValidity(fromToken, amount, dai);
+                    (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
+                        dai,
+                        destToken,
+                        returnAmount,
+                        parts,
+                        flags,
+                        destTokenEthPriceTimesGasPrice
+                    );
+                    return (returnAmount, estimateGasAmount + 300_000, distribution);
+                }
             }
 
-            if (destToken == IERC20(musd) && ((fromToken == usdc || fromToken == dai || fromToken == usdt || fromToken == tusd))) {
-                (,, uint256 result) = musd.getSwapOutput(fromToken, destToken, amount);
-                return (result, 300_000, new uint256[](DEXES_COUNT));
+            if (destToken == IERC20(musd)) {
+                if (fromToken == usdc || fromToken == dai || fromToken == usdt || fromToken == tusd) {
+                    (,, returnAmount) = musd.getSwapOutput(fromToken, destToken, amount);
+                    return (returnAmount, 300_000, new uint256[](DEXES_COUNT));
+                }
+                else {
+                    IERC20 _destToken = destToken;
+                    (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
+                        fromToken,
+                        dai,
+                        amount,
+                        parts,
+                        flags,
+                        _scaleDestTokenEthPriceTimesGasPrice(
+                            _destToken,
+                            dai,
+                            destTokenEthPriceTimesGasPrice
+                        )
+                    );
+                    (,, returnAmount) = musd_helper.getRedeemValidity(dai, returnAmount, destToken);
+                    return (returnAmount, estimateGasAmount + 300_000, distribution);
+                }
             }
         }
 
@@ -5012,22 +5377,289 @@ contract OneSplitMStable is OneSplitBaseWrap {
         }
 
         if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_MSTABLE_MUSD)) {
-            if (fromToken == IERC20(musd) && ((destToken == usdc || destToken == dai || destToken == usdt || destToken == tusd))) {
-                (,, uint256 result) = musd_helper.getRedeemValidity(fromToken, amount, destToken);
-                musd.redeem(
-                    destToken,
-                    result
-                );
+            if (fromToken == IERC20(musd)) {
+                if (destToken == usdc || destToken == dai || destToken == usdt || destToken == tusd) {
+                    (,, uint256 result) = musd_helper.getRedeemValidity(fromToken, amount, destToken);
+                    musd.redeem(
+                        destToken,
+                        result
+                    );
+                }
+                else {
+                    (,, uint256 result) = musd_helper.getRedeemValidity(fromToken, amount, dai);
+                    musd.redeem(
+                        dai,
+                        result
+                    );
+                    super._swap(
+                        dai,
+                        destToken,
+                        dai.balanceOf(address(this)),
+                        distribution,
+                        flags
+                    );
+                }
                 return;
             }
 
-            if (destToken == IERC20(musd) && ((fromToken == usdc || fromToken == dai || fromToken == usdt || fromToken == tusd))) {
-                musd.swap(
-                    fromToken,
+            if (destToken == IERC20(musd)) {
+                if (fromToken == usdc || fromToken == dai || fromToken == usdt || fromToken == tusd) {
+                    fromToken.universalApprove(address(musd), amount);
+                    musd.swap(
+                        fromToken,
+                        destToken,
+                        amount,
+                        address(this)
+                    );
+                }
+                else {
+                    super._swap(
+                        fromToken,
+                        dai,
+                        amount,
+                        distribution,
+                        flags
+                    );
+                    musd.swap(
+                        dai,
+                        destToken,
+                        dai.balanceOf(address(this)),
+                        address(this)
+                    );
+                }
+                return;
+            }
+        }
+
+        return super._swap(
+            fromToken,
+            destToken,
+            amount,
+            distribution,
+            flags
+        );
+    }
+}
+
+// File: contracts/interface/IDMM.sol
+
+pragma solidity ^0.5.0;
+
+
+
+interface IDMMController {
+    function getUnderlyingTokenForDmm(IERC20 token) external view returns(IERC20);
+}
+
+
+contract IDMM is IERC20 {
+    function getCurrentExchangeRate() public view returns(uint256);
+    function mint(uint256 underlyingAmount) public returns(uint256);
+    function redeem(uint256 amount) public returns(uint256);
+}
+
+// File: contracts/OneSplitDMM.sol
+
+pragma solidity ^0.5.0;
+
+
+
+
+contract OneSplitDMMBase {
+    IDMMController internal constant _dmmController = IDMMController(0x4CB120Dd1D33C9A3De8Bc15620C7Cd43418d77E2);
+
+    function _getDMMUnderlyingToken(IERC20 token) internal view returns(IERC20) {
+        (bool success, bytes memory data) = address(_dmmController).staticcall(
+            abi.encodeWithSelector(
+                _dmmController.getUnderlyingTokenForDmm.selector,
+                token
+            )
+        );
+
+        if (!success || data.length == 0) {
+            return IERC20(-1);
+        }
+
+        return abi.decode(data, (IERC20));
+    }
+
+    function _getDMMExchangeRate(IDMM dmm) internal view returns(uint256) {
+        (bool success, bytes memory data) = address(dmm).staticcall(
+            abi.encodeWithSelector(
+                dmm.getCurrentExchangeRate.selector
+            )
+        );
+
+        if (!success || data.length == 0) {
+            return 0;
+        }
+
+        return abi.decode(data, (uint256));
+    }
+}
+
+
+contract OneSplitDMMView is OneSplitViewWrapBase, OneSplitDMMBase {
+    function getExpectedReturnWithGas(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags,
+        uint256 destTokenEthPriceTimesGasPrice
+    )
+        public
+        view
+        returns(
+            uint256 returnAmount,
+            uint256 estimateGasAmount,
+            uint256[] memory distribution
+        )
+    {
+        return _dmmGetExpectedReturn(
+            fromToken,
+            destToken,
+            amount,
+            parts,
+            flags,
+            destTokenEthPriceTimesGasPrice
+        );
+    }
+
+    function _dmmGetExpectedReturn(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags,
+        uint256 destTokenEthPriceTimesGasPrice
+    )
+        private
+        view
+        returns(
+            uint256 returnAmount,
+            uint256 estimateGasAmount,
+            uint256[] memory distribution
+        )
+    {
+        if (fromToken == destToken) {
+            return (amount, 0, new uint256[](DEXES_COUNT));
+        }
+
+        if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_DMM)) {
+            IERC20 underlying = _getDMMUnderlyingToken(fromToken);
+            if (underlying != IERC20(-1)) {
+                if (underlying == weth) {
+                    underlying = ETH_ADDRESS;
+                }
+                IERC20 _fromToken = fromToken;
+                (returnAmount, estimateGasAmount, distribution) = _dmmGetExpectedReturn(
+                    underlying,
                     destToken,
-                    amount,
-                    address(this)
+                    amount.mul(_getDMMExchangeRate(IDMM(address(_fromToken)))).div(1e18),
+                    parts,
+                    flags,
+                    destTokenEthPriceTimesGasPrice
                 );
+                return (returnAmount, estimateGasAmount + 295_000, distribution);
+            }
+
+            underlying = _getDMMUnderlyingToken(destToken);
+            if (underlying != IERC20(-1)) {
+                if (underlying == weth) {
+                    underlying = ETH_ADDRESS;
+                }
+                uint256 price = _getDMMExchangeRate(IDMM(address(destToken)));
+                (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
+                    fromToken,
+                    underlying,
+                    amount,
+                    parts,
+                    flags,
+                    destTokenEthPriceTimesGasPrice.mul(price).div(1e18)
+                );
+                return (
+                    returnAmount.mul(1e18).div(price),
+                    estimateGasAmount + 430_000,
+                    distribution
+                );
+            }
+        }
+
+        return super.getExpectedReturnWithGas(
+            fromToken,
+            destToken,
+            amount,
+            parts,
+            flags,
+            destTokenEthPriceTimesGasPrice
+        );
+    }
+}
+
+
+contract OneSplitDMM is OneSplitBaseWrap, OneSplitDMMBase {
+    function _swap(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256[] memory distribution,
+        uint256 flags
+    ) internal {
+        _dmmSwap(
+            fromToken,
+            destToken,
+            amount,
+            distribution,
+            flags
+        );
+    }
+
+    function _dmmSwap(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256[] memory distribution,
+        uint256 flags
+    ) private {
+        if (fromToken == destToken) {
+            return;
+        }
+
+        if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_DMM)) {
+            IERC20 underlying = _getDMMUnderlyingToken(fromToken);
+            if (underlying != IERC20(-1)) {
+                IDMM(address(fromToken)).redeem(amount);
+                uint256 balance = underlying.universalBalanceOf(address(this));
+                if (underlying == weth) {
+                    weth.withdraw(balance);
+                }
+                _dmmSwap(
+                    (underlying == weth) ? ETH_ADDRESS : underlying,
+                    destToken,
+                    balance,
+                    distribution,
+                    flags
+                );
+            }
+
+            underlying = _getDMMUnderlyingToken(destToken);
+            if (underlying != IERC20(-1)) {
+                super._swap(
+                    fromToken,
+                    (underlying == weth) ? ETH_ADDRESS : underlying,
+                    amount,
+                    distribution,
+                    flags
+                );
+
+                uint256 underlyingAmount = ((underlying == weth) ? ETH_ADDRESS : underlying).universalBalanceOf(address(this));
+                if (underlying == weth) {
+                    weth.deposit.value(underlyingAmount);
+                }
+
+                underlying.universalApprove(address(destToken), underlyingAmount);
+                IDMM(address(destToken)).mint(underlyingAmount);
                 return;
             }
         }
@@ -5057,12 +5689,12 @@ pragma solidity ^0.5.0;
 
 
 
+
 //import "./OneSplitSmartToken.sol";
 
 
 contract OneSplitViewWrap is
     OneSplitViewWrapBase,
-    OneSplitMultiPathView,
     OneSplitMStableView,
     OneSplitChaiView,
     OneSplitBdaiView,
@@ -5071,7 +5703,9 @@ contract OneSplitViewWrap is
     OneSplitCompoundView,
     OneSplitIearnView,
     OneSplitIdleView,
-    OneSplitWethView
+    OneSplitWethView,
+    OneSplitDMMView,
+    OneSplitMultiPathView
     //OneSplitSmartTokenView
 {
     IOneSplitView public oneSplitView;
@@ -5164,7 +5798,6 @@ contract OneSplitViewWrap is
 
 contract OneSplitWrap is
     OneSplitBaseWrap,
-    OneSplitMultiPath,
     OneSplitMStable,
     OneSplitChai,
     OneSplitBdai,
@@ -5173,7 +5806,9 @@ contract OneSplitWrap is
     OneSplitCompound,
     OneSplitIearn,
     OneSplitIdle,
-    OneSplitWeth
+    OneSplitWeth,
+    OneSplitDMM,
+    OneSplitMultiPath
     //OneSplitSmartToken
 {
     IOneSplitView public oneSplitView;
@@ -5244,8 +5879,8 @@ contract OneSplitWrap is
         IERC20 destToken,
         uint256 amount,
         uint256 minReturn,
-        uint256[] memory distribution, // [Uniswap, Kyber, Bancor, Oasis]
-        uint256 flags // 16 - Compound, 32 - Fulcrum, 64 - Chai, 128 - Aave, 256 - SmartToken, 1024 - bDAI
+        uint256[] memory distribution,
+        uint256 flags
     ) public payable returns(uint256 returnAmount) {
         fromToken.universalTransferFrom(msg.sender, address(this), amount);
         uint256 confirmed = fromToken.universalBalanceOf(address(this));
@@ -5264,22 +5899,14 @@ contract OneSplitWrap is
         uint256[] memory distribution,
         uint256 flags
     ) internal {
-        (bool success, bytes memory data) = address(oneSplit).delegatecall(
-            abi.encodeWithSelector(
-                this.swap.selector,
-                fromToken,
-                destToken,
-                amount,
-                0,
-                distribution,
-                flags
-            )
+        fromToken.universalApprove(address(oneSplit), amount);
+        oneSplit.swap.value(fromToken.isETH() ? amount : 0)(
+            fromToken,
+            destToken,
+            amount,
+            0,
+            distribution,
+            flags
         );
-
-        assembly {
-            switch success
-                // delegatecall returns 0 on error.
-                case 0 { revert(add(data, 32), returndatasize) }
-        }
     }
 }

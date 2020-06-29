@@ -33,7 +33,7 @@ contract('OneSplit', function ([_, addr1]) {
             );
             console.log('input: 20 ETH');
             console.log('returnAmount:', res.returnAmount.toString() / 1e18 + ' DAI');
-            console.log('distribution:', res.distribution.map(a => a.toString()));
+            // console.log('distribution:', res.distribution.map(a => a.toString()));
 
             console.log('raw:', res.returnAmount.toString());
         });
@@ -59,7 +59,7 @@ contract('OneSplit', function ([_, addr1]) {
 
             console.log(`input: ${inputAmount} DAI`);
             console.log(`returnAmount: ${returnAmount} bDAI`);
-            console.log('distribution:', res.distribution.map(a => a.toString()));
+            // console.log('distribution:', res.distribution.map(a => a.toString()));
 
             console.log('raw:', res.returnAmount.toString());
         });
@@ -85,7 +85,7 @@ contract('OneSplit', function ([_, addr1]) {
 
             console.log(`input: ${inputAmount} bDAI`);
             console.log(`returnAmount: ${returnAmount} DAI`);
-            console.log('distribution:', res.distribution.map(a => a.toString()));
+            // console.log('distribution:', res.distribution.map(a => a.toString()));
 
             console.log('raw:', res.returnAmount.toString());
         });
@@ -105,7 +105,7 @@ contract('OneSplit', function ([_, addr1]) {
 
             console.log(`input: ${inputAmount} ETH`);
             console.log(`returnAmount: ${returnAmount} bDAI`);
-            console.log('distributionBdai:', res.distribution.map(a => a.toString()));
+            // console.log('distributionBdai:', res.distribution.map(a => a.toString()));
 
             console.log('raw:', res.returnAmount.toString());
         });

@@ -89,15 +89,18 @@ contract OneSplitIdleView is OneSplitViewWrapBase, OneSplitIdleBase {
 
             for (uint i = 0; i < tokens.length; i++) {
                 if (destToken == IERC20(tokens[i])) {
+                    uint256 _destTokenEthPriceTimesGasPrice = destTokenEthPriceTimesGasPrice;
+                    uint256 _price = tokens[i].tokenPrice();
+                    IERC20 token = tokens[i].token();
                     (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                         fromToken,
-                        tokens[i].token(),
+                        token,
                         amount,
                         parts,
                         flags,
-                        destTokenEthPriceTimesGasPrice
+                        _destTokenEthPriceTimesGasPrice.mul(_price).div(1e18)
                     );
-                    return (returnAmount.mul(1e18).div(tokens[i].tokenPrice()), estimateGasAmount + 1_300_000, distribution);
+                    return (returnAmount.mul(1e18).div(_price), estimateGasAmount + 1_300_000, distribution);
                 }
             }
         }
@@ -115,19 +118,6 @@ contract OneSplitIdleView is OneSplitViewWrapBase, OneSplitIdleBase {
 
 
 contract OneSplitIdle is OneSplitBaseWrap, OneSplitIdleBase {
-    function _superOneSplitIdleSwap(
-        IERC20 fromToken,
-        IERC20 destToken,
-        uint256 amount,
-        uint256[] calldata distribution,
-        uint256 flags
-    )
-        external
-    {
-        require(msg.sender == address(this));
-        return super._swap(fromToken, destToken, amount, distribution, flags);
-    }
-
     function _swap(
         IERC20 fromToken,
         IERC20 destToken,
@@ -150,7 +140,7 @@ contract OneSplitIdle is OneSplitBaseWrap, OneSplitIdleBase {
         uint256 amount,
         uint256[] memory distribution,
         uint256 flags
-    ) public payable {
+    ) internal {
         if (!flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == !flags.check(FLAG_DISABLE_IDLE)) {
             IIdle[8] memory tokens = _idleTokens();
 

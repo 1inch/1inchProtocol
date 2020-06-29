@@ -100,6 +100,7 @@ contract OneSplitCompoundView is OneSplitViewWrapBase, OneSplitCompoundBase {
 
             underlying = _getCompoundUnderlyingToken(destToken);
             if (underlying != IERC20(-1)) {
+                uint256 _destTokenEthPriceTimesGasPrice = destTokenEthPriceTimesGasPrice;
                 uint256 compoundRate = ICompoundToken(address(destToken)).exchangeRateStored();
                 (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                     fromToken,
@@ -107,7 +108,7 @@ contract OneSplitCompoundView is OneSplitViewWrapBase, OneSplitCompoundBase {
                     amount,
                     parts,
                     flags,
-                    destTokenEthPriceTimesGasPrice
+                    _destTokenEthPriceTimesGasPrice.mul(compoundRate).div(1e18)
                 );
                 return (returnAmount.mul(1e18).div(compoundRate), estimateGasAmount + 430_000, distribution);
             }
@@ -133,7 +134,7 @@ contract OneSplitCompound is OneSplitBaseWrap, OneSplitCompoundBase {
         uint256[] memory distribution,
         uint256 flags
     ) internal {
-        _compundSwap(
+        _compoundSwap(
             fromToken,
             destToken,
             amount,
@@ -142,7 +143,7 @@ contract OneSplitCompound is OneSplitBaseWrap, OneSplitCompoundBase {
         );
     }
 
-    function _compundSwap(
+    function _compoundSwap(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
@@ -159,7 +160,7 @@ contract OneSplitCompound is OneSplitBaseWrap, OneSplitCompoundBase {
                 ICompoundToken(address(fromToken)).redeem(amount);
                 uint256 underlyingAmount = underlying.universalBalanceOf(address(this));
 
-                return _compundSwap(
+                return _compoundSwap(
                     underlying,
                     destToken,
                     underlyingAmount,

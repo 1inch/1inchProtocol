@@ -1,6 +1,5 @@
 pragma solidity ^0.5.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20Detailed.sol";
 import "./interface/IFulcrum.sol";
 import "./OneSplitBase.sol";
 
@@ -8,13 +7,13 @@ import "./OneSplitBase.sol";
 contract OneSplitFulcrumBase {
     using UniversalERC20 for IERC20;
 
-    function _isFulcrumToken(IERC20 token) public view returns(IERC20) {
+    function _isFulcrumToken(IERC20 token) internal view returns(IERC20) {
         if (token.isETH()) {
             return IERC20(-1);
         }
 
-        (bool success, bytes memory data) = address(token).staticcall.gas(5000)(abi.encodeWithSelector(
-            ERC20Detailed(address(token)).name.selector
+        (bool success, bytes memory data) = address(token).staticcall.gas(5000)(abi.encodeWithSignature(
+            "name()"
         ));
         if (!success) {
             return IERC20(-1);
@@ -114,6 +113,7 @@ contract OneSplitFulcrumView is OneSplitViewWrapBase, OneSplitFulcrumBase {
 
             underlying = _isFulcrumToken(destToken);
             if (underlying != IERC20(-1)) {
+                uint256 _destTokenEthPriceTimesGasPrice = destTokenEthPriceTimesGasPrice;
                 uint256 fulcrumRate = IFulcrumToken(address(destToken)).tokenPrice();
                 (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                     fromToken,
@@ -121,7 +121,7 @@ contract OneSplitFulcrumView is OneSplitViewWrapBase, OneSplitFulcrumBase {
                     amount,
                     parts,
                     flags,
-                    destTokenEthPriceTimesGasPrice
+                    _destTokenEthPriceTimesGasPrice.mul(fulcrumRate).div(1e18)
                 );
                 return (returnAmount.mul(1e18).div(fulcrumRate), estimateGasAmount + 354_000, distribution);
             }
