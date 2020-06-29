@@ -224,9 +224,6 @@ contract IOneSplitConsts {
     // flags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_KYBER + ...
     uint256 internal constant FLAG_DISABLE_UNISWAP = 0x01;
     uint256 internal constant FLAG_DISABLE_KYBER = 0x02;
-    uint256 internal constant FLAG_ENABLE_KYBER_UNISWAP_RESERVE = 0x100000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_KYBER_OASIS_RESERVE = 0x200000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_KYBER_BANCOR_RESERVE = 0x400000000; // Turned off by default
     uint256 internal constant FLAG_DISABLE_BANCOR = 0x04;
     uint256 internal constant FLAG_DISABLE_OASIS = 0x08;
     uint256 internal constant FLAG_DISABLE_COMPOUND = 0x10;
@@ -273,6 +270,15 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_DISABLE_CURVE_ALL = 0x200000000000;
     uint256 internal constant FLAG_DISABLE_UNISWAP_V2_ALL = 0x400000000000;
     uint256 internal constant FLAG_DISABLE_SPLIT_RECALCULATION = 0x800000000000;
+    uint256 internal constant FLAG_DISABLE_BALANCER_ALL = 0x1000000000000;
+    uint256 internal constant FLAG_DISABLE_BALANCER_1 = 0x2000000000000;
+    uint256 internal constant FLAG_DISABLE_BALANCER_2 = 0x4000000000000;
+    uint256 internal constant FLAG_DISABLE_BALANCER_3 = 0x8000000000000;
+    uint256 internal constant FLAG_ENABLE_KYBER_UNISWAP_RESERVE = 0x1000000000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_KYBER_OASIS_RESERVE = 0x2000000000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_KYBER_BANCOR_RESERVE = 0x4000000000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_REFERRAL_GAS_SPONSORSHIP = 0x8000000000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_MULTI_PATH_COMP = 0x10000000000000; // Turned off by default
 }
 
 
@@ -755,6 +761,14 @@ interface IFreeFromUpTo {
     function freeFromUpTo(address from, uint256 value) external returns (uint256 freed);
 }
 
+interface IReferralGasSponsor {
+    function makeGasDiscount(
+        uint256 gasSpent,
+        uint256 returnAmount,
+        bytes calldata msgSenderCalldata
+    ) external;
+}
+
 
 //
 // Security assumptions:
@@ -774,15 +788,6 @@ contract OneSplitAudit is IOneSplit, Ownable {
     IOneSplit public oneSplitImpl;
 
     event ImplementationUpdated(address indexed newImpl);
-
-    modifier makeGasDiscount(uint256 flags) {
-        uint256 gasStart = gasleft();
-        _;
-        if ((flags & FLAG_ENABLE_CHI_BURN) > 0) {
-            uint256 gasSpent = 21000 + gasStart - gasleft() + 5 * msg.data.length;
-            chi.freeFromUpTo(msg.sender, (gasSpent + 14154) / 41947);
-        }
-    }
 
     event Swapped(
         IERC20 indexed fromToken,
@@ -926,10 +931,12 @@ contract OneSplitAudit is IOneSplit, Ownable {
         uint256 flags, // See contants in IOneSplit.sol
         address referral,
         uint256 feePercent
-    ) public payable makeGasDiscount(flags) returns(uint256 returnAmount) {
+    ) public payable returns(uint256 returnAmount) {
         require(_fromToken() != _destToken() && amount > 0, "OneSplit: swap makes no sense");
         require((msg.value != 0) == _fromToken().isETH(), "OneSplit: msg.value should be used only for ETH swap");
         require(feePercent <= 0.03e18, "OneSplit: feePercent out of range");
+
+        uint256 gasStart = gasleft();
 
         Balances memory beforeBalances = Balances({
             ofFromToken: uint128(_fromToken().universalBalanceOf(address(this)).sub(msg.value)),
@@ -976,6 +983,15 @@ contract OneSplitAudit is IOneSplit, Ownable {
         // Return remainder
         if (afterBalances.ofFromToken > beforeBalances.ofFromToken) {
             _fromToken().universalTransfer(msg.sender, uint256(afterBalances.ofFromToken).sub(beforeBalances.ofFromToken));
+        }
+
+        if ((flags & FLAG_ENABLE_CHI_BURN) > 0) {
+            uint256 gasSpent = 21000 + gasStart - gasleft() + 16 * msg.data.length;
+            chi.freeFromUpTo(msg.sender, (gasSpent + 14154) / 41947);
+        }
+        else if ((flags & FLAG_ENABLE_REFERRAL_GAS_SPONSORSHIP) > 0) {
+            uint256 gasSpent = 21000 + gasStart - gasleft() + 16 * msg.data.length;
+            IReferralGasSponsor(referral).makeGasDiscount(gasSpent, returnAmount, msg.data);
         }
     }
 
