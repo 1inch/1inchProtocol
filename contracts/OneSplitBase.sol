@@ -354,8 +354,8 @@ contract OneSplitRoot is IOneSplitView {
             return destTokenEthPriceTimesGasPrice;
         }
 
-        uint256 mul = _cheapGetPrice(ETH_ADDRESS, destToken, 1e16);
-        uint256 div = _cheapGetPrice(ETH_ADDRESS, fromToken, 1e16);
+        uint256 mul = _cheapGetPrice(ETH_ADDRESS, destToken, 0.01 ether);
+        uint256 div = _cheapGetPrice(ETH_ADDRESS, fromToken, 0.01 ether);
         if (div > 0) {
             return destTokenEthPriceTimesGasPrice.mul(mul).div(div);
         }

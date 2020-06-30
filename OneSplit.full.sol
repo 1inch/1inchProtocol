@@ -165,11 +165,11 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_DISABLE_BALANCER_1 = 0x2000000000000;
     uint256 internal constant FLAG_DISABLE_BALANCER_2 = 0x4000000000000;
     uint256 internal constant FLAG_DISABLE_BALANCER_3 = 0x8000000000000;
-    uint256 internal constant FLAG_ENABLE_KYBER_UNISWAP_RESERVE = 0x1000000000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_KYBER_OASIS_RESERVE = 0x2000000000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_KYBER_BANCOR_RESERVE = 0x4000000000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_REFERRAL_GAS_SPONSORSHIP = 0x8000000000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_COMP = 0x10000000000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_KYBER_UNISWAP_RESERVE = 0x10000000000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_KYBER_OASIS_RESERVE = 0x20000000000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_KYBER_BANCOR_RESERVE = 0x40000000000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_REFERRAL_GAS_SPONSORSHIP = 0x80000000000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_MULTI_PATH_COMP = 0x100000000000000; // Turned off by default
 }
 
 
@@ -1630,8 +1630,8 @@ contract OneSplitRoot is IOneSplitView {
             return destTokenEthPriceTimesGasPrice;
         }
 
-        uint256 mul = _cheapGetPrice(ETH_ADDRESS, destToken, 1e16);
-        uint256 div = _cheapGetPrice(ETH_ADDRESS, fromToken, 1e16);
+        uint256 mul = _cheapGetPrice(ETH_ADDRESS, destToken, 0.01 ether);
+        uint256 div = _cheapGetPrice(ETH_ADDRESS, fromToken, 0.01 ether);
         if (div > 0) {
             return destTokenEthPriceTimesGasPrice.mul(mul).div(div);
         }
@@ -5849,7 +5849,7 @@ contract OneSplitWrap is
         uint256 amount,
         uint256 parts,
         uint256 flags,
-        uint256 destTokenEthPriceTimesGasPrice
+        uint256[] memory destTokenEthPriceTimesGasPrices
     )
         public
         view
@@ -5879,11 +5879,7 @@ contract OneSplitWrap is
                 (i == 1) ? amount : returnAmounts[i - 2],
                 parts,
                 flags,
-                _scaleDestTokenEthPriceTimesGasPrice(
-                    _tokens[_tokens.length - 1],
-                    _tokens[i],
-                    destTokenEthPriceTimesGasPrice
-                )
+                destTokenEthPriceTimesGasPrices[i]
             );
             estimateGasAmount = estimateGasAmount.add(amount);
 

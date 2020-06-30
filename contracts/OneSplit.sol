@@ -202,7 +202,7 @@ contract OneSplitWrap is
         uint256 amount,
         uint256 parts,
         uint256 flags,
-        uint256 destTokenEthPriceTimesGasPrice
+        uint256[] memory destTokenEthPriceTimesGasPrices
     )
         public
         view
@@ -232,11 +232,7 @@ contract OneSplitWrap is
                 (i == 1) ? amount : returnAmounts[i - 2],
                 parts,
                 flags,
-                _scaleDestTokenEthPriceTimesGasPrice(
-                    _tokens[_tokens.length - 1],
-                    _tokens[i],
-                    destTokenEthPriceTimesGasPrice
-                )
+                destTokenEthPriceTimesGasPrices[i]
             );
             estimateGasAmount = estimateGasAmount.add(amount);
 

@@ -84,11 +84,11 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_DISABLE_BALANCER_1 = 0x2000000000000;
     uint256 internal constant FLAG_DISABLE_BALANCER_2 = 0x4000000000000;
     uint256 internal constant FLAG_DISABLE_BALANCER_3 = 0x8000000000000;
-    uint256 internal constant FLAG_ENABLE_KYBER_UNISWAP_RESERVE = 0x1000000000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_KYBER_OASIS_RESERVE = 0x2000000000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_KYBER_BANCOR_RESERVE = 0x4000000000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_REFERRAL_GAS_SPONSORSHIP = 0x8000000000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_COMP = 0x10000000000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_KYBER_UNISWAP_RESERVE = 0x10000000000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_KYBER_OASIS_RESERVE = 0x20000000000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_KYBER_BANCOR_RESERVE = 0x40000000000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_REFERRAL_GAS_SPONSORSHIP = 0x80000000000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_MULTI_PATH_COMP = 0x100000000000000; // Turned off by default
 }
 
 
