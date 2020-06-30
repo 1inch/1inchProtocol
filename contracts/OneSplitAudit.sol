@@ -1,12 +1,14 @@
 pragma solidity ^0.5.0;
 
 import "@openzeppelin/contracts/ownership/Ownable.sol";
+import "./interface/IWETH.sol";
+import "./interface/IUniswapV2Exchange.sol";
 import "./IOneSplit.sol";
 import "./UniversalERC20.sol";
 
 
-interface IFreeFromUpTo {
-    function freeFromUpTo(address from, uint256 value) external returns (uint256 freed);
+contract IFreeFromUpTo is IERC20 {
+    function freeFromUpTo(address from, uint256 value) external returns(uint256 freed);
 }
 
 interface IReferralGasSponsor {
@@ -31,6 +33,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
     using SafeMath for uint256;
     using UniversalERC20 for IERC20;
 
+    IWETH constant internal weth = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IFreeFromUpTo public constant chi = IFreeFromUpTo(0x0000000000004946c0e9F43F4Dee607b0eF1fA1c);
 
     IOneSplit public oneSplitImpl;
@@ -235,7 +238,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
 
         if ((flags & FLAG_ENABLE_CHI_BURN) > 0) {
             uint256 gasSpent = 21000 + gasStart - gasleft() + 16 * msg.data.length;
-            chi.freeFromUpTo(msg.sender, (gasSpent + 14154) / 41947);
+            _chiBurnOrSell((gasSpent + 14154) / 41947);
         }
         else if ((flags & FLAG_ENABLE_REFERRAL_GAS_SPONSORSHIP) > 0) {
             uint256 gasSpent = 21000 + gasStart - gasleft() + 16 * msg.data.length;
@@ -245,6 +248,22 @@ contract OneSplitAudit is IOneSplit, Ownable {
 
     function claimAsset(IERC20 asset, uint256 amount) public onlyOwner {
         asset.universalTransfer(msg.sender, amount);
+    }
+
+    function _chiBurnOrSell(uint256 amount) internal {
+        IUniswapV2Exchange exchange = IUniswapV2Exchange(0xa6f3ef841d371a82ca757FaD08efc0DeE2F1f5e2);
+        uint256 sellRefund = UniswapV2ExchangeLib.getReturn(exchange, chi, weth, amount);
+        uint256 burnRefund = amount.mul(18_000).mul(tx.gasprice);
+
+        if (sellRefund < burnRefund.add(tx.gasprice.mul(36_000))) {
+            chi.freeFromUpTo(msg.sender, amount);
+        }
+        else {
+            chi.transferFrom(msg.sender, address(exchange), amount);
+            exchange.swap(0, sellRefund, address(this), "");
+            weth.withdraw(weth.balanceOf(address(this)));
+            msg.sender.transfer(address(this).balance);
+        }
     }
 
     // Helps to avoid "Stack too deep" in swap() method
