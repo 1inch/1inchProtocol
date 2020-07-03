@@ -42,6 +42,7 @@ start_ganache() {
         node_modules/.bin/testrpc-sc --gasLimit 0xfffffffffff --port "$ganache_port" "${accounts[@]}" > /dev/null &
     else
         [ -z "$ETH_NODE" ] && source .env
+        echo "Forking $ETH_NODE ..."
         node_modules/.bin/ganache-cli -f "$ETH_NODE" --allowUnlimitedContractSize --gasLimit 0xfffffffffff --port "$ganache_port" "${accounts[@]}" > /dev/null &
     fi
 
@@ -69,5 +70,5 @@ if [ "$SOLIDITY_COVERAGE" = true ]; then
         cat coverage/lcov.info | node_modules/.bin/coveralls
     fi
 else
-    yarn truffle test --stacktrace-extra "$@"
+    yarn truffle test --stacktrace "$@"
 fi

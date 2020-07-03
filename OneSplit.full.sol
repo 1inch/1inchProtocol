@@ -518,6 +518,19 @@ contract IBancorContractRegistry {
     function addressOf(bytes32 contractName) external view returns (address);
 }
 
+// File: contracts/interface/IBancorNetworkPathFinder.sol
+
+pragma solidity ^0.5.0;
+
+
+
+interface IBancorNetworkPathFinder {
+    function generatePath(IERC20 sourceToken, IERC20 targetToken)
+        external
+        view
+        returns (address[] memory);
+}
+
 // File: contracts/interface/IBancorConverterRegistry.sol
 
 pragma solidity ^0.5.0;
@@ -549,6 +562,22 @@ contract IBancorEtherToken is IERC20 {
     function deposit() external payable;
 
     function withdraw(uint256 amount) external;
+}
+
+// File: contracts/interface/IBancorFinder.sol
+
+pragma solidity ^0.5.0;
+
+
+
+interface IBancorFinder {
+    function buildBancorPath(
+        IERC20 fromToken,
+        IERC20 destToken
+    )
+        external
+        view
+        returns(address[] memory path);
 }
 
 // File: contracts/interface/IOasisExchange.sol
@@ -597,6 +626,38 @@ interface ICurve {
 
     // solium-disable-next-line mixedcase
     function exchange(int128 i, int128 j, uint256 dx, uint256 minDy) external;
+}
+
+
+contract ICurveRegistry {
+    function get_pool_info(address pool)
+        external
+        view
+        returns(
+            uint256[8] memory balances,
+            uint256[8] memory underlying_balances,
+            uint256[8] memory decimals,
+            uint256[8] memory underlying_decimals,
+            address lp_token,
+            uint256 A,
+            uint256 fee
+        );
+}
+
+
+contract ICurveCalculator {
+    function get_dy(
+        int128 nCoins,
+        uint256[8] calldata balances,
+        uint256 amp,
+        uint256 fee,
+        uint256[8] calldata rates,
+        uint256[8] calldata precisions,
+        bool underlying,
+        int128 i,
+        int128 j,
+        uint256[100] calldata dx
+    ) external view returns(uint256[100] memory dy);
 }
 
 // File: contracts/interface/IChai.sol
@@ -1285,7 +1346,8 @@ pragma solidity ^0.5.0;
 
 
 
-//import "./interface/IBancorNetworkPathFinder.sol";
+
+
 
 
 
@@ -1377,8 +1439,9 @@ contract OneSplitRoot is IOneSplitView {
     IKyberNetworkProxy constant internal kyberNetworkProxy = IKyberNetworkProxy(0x818E6FECD516Ecc3849DAf6845e3EC868087B755);
     IUniswapFactory constant internal uniswapFactory = IUniswapFactory(0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95);
     IBancorContractRegistry constant internal bancorContractRegistry = IBancorContractRegistry(0x52Ae12ABe5D8BD778BD5397F99cA900624CfADD4);
-    //IBancorNetworkPathFinder constant internal bancorNetworkPathFinder = IBancorNetworkPathFinder(0x6F0cD8C4f6F06eAB664C7E3031909452b4B72861);
+    IBancorNetworkPathFinder constant internal bancorNetworkPathFinder = IBancorNetworkPathFinder(0x6F0cD8C4f6F06eAB664C7E3031909452b4B72861);
     //IBancorConverterRegistry constant internal bancorConverterRegistry = IBancorConverterRegistry(0xf6E2D7F616B67E46D708e4410746E9AAb3a4C518);
+    IBancorFinder constant internal bancorFinder = IBancorFinder(0x2B344e14dc2641D11D338C053C908c7A7D4c30B9);
     IOasisExchange constant internal oasisExchange = IOasisExchange(0x794e6e91555438aFc3ccF1c5076A74F42133d08D);
     ICurve constant internal curveCompound = ICurve(0xA2B47E3D5c44877cca798226B7B8118F9BFb7A56);
     ICurve constant internal curveUSDT = ICurve(0x52EA46506B9CC5Ef470C5bf89f17Dc28bB35D85C);
@@ -1399,6 +1462,8 @@ contract OneSplitRoot is IOneSplitView {
     IMStable constant internal musd = IMStable(0xe2f2a5C287993345a840Db3B0845fbC70f5935a5);
     IMassetRedemptionValidator constant internal musd_helper = IMassetRedemptionValidator(0x4c5e03065bC52cCe84F3ac94DF14bbAC27eac89b);
     IBalancerRegistry constant internal balancerRegistry = IBalancerRegistry(0x65e67cbc342712DF67494ACEfc06fe951EE93982);
+    ICurveCalculator constant internal curveCalculator = ICurveCalculator(0xc1DB00a8E5Ef7bfa476395cdbcc98235477cDE4E);
+    ICurveRegistry constant internal curveRegistry = ICurveRegistry(0x7002B727Ef8F5571Cb5F9D70D13DBEEb4dFAe9d1);
 
     int256 internal constant VERY_NEGATIVE_VALUE = -1e72;
 
@@ -1454,86 +1519,6 @@ contract OneSplitRoot is IOneSplitView {
         }
 
         returnAmount = (answer[n - 1][s] == VERY_NEGATIVE_VALUE) ? 0 : answer[n - 1][s];
-    }
-
-    function _buildBancorPath(
-        IERC20 fromToken,
-        IERC20 destToken
-    ) internal view returns(address[] memory path) {
-        if (fromToken == destToken) {
-            return new address[](0);
-        }
-
-        if (fromToken.isETH()) {
-            fromToken = ETH_ADDRESS;
-        }
-        if (destToken.isETH()) {
-            destToken = ETH_ADDRESS;
-        }
-
-        if (fromToken == bnt || destToken == bnt) {
-            path = new address[](3);
-        } else {
-            path = new address[](5);
-        }
-
-        address fromConverter;
-        address toConverter;
-
-        IBancorConverterRegistry bancorConverterRegistry = IBancorConverterRegistry(bancorContractRegistry.addressOf("BancorConverterRegistry"));
-
-        if (fromToken != bnt) {
-            (bool success, bytes memory data) = address(bancorConverterRegistry).staticcall.gas(100000)(abi.encodeWithSelector(
-                bancorConverterRegistry.getConvertibleTokenSmartToken.selector,
-                fromToken.isETH() ? ETH_ADDRESS : fromToken,
-                0
-            ));
-            if (!success) {
-                return new address[](0);
-            }
-
-            fromConverter = abi.decode(data, (address));
-            if (fromConverter == address(0)) {
-                return new address[](0);
-            }
-        }
-
-        if (destToken != bnt) {
-            (bool success, bytes memory data) = address(bancorConverterRegistry).staticcall.gas(100000)(abi.encodeWithSelector(
-                bancorConverterRegistry.getConvertibleTokenSmartToken.selector,
-                destToken.isETH() ? ETH_ADDRESS : destToken,
-                0
-            ));
-            if (!success) {
-                return new address[](0);
-            }
-
-            toConverter = abi.decode(data, (address));
-            if (toConverter == address(0)) {
-                return new address[](0);
-            }
-        }
-
-        if (destToken == bnt) {
-            path[0] = address(fromToken);
-            path[1] = fromConverter;
-            path[2] = address(bnt);
-            return path;
-        }
-
-        if (fromToken == bnt) {
-            path[0] = address(bnt);
-            path[1] = toConverter;
-            path[2] = address(destToken);
-            return path;
-        }
-
-        path[0] = address(fromToken);
-        path[1] = fromConverter;
-        path[2] = address(bnt);
-        path[3] = toConverter;
-        path[4] = address(destToken);
-        return path;
     }
 
     function _getCompoundToken(IERC20 token) internal pure returns(ICompoundToken) {
@@ -1856,11 +1841,11 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             false, // "Kyber",
             false, // "Bancor",
             false, // "Oasis",
-            false, // "Curve Compound",
-            false, // "Curve USDT",
-            false, // "Curve Y",
-            false, // "Curve Binance",
-            false, // "CurveSynthetix",
+            true,  // "Curve Compound",
+            true,  // "Curve USDT",
+            true,  // "Curve Y",
+            true,  // "Curve Binance",
+            true,  // "Curve Synthetix",
             true,  // "Uniswap Compound",
             true,  // "Uniswap CHAI",
             true,  // "Uniswap Aave",
@@ -1869,13 +1854,13 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             true,  // "Uniswap V2 (ETH)",
             true,  // "Uniswap V2 (DAI)",
             true,  // "Uniswap V2 (USDC)",
-            false, // "Curve Pax",
-            false, // "Curve RenBTC",
-            false, // "Curve tBTC",
+            true,  // "Curve Pax",
+            true,  // "Curve RenBTC",
+            true,  // "Curve tBTC",
             true,  // "Dforce XSwap",
             false, // "Shell",
             true,  // "mStable",
-            false, // "Curve sBTC"
+            true,  // "Curve sBTC"
             true,  // "Balancer 1"
             true,  // "Balancer 2"
             true   // "Balancer 3"
@@ -2070,16 +2055,51 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         );
     }
 
-    function _calculateCurveSelector(
+    function _getCurvePoolInfo(
         ICurve curve,
-        bytes4 sel,
-        IERC20[] memory tokens,
+        bool haveUnderlying
+    ) internal view returns(
+        uint256[8] memory balances,
+        uint256[8] memory precisions,
+        uint256[8] memory rates,
+        uint256 amp,
+        uint256 fee
+    ) {
+        uint256[8] memory underlying_balances;
+        uint256[8] memory decimals;
+        uint256[8] memory underlying_decimals;
+
+        (
+            balances,
+            underlying_balances,
+            decimals,
+            underlying_decimals,
+            /*address lp_token*/,
+            amp,
+            fee
+        ) = curveRegistry.get_pool_info(address(curve));
+
+        for (uint k = 0; k < 8 && balances[k] > 0; k++) {
+            precisions[k] = 10 ** (18 - (haveUnderlying ? underlying_decimals : decimals)[k]);
+            if (haveUnderlying) {
+                rates[k] = underlying_balances[k].mul(1e18).div(balances[k]);
+            } else {
+                rates[k] = 1e18;
+            }
+        }
+    }
+
+    function _calculateCurveSelector(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
         uint256 parts,
-        uint256 /*flags*/
+        ICurve curve,
+        bool haveUnderlying,
+        IERC20[] memory tokens
     ) internal view returns(uint256[] memory rets) {
+        rets = new uint256[](parts);
+
         int128 i = 0;
         int128 j = 0;
         for (uint t = 0; t < tokens.length; t++) {
@@ -2092,15 +2112,57 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         }
 
         if (i == 0 || j == 0) {
-            return new uint256[](parts);
+            return rets;
         }
 
-        // curve.get_dy(i - 1, j - 1, amount);
-        // curve.get_dy_underlying(i - 1, j - 1, amount);
-        (bool success, bytes memory data) = address(curve).staticcall(abi.encodeWithSelector(sel, i - 1, j - 1, amount));
-        uint256 maxRet = (!success || data.length == 0) ? 0 : abi.decode(data, (uint256));
+        bytes memory data = abi.encodePacked(
+            uint256(haveUnderlying ? 1 : 0),
+            uint256(i - 1),
+            uint256(j - 1),
+            _linearInterpolation100(amount, parts)
+        );
 
-        return _linearInterpolation(maxRet, parts);
+        (
+            uint256[8] memory balances,
+            uint256[8] memory precisions,
+            uint256[8] memory rates,
+            uint256 amp,
+            uint256 fee
+        ) = _getCurvePoolInfo(curve, haveUnderlying);
+
+        bool success;
+        (success, data) = address(curveCalculator).staticcall(
+            abi.encodePacked(
+                abi.encodeWithSelector(
+                    curveCalculator.get_dy.selector,
+                    tokens.length,
+                    balances,
+                    amp,
+                    fee,
+                    rates,
+                    precisions
+                ),
+                data
+            )
+        );
+
+        if (!success || data.length == 0) {
+            return rets;
+        }
+
+        uint256[100] memory dy = abi.decode(data, (uint256[100]));
+        for (uint t = 0; t < parts; t++) {
+            rets[t] = dy[t];
+        }
+    }
+
+    function _linearInterpolation100(
+        uint256 value,
+        uint256 parts
+    ) internal pure returns(uint256[100] memory rets) {
+        for (uint i = 0; i < parts; i++) {
+            rets[i] = value.mul(i + 1).div(parts);
+        }
     }
 
     function calculateCurveCompound(
@@ -2108,20 +2170,19 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 destToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 /*flags*/
     ) internal view returns(uint256[] memory rets, uint256 gas) {
         IERC20[] memory tokens = new IERC20[](2);
         tokens[0] = dai;
         tokens[1] = usdc;
         return (_calculateCurveSelector(
-            curveCompound,
-            curveCompound.get_dy_underlying.selector,
-            tokens,
             fromToken,
             destToken,
             amount,
             parts,
-            flags
+            curveCompound,
+            true,
+            tokens
         ), 720_000);
     }
 
@@ -2130,21 +2191,20 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 destToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 /*flags*/
     ) internal view returns(uint256[] memory rets, uint256 gas) {
         IERC20[] memory tokens = new IERC20[](3);
         tokens[0] = dai;
         tokens[1] = usdc;
         tokens[2] = usdt;
         return (_calculateCurveSelector(
-            curveUSDT,
-            curveUSDT.get_dy_underlying.selector,
-            tokens,
             fromToken,
             destToken,
             amount,
             parts,
-            flags
+            curveUSDT,
+            true,
+            tokens
         ), 720_000);
     }
 
@@ -2153,7 +2213,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 destToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 /*flags*/
     ) internal view returns(uint256[] memory rets, uint256 gas) {
         IERC20[] memory tokens = new IERC20[](4);
         tokens[0] = dai;
@@ -2161,14 +2221,13 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         tokens[2] = usdt;
         tokens[3] = tusd;
         return (_calculateCurveSelector(
-            curveY,
-            curveY.get_dy_underlying.selector,
-            tokens,
             fromToken,
             destToken,
             amount,
             parts,
-            flags
+            curveY,
+            true,
+            tokens
         ), 1_400_000);
     }
 
@@ -2177,7 +2236,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 destToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 /*flags*/
     ) internal view returns(uint256[] memory rets, uint256 gas) {
         IERC20[] memory tokens = new IERC20[](4);
         tokens[0] = dai;
@@ -2185,14 +2244,13 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         tokens[2] = usdt;
         tokens[3] = busd;
         return (_calculateCurveSelector(
-            curveBinance,
-            curveBinance.get_dy_underlying.selector,
-            tokens,
             fromToken,
             destToken,
             amount,
             parts,
-            flags
+            curveBinance,
+            true,
+            tokens
         ), 1_400_000);
     }
 
@@ -2201,7 +2259,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 destToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 /*flags*/
     ) internal view returns(uint256[] memory rets, uint256 gas) {
         IERC20[] memory tokens = new IERC20[](4);
         tokens[0] = dai;
@@ -2209,14 +2267,13 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         tokens[2] = usdt;
         tokens[3] = susd;
         return (_calculateCurveSelector(
-            curveSynthetix,
-            curveSynthetix.get_dy_underlying.selector,
-            tokens,
             fromToken,
             destToken,
             amount,
             parts,
-            flags
+            curveSynthetix,
+            true,
+            tokens
         ), 200_000);
     }
 
@@ -2225,7 +2282,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 destToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 /*flags*/
     ) internal view returns(uint256[] memory rets, uint256 gas) {
         IERC20[] memory tokens = new IERC20[](4);
         tokens[0] = dai;
@@ -2233,14 +2290,13 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         tokens[2] = usdt;
         tokens[3] = pax;
         return (_calculateCurveSelector(
-            curvePAX,
-            curvePAX.get_dy_underlying.selector,
-            tokens,
             fromToken,
             destToken,
             amount,
             parts,
-            flags
+            curvePAX,
+            true,
+            tokens
         ), 1_000_000);
     }
 
@@ -2249,20 +2305,19 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 destToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 /*flags*/
     ) internal view returns(uint256[] memory rets, uint256 gas) {
         IERC20[] memory tokens = new IERC20[](2);
         tokens[0] = renbtc;
         tokens[1] = wbtc;
         return (_calculateCurveSelector(
-            curveRenBTC,
-            curveRenBTC.get_dy.selector,
-            tokens,
             fromToken,
             destToken,
             amount,
             parts,
-            flags
+            curveRenBTC,
+            false,
+            tokens
         ), 130_000);
     }
 
@@ -2271,21 +2326,20 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 destToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 /*flags*/
     ) internal view returns(uint256[] memory rets, uint256 gas) {
         IERC20[] memory tokens = new IERC20[](3);
         tokens[0] = tbtc;
         tokens[1] = wbtc;
         tokens[2] = hbtc;
         return (_calculateCurveSelector(
-            curveTBTC,
-            curveTBTC.get_dy.selector,
-            tokens,
             fromToken,
             destToken,
             amount,
             parts,
-            flags
+            curveTBTC,
+            false,
+            tokens
         ), 145_000);
     }
 
@@ -2294,21 +2348,20 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 destToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 /*flags*/
     ) internal view returns(uint256[] memory rets, uint256 gas) {
         IERC20[] memory tokens = new IERC20[](3);
         tokens[0] = renbtc;
         tokens[1] = wbtc;
         tokens[2] = sbtc;
         return (_calculateCurveSelector(
-            curveSBTC,
-            curveSBTC.get_dy.selector,
-            tokens,
             fromToken,
             destToken,
             amount,
             parts,
-            flags
+            curveSBTC,
+            false,
+            tokens
         ), 150_000);
     }
 
@@ -2363,6 +2416,9 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
     }
 
     function _calculateUniswapFormula(uint256 fromBalance, uint256 toBalance, uint256 amount) internal pure returns(uint256) {
+        if (amount == 0) {
+            return 0;
+        }
         return amount.mul(toBalance).mul(997).div(
             fromBalance.mul(1000).add(amount.mul(997))
         );
@@ -2678,7 +2734,11 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         uint256 /*flags*/
     ) internal view returns(uint256[] memory rets, uint256 gas) {
         IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
-        address[] memory path = _buildBancorPath(fromToken, destToken);
+
+        address[] memory path = bancorFinder.buildBancorPath(
+            fromToken.isETH() ? bancorEtherToken : fromToken,
+            destToken.isETH() ? bancorEtherToken : destToken
+        );
 
         rets = _linearInterpolation(amount, parts);
         for (uint i = 0; i < parts; i++) {
@@ -3406,7 +3466,10 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         uint256 amount
     ) internal returns(uint256) {
         IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
-        address[] memory path = _buildBancorPath(fromToken, destToken);
+        address[] memory path = bancorNetworkPathFinder.generatePath(
+            fromToken.isETH() ? bancorEtherToken : fromToken,
+            destToken.isETH() ? bancorEtherToken : destToken
+        );
         fromToken.universalApprove(address(bancorNetwork), amount);
         return bancorNetwork.convert.value(fromToken.isETH() ? amount : 0)(path, amount, 1);
     }

@@ -1,0 +1,1 @@
+[{"constant":true,"inputs":[{"internalType":"contract IERC20","name":"fromToken","type":"address"},{"internalType":"contract IERC20","name":"destToken","type":"address"}],"name":"buildBancorPath","outputs":[{"internalType":"address[]","name":"path","type":"address[]"}],"payable":false,"stateMutability":"view","type":"function"}]
