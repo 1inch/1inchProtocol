@@ -8,6 +8,9 @@ const OneSplit = artifacts.require('OneSplit');
 const OneSplitWrap = artifacts.require('OneSplitWrap');
 
 const DISABLE_ALL = 0x20000000 + 0x40000000;
+const CURVE_SYNTHETIX = 0x40000;
+const CURVE_COMPOUND = 0x1000;
+const CURVE_ALL = 0x200000000000;
 
 contract('OneSplit', function ([_, addr1]) {
     describe('OneSplit', async function () {
@@ -88,13 +91,13 @@ contract('OneSplit', function ([_, addr1]) {
                 '0x6B175474E89094C44Da98b954EedeAC495271d0F', // DAI
                 '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC
                 '1000000000000000000000000', // 1,000,000.00
-                10,
-                DISABLE_ALL + 0x200000000000, // enable only all curves
+                4,
+                DISABLE_ALL + CURVE_COMPOUND + CURVE_SYNTHETIX, // enable only all curves
             );
 
             console.log('Swap: 1,000,000 DAI');
             console.log('returnAmount:', res.returnAmount.toString() / 1e18 + ' USDC');
-            // console.log('distribution:', res.distribution.map(a => a.toString()));
+            console.log('distribution:', res.distribution.map(a => a.toString()));
             // console.log('raw:', res.returnAmount.toString());
             expect(res.distribution.filter(r => r.gt(new BN(0))).length).to.be.above(1);
         });

@@ -42,7 +42,7 @@ start_ganache() {
         node_modules/.bin/testrpc-sc --gasLimit 0xfffffffffff --port "$ganache_port" "${accounts[@]}" > /dev/null &
     else
         [ -z "$ETH_NODE" ] && source .env
-        echo "Forking $ETH_NODE ..."
+        echo "Using ETH_NODE env variable to fork Ethereum Mainnet, ensure to define it in .env file"
         node_modules/.bin/ganache-cli -f "$ETH_NODE" --allowUnlimitedContractSize --gasLimit 0xfffffffffff --port "$ganache_port" "${accounts[@]}" > /dev/null &
     fi
 

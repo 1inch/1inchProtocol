@@ -3609,7 +3609,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             weth.deposit.value(amount)();
         }
 
-        (fromToken.isETH() ? weth : destToken).universalApprove(pools[poolIndex], amount);
+        (fromToken.isETH() ? weth : fromToken).universalApprove(pools[poolIndex], amount);
         IBalancerPool(pools[poolIndex]).swapExactAmountIn(
             fromToken.isETH() ? weth : fromToken,
             amount,
