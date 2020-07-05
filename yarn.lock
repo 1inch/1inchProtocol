@@ -1852,10 +1852,10 @@ eslint-plugin-es@^3.0.0:
     eslint-utils "^2.0.0"
     regexpp "^3.0.0"
 
-eslint-plugin-import@^2.21.2:
-  version "2.21.2"
-  resolved "https://registry.yarnpkg.com/eslint-plugin-import/-/eslint-plugin-import-2.21.2.tgz#8fef77475cc5510801bedc95f84b932f7f334a7c"
-  integrity sha512-FEmxeGI6yaz+SnEB6YgNHlQK1Bs2DKLM+YF+vuTk5H8J9CLbJLtlPvRFgZZ2+sXiKAlN5dpdlrWOjK8ZoZJpQA==
+eslint-plugin-import@^2.22.0:
+  version "2.22.0"
+  resolved "https://registry.yarnpkg.com/eslint-plugin-import/-/eslint-plugin-import-2.22.0.tgz#92f7736fe1fde3e2de77623c838dd992ff5ffb7e"
+  integrity sha512-66Fpf1Ln6aIS5Gr/55ts19eUuoDhAbZgnr6UxK5hbDx6l/QgQgx61AePq+BV4PP2uXQFClgMVzep5zZ94qqsxg==
   dependencies:
     array-includes "^3.1.1"
     array.prototype.flat "^1.2.3"
@@ -5581,10 +5581,10 @@ solc@^0.5.17:
     semver "^5.5.0"
     tmp "0.0.33"
 
-solidity-coverage@^0.7.8:
-  version "0.7.8"
-  resolved "https://registry.yarnpkg.com/solidity-coverage/-/solidity-coverage-0.7.8.tgz#dbc58bb522ad25b2f3b4f80d073a49d8767b725f"
-  integrity sha512-m/lXaAFrfevzJ39rOp6mGnQH0MtZAt3flqQErBoFVxZA3RrpJv+hR9lgJ8lk+9CM36Mn3xxFbbR3N5nATtdpWA==
+solidity-coverage@^0.7.9:
+  version "0.7.9"
+  resolved "https://registry.yarnpkg.com/solidity-coverage/-/solidity-coverage-0.7.9.tgz#6d1c40639066b93c67b21da48f4bc27ae01f0e58"
+  integrity sha512-UWkl0iNmpjuVanPWvZzF6eCAKwbEmmolmzwbN8nU+MexOKO3eW6kVbxBkfEjVa8TuQcLb0F2wdgXJZBRbjpjnA==
   dependencies:
     "@solidity-parser/parser" "^0.6.0"
     "@truffle/provider" "^0.1.17"
@@ -6101,10 +6101,10 @@ truffle-flattener@^1.4.4:
     mkdirp "^1.0.4"
     tsort "0.0.1"
 
-truffle@^5.1.31:
-  version "5.1.31"
-  resolved "https://registry.yarnpkg.com/truffle/-/truffle-5.1.31.tgz#fbf1416a2855442189d124c03343b7f8523dadf2"
-  integrity sha512-T9CJ90qInf+/rFxSLdF/nhTZNUV8cZx70iO0EsqXWm6ibcC5/dzRDDfl6FC/xLndpnKZIhs4RJL0TEG7rLohJg==
+truffle@^5.1.32:
+  version "5.1.32"
+  resolved "https://registry.yarnpkg.com/truffle/-/truffle-5.1.32.tgz#01d73df23f28007ddb8d32c0560e7d0fe8ff60d1"
+  integrity sha512-wrMQDvZ1P4FrSIc9CUCD6y1mTtK7bUDgJSW1k1r33BBtzqyJ5oKoZ30IgickUW669gABClYDMk6tj5gVrmZCng==
   dependencies:
     app-module-path "^2.2.0"
     mocha "5.2.0"

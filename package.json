@@ -15,7 +15,7 @@
         "coveralls": "^3.1.0",
         "eslint": "^7.3.1",
         "eslint-config-standard": "^14.1.1",
-        "eslint-plugin-import": "^2.21.2",
+        "eslint-plugin-import": "^2.22.0",
         "eslint-plugin-node": "^11.1.0",
         "eslint-plugin-promise": "^4.0.1",
         "eslint-plugin-standard": "^4.0.0",
@@ -23,9 +23,9 @@
         "ganache-cli": "^6.9.1",
         "@openzeppelin/test-helpers": "^0.5.6",
         "solc": "^0.5.17",
-        "solidity-coverage": "^0.7.8",
+        "solidity-coverage": "^0.7.9",
         "ethlint": "^1.2.5",
-        "truffle": "^5.1.31",
+        "truffle": "^5.1.32",
         "truffle-flattener": "^1.4.4"
     },
     "scripts": {
@@ -39,6 +39,7 @@
         "lint:fix": "npm run lint:js:fix && npm run lint:sol:fix",
         "dist": "truffle-flattener ./contracts/OneSplit.sol > OneSplit.full.sol && solcjs --bin --abi --optimize OneSplit.full.sol && mv OneSplit_full_sol_OneSplit.bin OneSplit.full.bin && mv OneSplit_full_sol_OneSplit.abi OneSplit.full.abi && rm *_sol_*",
         "dist:view": "truffle-flattener ./contracts/OneSplit.sol > OneSplitView.full.sol && solcjs --bin --abi --optimize OneSplitView.full.sol && mv OneSplitView_full_sol_OneSplitView.bin OneSplitView.full.bin && mv OneSplitView_full_sol_OneSplitView.abi OneSplitView.full.abi && rm *_sol_*",
-        "dist:audit": "truffle-flattener ./contracts/OneSplitAudit.sol > OneSplitAudit.full.sol && solcjs --bin --abi --optimize OneSplitAudit.full.sol && mv OneSplitAudit_full_sol_OneSplitAudit.bin OneSplitAudit.full.bin && mv OneSplitAudit_full_sol_OneSplitAudit.abi OneSplitAudit.full.abi && rm *_sol_*"
+        "dist:audit": "truffle-flattener ./contracts/OneSplitAudit.sol > OneSplitAudit.full.sol && solcjs --bin --abi --optimize OneSplitAudit.full.sol && mv OneSplitAudit_full_sol_OneSplitAudit.bin OneSplitAudit.full.bin && mv OneSplitAudit_full_sol_OneSplitAudit.abi OneSplitAudit.full.abi && rm *_sol_*",
+        "dist:bnt": "truffle-flattener ./contracts/BancorFinder.sol > BancorFinder.full.sol && solcjs --bin --abi --optimize BancorFinder.full.sol && mv BancorFinder_full_sol_BancorFinder.bin BancorFinder.full.bin && mv BancorFinder_full_sol_BancorFinder.abi BancorFinder.full.abi && rm *_sol_*"
     }
 }

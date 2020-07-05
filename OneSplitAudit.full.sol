@@ -187,143 +187,16 @@ interface IERC20 {
     event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
-// File: contracts/IOneSplit.sol
+// File: contracts/interface/IWETH.sol
 
 pragma solidity ^0.5.0;
 
 
-//
-//  [ msg.sender ]
-//       | |
-//       | |
-//       \_/
-// +---------------+ ________________________________
-// | OneSplitAudit | _______________________________  \
-// +---------------+                                 \ \
-//       | |                      ______________      | | (staticcall)
-//       | |                    /  ____________  \    | |
-//       | | (call)            / /              \ \   | |
-//       | |                  / /               | |   | |
-//       \_/                  | |               \_/   \_/
-// +--------------+           | |           +----------------------+
-// | OneSplitWrap |           | |           |   OneSplitViewWrap   |
-// +--------------+           | |           +----------------------+
-//       | |                  | |                     | |
-//       | | (delegatecall)   | | (staticcall)        | | (staticcall)
-//       \_/                  | |                     \_/
-// +--------------+           | |             +------------------+
-// |   OneSplit   |           | |             |   OneSplitView   |
-// +--------------+           | |             +------------------+
-//       | |                  / /
-//        \ \________________/ /
-//         \__________________/
-//
 
+contract IWETH is IERC20 {
+    function deposit() external payable;
 
-contract IOneSplitConsts {
-    // flags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_KYBER + ...
-    uint256 internal constant FLAG_DISABLE_UNISWAP = 0x01;
-    uint256 internal constant FLAG_DISABLE_KYBER = 0x02;
-    uint256 internal constant FLAG_DISABLE_BANCOR = 0x04;
-    uint256 internal constant FLAG_DISABLE_OASIS = 0x08;
-    uint256 internal constant FLAG_DISABLE_COMPOUND = 0x10;
-    uint256 internal constant FLAG_DISABLE_FULCRUM = 0x20;
-    uint256 internal constant FLAG_DISABLE_CHAI = 0x40;
-    uint256 internal constant FLAG_DISABLE_AAVE = 0x80;
-    uint256 internal constant FLAG_DISABLE_SMART_TOKEN = 0x100;
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_ETH = 0x200; // Turned off by default
-    uint256 internal constant FLAG_DISABLE_BDAI = 0x400;
-    uint256 internal constant FLAG_DISABLE_IEARN = 0x800;
-    uint256 internal constant FLAG_DISABLE_CURVE_COMPOUND = 0x1000;
-    uint256 internal constant FLAG_DISABLE_CURVE_USDT = 0x2000;
-    uint256 internal constant FLAG_DISABLE_CURVE_Y = 0x4000;
-    uint256 internal constant FLAG_DISABLE_CURVE_BINANCE = 0x8000;
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_DAI = 0x10000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_USDC = 0x20000; // Turned off by default
-    uint256 internal constant FLAG_DISABLE_CURVE_SYNTHETIX = 0x40000;
-    uint256 internal constant FLAG_DISABLE_WETH = 0x80000;
-    uint256 internal constant FLAG_DISABLE_UNISWAP_COMPOUND = 0x100000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
-    uint256 internal constant FLAG_DISABLE_UNISWAP_CHAI = 0x200000; // Works only when ETH<>DAI or FLAG_ENABLE_MULTI_PATH_ETH
-    uint256 internal constant FLAG_DISABLE_UNISWAP_AAVE = 0x400000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
-    uint256 internal constant FLAG_DISABLE_IDLE = 0x800000;
-    uint256 internal constant FLAG_DISABLE_MOONISWAP = 0x1000000;
-    uint256 internal constant FLAG_DISABLE_UNISWAP_V2 = 0x2000000;
-    uint256 internal constant FLAG_DISABLE_UNISWAP_V2_ETH = 0x4000000;
-    uint256 internal constant FLAG_DISABLE_UNISWAP_V2_DAI = 0x8000000;
-    uint256 internal constant FLAG_DISABLE_UNISWAP_V2_USDC = 0x10000000;
-    uint256 internal constant FLAG_DISABLE_ALL_SPLIT_SOURCES = 0x20000000;
-    uint256 internal constant FLAG_DISABLE_ALL_WRAP_SOURCES = 0x40000000;
-    uint256 internal constant FLAG_DISABLE_CURVE_PAX = 0x80000000;
-    uint256 internal constant FLAG_DISABLE_CURVE_RENBTC = 0x100000000;
-    uint256 internal constant FLAG_DISABLE_CURVE_TBTC = 0x200000000;
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_USDT = 0x400000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_WBTC = 0x800000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_TBTC = 0x1000000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_RENBTC = 0x2000000000; // Turned off by default
-    uint256 internal constant FLAG_DISABLE_DFORCE_SWAP = 0x4000000000;
-    uint256 internal constant FLAG_DISABLE_SHELL = 0x8000000000;
-    uint256 internal constant FLAG_ENABLE_CHI_BURN = 0x10000000000;
-    uint256 internal constant FLAG_DISABLE_MSTABLE_MUSD = 0x20000000000;
-    uint256 internal constant FLAG_DISABLE_CURVE_SBTC = 0x40000000000;
-    uint256 internal constant FLAG_DISABLE_DMM = 0x80000000000;
-    uint256 internal constant FLAG_DISABLE_UNISWAP_ALL = 0x100000000000;
-    uint256 internal constant FLAG_DISABLE_CURVE_ALL = 0x200000000000;
-    uint256 internal constant FLAG_DISABLE_UNISWAP_V2_ALL = 0x400000000000;
-    uint256 internal constant FLAG_DISABLE_SPLIT_RECALCULATION = 0x800000000000;
-    uint256 internal constant FLAG_DISABLE_BALANCER_ALL = 0x1000000000000;
-    uint256 internal constant FLAG_DISABLE_BALANCER_1 = 0x2000000000000;
-    uint256 internal constant FLAG_DISABLE_BALANCER_2 = 0x4000000000000;
-    uint256 internal constant FLAG_DISABLE_BALANCER_3 = 0x8000000000000;
-    uint256 internal constant FLAG_ENABLE_KYBER_UNISWAP_RESERVE = 0x1000000000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_KYBER_OASIS_RESERVE = 0x2000000000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_KYBER_BANCOR_RESERVE = 0x4000000000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_REFERRAL_GAS_SPONSORSHIP = 0x8000000000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_COMP = 0x10000000000000; // Turned off by default
-}
-
-
-contract IOneSplit is IOneSplitConsts {
-    function getExpectedReturn(
-        IERC20 fromToken,
-        IERC20 destToken,
-        uint256 amount,
-        uint256 parts,
-        uint256 flags // See constants in IOneSplit.sol
-    )
-        public
-        view
-        returns(
-            uint256 returnAmount,
-            uint256[] memory distribution
-        );
-
-    function getExpectedReturnWithGas(
-        IERC20 fromToken,
-        IERC20 destToken,
-        uint256 amount,
-        uint256 parts,
-        uint256 flags, // See constants in IOneSplit.sol
-        uint256 destTokenEthPriceTimesGasPrice
-    )
-        public
-        view
-        returns(
-            uint256 returnAmount,
-            uint256 estimateGasAmount,
-            uint256[] memory distribution
-        );
-
-    function swap(
-        IERC20 fromToken,
-        IERC20 destToken,
-        uint256 amount,
-        uint256 minReturn,
-        uint256[] memory distribution,
-        uint256 flags
-    )
-        public
-        payable
-        returns(uint256 returnAmount);
+    function withdraw(uint256 amount) external;
 }
 
 // File: @openzeppelin/contracts/math/SafeMath.sol
@@ -749,6 +622,178 @@ library UniversalERC20 {
     }
 }
 
+// File: contracts/interface/IUniswapV2Exchange.sol
+
+pragma solidity ^0.5.0;
+
+
+
+
+
+interface IUniswapV2Exchange {
+    function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external;
+}
+
+
+library UniswapV2ExchangeLib {
+    using SafeMath for uint256;
+    using UniversalERC20 for IERC20;
+
+    function getReturn(
+        IUniswapV2Exchange exchange,
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint amountIn
+    ) internal view returns (uint256) {
+        uint256 reserveIn = fromToken.universalBalanceOf(address(exchange));
+        uint256 reserveOut = destToken.universalBalanceOf(address(exchange));
+
+        uint256 amountInWithFee = amountIn.mul(997);
+        uint256 numerator = amountInWithFee.mul(reserveOut);
+        uint256 denominator = reserveIn.mul(1000).add(amountInWithFee);
+        return (denominator == 0) ? 0 : numerator.div(denominator);
+    }
+}
+
+// File: contracts/IOneSplit.sol
+
+pragma solidity ^0.5.0;
+
+
+//
+//  [ msg.sender ]
+//       | |
+//       | |
+//       \_/
+// +---------------+ ________________________________
+// | OneSplitAudit | _______________________________  \
+// +---------------+                                 \ \
+//       | |                      ______________      | | (staticcall)
+//       | |                    /  ____________  \    | |
+//       | | (call)            / /              \ \   | |
+//       | |                  / /               | |   | |
+//       \_/                  | |               \_/   \_/
+// +--------------+           | |           +----------------------+
+// | OneSplitWrap |           | |           |   OneSplitViewWrap   |
+// +--------------+           | |           +----------------------+
+//       | |                  | |                     | |
+//       | | (delegatecall)   | | (staticcall)        | | (staticcall)
+//       \_/                  | |                     \_/
+// +--------------+           | |             +------------------+
+// |   OneSplit   |           | |             |   OneSplitView   |
+// +--------------+           | |             +------------------+
+//       | |                  / /
+//        \ \________________/ /
+//         \__________________/
+//
+
+
+contract IOneSplitConsts {
+    // flags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_KYBER + ...
+    uint256 internal constant FLAG_DISABLE_UNISWAP = 0x01;
+    uint256 internal constant FLAG_DISABLE_KYBER = 0x02;
+    uint256 internal constant FLAG_DISABLE_BANCOR = 0x04;
+    uint256 internal constant FLAG_DISABLE_OASIS = 0x08;
+    uint256 internal constant FLAG_DISABLE_COMPOUND = 0x10;
+    uint256 internal constant FLAG_DISABLE_FULCRUM = 0x20;
+    uint256 internal constant FLAG_DISABLE_CHAI = 0x40;
+    uint256 internal constant FLAG_DISABLE_AAVE = 0x80;
+    uint256 internal constant FLAG_DISABLE_SMART_TOKEN = 0x100;
+    uint256 internal constant FLAG_ENABLE_MULTI_PATH_ETH = 0x200; // Turned off by default
+    uint256 internal constant FLAG_DISABLE_BDAI = 0x400;
+    uint256 internal constant FLAG_DISABLE_IEARN = 0x800;
+    uint256 internal constant FLAG_DISABLE_CURVE_COMPOUND = 0x1000;
+    uint256 internal constant FLAG_DISABLE_CURVE_USDT = 0x2000;
+    uint256 internal constant FLAG_DISABLE_CURVE_Y = 0x4000;
+    uint256 internal constant FLAG_DISABLE_CURVE_BINANCE = 0x8000;
+    uint256 internal constant FLAG_ENABLE_MULTI_PATH_DAI = 0x10000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_MULTI_PATH_USDC = 0x20000; // Turned off by default
+    uint256 internal constant FLAG_DISABLE_CURVE_SYNTHETIX = 0x40000;
+    uint256 internal constant FLAG_DISABLE_WETH = 0x80000;
+    uint256 internal constant FLAG_DISABLE_UNISWAP_COMPOUND = 0x100000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
+    uint256 internal constant FLAG_DISABLE_UNISWAP_CHAI = 0x200000; // Works only when ETH<>DAI or FLAG_ENABLE_MULTI_PATH_ETH
+    uint256 internal constant FLAG_DISABLE_UNISWAP_AAVE = 0x400000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
+    uint256 internal constant FLAG_DISABLE_IDLE = 0x800000;
+    uint256 internal constant FLAG_DISABLE_MOONISWAP = 0x1000000;
+    uint256 internal constant FLAG_DISABLE_UNISWAP_V2 = 0x2000000;
+    uint256 internal constant FLAG_DISABLE_UNISWAP_V2_ETH = 0x4000000;
+    uint256 internal constant FLAG_DISABLE_UNISWAP_V2_DAI = 0x8000000;
+    uint256 internal constant FLAG_DISABLE_UNISWAP_V2_USDC = 0x10000000;
+    uint256 internal constant FLAG_DISABLE_ALL_SPLIT_SOURCES = 0x20000000;
+    uint256 internal constant FLAG_DISABLE_ALL_WRAP_SOURCES = 0x40000000;
+    uint256 internal constant FLAG_DISABLE_CURVE_PAX = 0x80000000;
+    uint256 internal constant FLAG_DISABLE_CURVE_RENBTC = 0x100000000;
+    uint256 internal constant FLAG_DISABLE_CURVE_TBTC = 0x200000000;
+    uint256 internal constant FLAG_ENABLE_MULTI_PATH_USDT = 0x400000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_MULTI_PATH_WBTC = 0x800000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_MULTI_PATH_TBTC = 0x1000000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_MULTI_PATH_RENBTC = 0x2000000000; // Turned off by default
+    uint256 internal constant FLAG_DISABLE_DFORCE_SWAP = 0x4000000000;
+    uint256 internal constant FLAG_DISABLE_SHELL = 0x8000000000;
+    uint256 internal constant FLAG_ENABLE_CHI_BURN = 0x10000000000;
+    uint256 internal constant FLAG_DISABLE_MSTABLE_MUSD = 0x20000000000;
+    uint256 internal constant FLAG_DISABLE_CURVE_SBTC = 0x40000000000;
+    uint256 internal constant FLAG_DISABLE_DMM = 0x80000000000;
+    uint256 internal constant FLAG_DISABLE_UNISWAP_ALL = 0x100000000000;
+    uint256 internal constant FLAG_DISABLE_CURVE_ALL = 0x200000000000;
+    uint256 internal constant FLAG_DISABLE_UNISWAP_V2_ALL = 0x400000000000;
+    uint256 internal constant FLAG_DISABLE_SPLIT_RECALCULATION = 0x800000000000;
+    uint256 internal constant FLAG_DISABLE_BALANCER_ALL = 0x1000000000000;
+    uint256 internal constant FLAG_DISABLE_BALANCER_1 = 0x2000000000000;
+    uint256 internal constant FLAG_DISABLE_BALANCER_2 = 0x4000000000000;
+    uint256 internal constant FLAG_DISABLE_BALANCER_3 = 0x8000000000000;
+    uint256 internal constant FLAG_ENABLE_KYBER_UNISWAP_RESERVE = 0x10000000000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_KYBER_OASIS_RESERVE = 0x20000000000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_KYBER_BANCOR_RESERVE = 0x40000000000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_REFERRAL_GAS_SPONSORSHIP = 0x80000000000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_MULTI_PATH_COMP = 0x100000000000000; // Turned off by default
+}
+
+
+contract IOneSplit is IOneSplitConsts {
+    function getExpectedReturn(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags // See constants in IOneSplit.sol
+    )
+        public
+        view
+        returns(
+            uint256 returnAmount,
+            uint256[] memory distribution
+        );
+
+    function getExpectedReturnWithGas(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags, // See constants in IOneSplit.sol
+        uint256 destTokenEthPriceTimesGasPrice
+    )
+        public
+        view
+        returns(
+            uint256 returnAmount,
+            uint256 estimateGasAmount,
+            uint256[] memory distribution
+        );
+
+    function swap(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 minReturn,
+        uint256[] memory distribution,
+        uint256 flags
+    )
+        public
+        payable
+        returns(uint256 returnAmount);
+}
+
 // File: contracts/OneSplitAudit.sol
 
 pragma solidity ^0.5.0;
@@ -757,8 +802,10 @@ pragma solidity ^0.5.0;
 
 
 
-interface IFreeFromUpTo {
-    function freeFromUpTo(address from, uint256 value) external returns (uint256 freed);
+
+
+contract IFreeFromUpTo is IERC20 {
+    function freeFromUpTo(address from, uint256 value) external returns(uint256 freed);
 }
 
 interface IReferralGasSponsor {
@@ -783,6 +830,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
     using SafeMath for uint256;
     using UniversalERC20 for IERC20;
 
+    IWETH constant internal weth = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IFreeFromUpTo public constant chi = IFreeFromUpTo(0x0000000000004946c0e9F43F4Dee607b0eF1fA1c);
 
     IOneSplit public oneSplitImpl;
@@ -987,7 +1035,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
 
         if ((flags & FLAG_ENABLE_CHI_BURN) > 0) {
             uint256 gasSpent = 21000 + gasStart - gasleft() + 16 * msg.data.length;
-            chi.freeFromUpTo(msg.sender, (gasSpent + 14154) / 41947);
+            _chiBurnOrSell((gasSpent + 14154) / 41947);
         }
         else if ((flags & FLAG_ENABLE_REFERRAL_GAS_SPONSORSHIP) > 0) {
             uint256 gasSpent = 21000 + gasStart - gasleft() + 16 * msg.data.length;
@@ -997,6 +1045,22 @@ contract OneSplitAudit is IOneSplit, Ownable {
 
     function claimAsset(IERC20 asset, uint256 amount) public onlyOwner {
         asset.universalTransfer(msg.sender, amount);
+    }
+
+    function _chiBurnOrSell(uint256 amount) internal {
+        IUniswapV2Exchange exchange = IUniswapV2Exchange(0xa6f3ef841d371a82ca757FaD08efc0DeE2F1f5e2);
+        uint256 sellRefund = UniswapV2ExchangeLib.getReturn(exchange, chi, weth, amount);
+        uint256 burnRefund = amount.mul(18_000).mul(tx.gasprice);
+
+        if (sellRefund < burnRefund.add(tx.gasprice.mul(36_000))) {
+            chi.freeFromUpTo(msg.sender, amount);
+        }
+        else {
+            chi.transferFrom(msg.sender, address(exchange), amount);
+            exchange.swap(0, sellRefund, address(this), "");
+            weth.withdraw(weth.balanceOf(address(this)));
+            msg.sender.transfer(address(this).balance);
+        }
     }
 
     // Helps to avoid "Stack too deep" in swap() method
