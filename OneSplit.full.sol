@@ -477,15 +477,9 @@ pragma solidity ^0.5.0;
 
 
 interface IKyberStorage {
-    function getReserveAddressesPerTokenSrc(
-        IERC20 token,
-        uint256 startIndex,
-        uint256 endToken
-    ) external view returns (address[] memory);
-
-    function getReserveId(
-        address reserve
-    ) external view returns (bytes32);
+    function getReserveIdsPerTokenSrc(
+        IERC20 token
+    ) external view returns (bytes32[] memory);
 }
 
 // File: contracts/interface/IKyberHintHandler.sol
@@ -1644,30 +1638,17 @@ contract OneSplitRoot is IOneSplitView {
             return 0;
         }
 
-        address payable[6] memory multiTokenReserves = [
-            0x63825c174ab367968EC60f061753D3bbD36A0D8F, // Reserve 1
-            0x7a3370075a54B187d7bD5DceBf0ff2B5552d4F7D, // Reserve 2
-            0x4f32BbE8dFc9efD54345Fc936f9fEF1048746fCF, // Reserve 3
-            0x1E158c0e93c30d24e918Ef83d1e0bE23595C3c0f, // Eth2Dai
-            0x31E085Afd48a1d6e51Cc193153d625e8f0514C7F, // Uniswap
-            0x10908C875D865C66f271F5d3949848971c9595C9  // Uniswap V2
-        ];
-
-        address[] memory reserves = kyberStorage.getReserveAddressesPerTokenSrc(
-            fromToken.isETH() ? destToken : fromToken, 0, 10
+        bytes32[] memory reserveIds = kyberStorage.getReserveIdsPerTokenSrc(
+            fromToken.isETH() ? destToken : fromToken
         );
 
-        for (uint i = 0; i < reserves.length; i++) {
-            bool isSingleTokenKyberReserve = true;
-            for (uint j = 0; j < multiTokenReserves.length; j++) {
-                if (reserves[i] == multiTokenReserves[j]) {
-                    isSingleTokenKyberReserve = false;
-                    break;
-                }
-            }
-
-            if (isSingleTokenKyberReserve) {
-                return kyberStorage.getReserveId(reserves[i]);
+        for (uint i = 0; i < reserveIds.length; i++) {
+            if ((uint256(reserveIds[i]) >> 248) != 0xBB && // Bridge
+                reserveIds[i] != 0xff4b796265722046707200000000000000000000000000000000000000000000 && // Reserve 1
+                reserveIds[i] != 0xffabcd0000000000000000000000000000000000000000000000000000000000 && // Reserve 2
+                reserveIds[i] != 0xff4f6e65426974205175616e7400000000000000000000000000000000000000)   // Reserve 3
+            {
+                return reserveIds[i];
             }
         }
 
