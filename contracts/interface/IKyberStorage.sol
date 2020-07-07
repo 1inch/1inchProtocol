@@ -9,4 +9,8 @@ interface IKyberStorage {
         uint256 startIndex,
         uint256 endToken
     ) external view returns (address[] memory);
+
+    function getReserveId(
+        address reserve
+    ) external view returns (bytes32);
 }
