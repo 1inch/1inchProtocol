@@ -869,8 +869,9 @@ library Array {
 //    since it could only call `transferFrom()` with first argument equal to msg.sender
 // 2. It is safe to call `swap()` with reliable `minReturn` argument,
 //    if returning amount will not reach `minReturn` value whole swap will be reverted.
-// 3. Additionally CHI tokens could be burned from caller if FLAG_ENABLE_CHI_BURN flag
-//    is presented: (flags & 0x10000000000) != 0. Burned amount would refund up to 43% of gas fees.
+// 3. Additionally CHI tokens could be burned from caller in case of FLAG_ENABLE_CHI_BURN (0x10000000000)
+//    presented in `flags` or from transaction origin in case of FLAG_ENABLE_CHI_BURN_BY_ORIGIN (0x4000000000000000)
+//    presented in `flags`. Burned amount would refund up to 43% of gas fees.
 //
 contract OneSplitAudit is IOneSplit, Ownable {
     using SafeMath for uint256;
