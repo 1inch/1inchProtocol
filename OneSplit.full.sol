@@ -1944,22 +1944,33 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         uint256 /*flags*/,
         uint256 poolIndex
     ) internal view returns(uint256[] memory rets, uint256 gas) {
+        rets = new uint256[](parts);
+
         address[] memory pools = balancerRegistry.getBestPoolsWithLimit(
             address(fromToken.isETH() ? weth : fromToken),
             address(destToken.isETH() ? weth : destToken),
             poolIndex + 1
         );
         if (poolIndex >= pools.length) {
-            return (new uint256[](parts), 0);
+            return (rets, 0);
         }
 
-        return (
-            balancerRegistry.getPoolReturns(
+        (bool success, bytes memory result) = address(balancerRegistry).staticcall(
+            abi.encodeWithSelector(
+                balancerRegistry.getPoolReturns.selector,
                 pools[poolIndex],
                 address(fromToken.isETH() ? weth : fromToken),
                 address(destToken.isETH() ? weth : destToken),
                 _linearInterpolation(amount, parts)
-            ),
+            )
+        );
+
+        if (!success || result.length == 0) {
+            return (rets, 0);
+        }
+
+        return (
+            abi.decode(result, (uint256[])),
             100_000
         );
     }
