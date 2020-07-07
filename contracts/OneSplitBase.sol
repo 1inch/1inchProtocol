@@ -17,7 +17,9 @@ import "./interface/IWETH.sol";
 import "./interface/ICurve.sol";
 import "./interface/IChai.sol";
 import "./interface/ICompound.sol";
+import "./interface/ICompoundRegistry.sol";
 import "./interface/IAaveToken.sol";
+import "./interface/IAaveRegistry.sol";
 import "./interface/IMooniswap.sol";
 import "./interface/IUniswapV2Factory.sol";
 import "./interface/IDForceSwap.sol";
@@ -126,6 +128,8 @@ contract OneSplitRoot is IOneSplitView {
     IBalancerRegistry constant internal balancerRegistry = IBalancerRegistry(0x65e67cbc342712DF67494ACEfc06fe951EE93982);
     ICurveCalculator constant internal curveCalculator = ICurveCalculator(0xc1DB00a8E5Ef7bfa476395cdbcc98235477cDE4E);
     ICurveRegistry constant internal curveRegistry = ICurveRegistry(0x7002B727Ef8F5571Cb5F9D70D13DBEEb4dFAe9d1);
+    ICompoundRegistry constant internal compoundRegistry = ICompoundRegistry(0xF451Dbd7Ba14BFa7B1B78A766D3Ed438F79EE1D1);
+    IAaveRegistry constant internal aaveRegistry = IAaveRegistry(0xEd8b133B7B88366E01Bb9E38305Ab11c26521494);
 
     int256 internal constant VERY_NEGATIVE_VALUE = -1e72;
 
@@ -181,91 +185,6 @@ contract OneSplitRoot is IOneSplitView {
         }
 
         returnAmount = (answer[n - 1][s] == VERY_NEGATIVE_VALUE) ? 0 : answer[n - 1][s];
-    }
-
-    function _getCompoundToken(IERC20 token) internal pure returns(ICompoundToken) {
-        if (token.isETH()) { // ETH
-            return ICompoundToken(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
-        }
-        if (token == IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F)) { // DAI
-            return ICompoundToken(0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643);
-        }
-        if (token == IERC20(0x0D8775F648430679A709E98d2b0Cb6250d2887EF)) { // BAT
-            return ICompoundToken(0x6C8c6b02E7b2BE14d4fA6022Dfd6d75921D90E4E);
-        }
-        if (token == IERC20(0x1985365e9f78359a9B6AD760e32412f4a445E862)) { // REP
-            return ICompoundToken(0x158079Ee67Fce2f58472A96584A73C7Ab9AC95c1);
-        }
-        if (token == IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48)) { // USDC
-            return ICompoundToken(0x39AA39c021dfbaE8faC545936693aC917d5E7563);
-        }
-        if (token == IERC20(0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599)) { // WBTC
-            return ICompoundToken(0xC11b1268C1A384e55C48c2391d8d480264A3A7F4);
-        }
-        if (token == IERC20(0xE41d2489571d322189246DaFA5ebDe1F4699F498)) { // ZRX
-            return ICompoundToken(0xB3319f5D18Bc0D84dD1b4825Dcde5d5f7266d407);
-        }
-        if (token == IERC20(0xdAC17F958D2ee523a2206206994597C13D831ec7)) { // USDT
-            return ICompoundToken(0xf650C3d88D12dB855b8bf7D11Be6C55A4e07dCC9);
-        }
-
-        return ICompoundToken(0);
-    }
-
-    function _getAaveToken(IERC20 token) internal pure returns(IAaveToken) {
-        if (token.isETH()) { // ETH
-            return IAaveToken(0x3a3A65aAb0dd2A17E3F1947bA16138cd37d08c04);
-        }
-        if (token == IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F)) { // DAI
-            return IAaveToken(0xfC1E690f61EFd961294b3e1Ce3313fBD8aa4f85d);
-        }
-        if (token == IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48)) { // USDC
-            return IAaveToken(0x9bA00D6856a4eDF4665BcA2C2309936572473B7E);
-        }
-        if (token == IERC20(0x57Ab1ec28D129707052df4dF418D58a2D46d5f51)) { // SUSD
-            return IAaveToken(0x625aE63000f46200499120B906716420bd059240);
-        }
-        if (token == IERC20(0x4Fabb145d64652a948d72533023f6E7A623C7C53)) { // BUSD
-            return IAaveToken(0x6Ee0f7BB50a54AB5253dA0667B0Dc2ee526C30a8);
-        }
-        if (token == IERC20(0x0000000000085d4780B73119b644AE5ecd22b376)) { // TUSD
-            return IAaveToken(0x4DA9b813057D04BAef4e5800E36083717b4a0341);
-        }
-        if (token == IERC20(0xdAC17F958D2ee523a2206206994597C13D831ec7)) { // USDT
-            return IAaveToken(0x71fc860F7D3A592A4a98740e39dB31d25db65ae8);
-        }
-        if (token == IERC20(0x0D8775F648430679A709E98d2b0Cb6250d2887EF)) { // BAT
-            return IAaveToken(0xE1BA0FB44CCb0D11b80F92f4f8Ed94CA3fF51D00);
-        }
-        if (token == IERC20(0xdd974D5C2e2928deA5F71b9825b8b646686BD200)) { // KNC
-            return IAaveToken(0x9D91BE44C06d373a8a226E1f3b146956083803eB);
-        }
-        if (token == IERC20(0x80fB784B7eD66730e8b1DBd9820aFD29931aab03)) { // LEND
-            return IAaveToken(0x7D2D3688Df45Ce7C552E19c27e007673da9204B8);
-        }
-        if (token == IERC20(0x514910771AF9Ca656af840dff83E8264EcF986CA)) { // LINK
-            return IAaveToken(0xA64BD6C70Cb9051F6A9ba1F163Fdc07E0DfB5F84);
-        }
-        if (token == IERC20(0x0F5D2fB29fb7d3CFeE444a200298f468908cC942)) { // MANA
-            return IAaveToken(0x6FCE4A401B6B80ACe52baAefE4421Bd188e76F6f);
-        }
-        if (token == IERC20(0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2)) { // MKR
-            return IAaveToken(0x7deB5e830be29F91E298ba5FF1356BB7f8146998);
-        }
-        if (token == IERC20(0x1985365e9f78359a9B6AD760e32412f4a445E862)) { // REP
-            return IAaveToken(0x71010A9D003445aC60C4e6A7017c1E89A477B438);
-        }
-        if (token == IERC20(0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F)) { // SNX
-            return IAaveToken(0x328C4c80BC7aCa0834Db37e6600A6c49E12Da4DE);
-        }
-        if (token == IERC20(0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599)) { // WBTC
-            return IAaveToken(0xFC4B8ED459e00e5400be803A9BB3954234FD50e3);
-        }
-        if (token == IERC20(0xE41d2489571d322189246DaFA5ebDe1F4699F498)) { // ZRX
-            return IAaveToken(0x6Fb0855c404E09c47C3fBCA25f08d4E41f9F062f);
-        }
-
-        return IAaveToken(0);
     }
 
     function _kyberReserveIdByTokens(
@@ -1237,7 +1156,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         }
 
         if (!midPreToken.isETH()) {
-            ICompoundToken midToken = _getCompoundToken(midPreToken);
+            ICompoundToken midToken = compoundRegistry.cTokenByToken(midPreToken);
             if (midToken != ICompoundToken(0)) {
                 return _calculateUniswapWrapped(
                     fromToken,
@@ -1298,7 +1217,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         }
 
         if (!midPreToken.isETH()) {
-            IAaveToken midToken = _getAaveToken(midPreToken);
+            IAaveToken midToken = aaveRegistry.aTokenByToken(midPreToken);
             if (midToken != IAaveToken(0)) {
                 return _calculateUniswapWrapped(
                     fromToken,
@@ -1377,7 +1296,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
     ) internal view returns(uint256[] memory rets, uint256 gas) {
         bytes32 reserveId = _kyberReserveIdByTokens(fromToken, destToken);
         if (reserveId == 0) {
-            return (new uint256[](0), 0);
+            return (new uint256[](parts), 0);
         }
 
         return _calculateKyber(
@@ -1390,7 +1309,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         );
     }
 
-    function _kyberGetReturn(
+    function _kyberGetRate(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
@@ -1425,19 +1344,27 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             bytes32[] memory reserveIds = new bytes32[](1);
             reserveIds[0] = reserveId;
 
-            fromHint = kyberHintHandler.buildTokenToEthHint(
-                fromToken,
-                IKyberHintHandler.TradeType.MaskIn,
-                reserveIds,
-                new uint256[](0)
+            (bool success, bytes memory data) = address(kyberHintHandler).staticcall(
+                abi.encodeWithSelector(
+                    kyberHintHandler.buildTokenToEthHint.selector,
+                    fromToken,
+                    IKyberHintHandler.TradeType.MaskIn,
+                    reserveIds,
+                    new uint256[](0)
+                )
             );
+            fromHint = success ? abi.decode(data, (bytes)) : bytes("");
 
-            destHint = kyberHintHandler.buildEthToTokenHint(
-                destToken,
-                IKyberHintHandler.TradeType.MaskIn,
-                reserveIds,
-                new uint256[](0)
+            (success, data) = address(kyberHintHandler).staticcall(
+                abi.encodeWithSelector(
+                    kyberHintHandler.buildEthToTokenHint.selector,
+                    destToken,
+                    IKyberHintHandler.TradeType.MaskIn,
+                    reserveIds,
+                    new uint256[](0)
+                )
             );
+            destHint = success ? abi.decode(data, (bytes)) : bytes("");
         }
 
         uint256 fromTokenDecimals = 10 ** IERC20(fromToken).universalDecimals();
@@ -1450,29 +1377,37 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             rets[i] = amount.mul(i + 1).div(parts);
 
             if (!fromToken.isETH()) {
-                rets[i] = _kyberGetReturn(
+                if (fromHint.length == 0) {
+                    rets[i] = 0;
+                    break;
+                }
+                uint256 rate = _kyberGetRate(
                     fromToken,
                     ETH_ADDRESS,
                     rets[i],
                     flags,
                     fromHint
                 );
-                rets[i] = rets[i].mul(amount).div(fromTokenDecimals);
+                rets[i] = rate.mul(rets[i]).div(fromTokenDecimals);
             }
 
             if (!destToken.isETH() && rets[i] > 0) {
-                rets[i] = _kyberGetReturn(
+                if (destHint.length == 0) {
+                    rets[i] = 0;
+                    break;
+                }
+                uint256 rate = _kyberGetRate(
                     ETH_ADDRESS,
                     destToken,
                     rets[i],
                     flags.check(1 << 255) ? 10 : 0,
                     destHint
                 );
-                rets[i] = rets[i].mul(amount).div(destTokenDecimals).div(1e36);
+                rets[i] = rate.mul(rets[i]).mul(destTokenDecimals).div(1e36);
             }
         }
 
-        return (rets, 200_000);
+        return (rets, 100_000);
     }
 
     function calculateBancor(
@@ -2133,7 +2068,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         uint256 flags
     ) internal {
         if (!fromToken.isETH()) {
-            ICompoundToken fromCompound = _getCompoundToken(fromToken);
+            ICompoundToken fromCompound = compoundRegistry.cTokenByToken(fromToken);
             fromToken.universalApprove(address(fromCompound), amount);
             fromCompound.mint(amount);
             _swapOnUniswap(IERC20(fromCompound), destToken, IERC20(fromCompound).universalBalanceOf(address(this)), flags);
@@ -2141,7 +2076,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         }
 
         if (!destToken.isETH()) {
-            ICompoundToken toCompound = _getCompoundToken(destToken);
+            ICompoundToken toCompound = compoundRegistry.cTokenByToken(destToken);
             _swapOnUniswap(fromToken, IERC20(toCompound), amount, flags);
             toCompound.redeem(IERC20(toCompound).universalBalanceOf(address(this)));
             destToken.universalBalanceOf(address(this));
@@ -2176,7 +2111,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         uint256 flags
     ) internal {
         if (!fromToken.isETH()) {
-            IAaveToken fromAave = _getAaveToken(fromToken);
+            IAaveToken fromAave = aaveRegistry.aTokenByToken(fromToken);
             fromToken.universalApprove(aave.core(), amount);
             aave.deposit(fromToken, amount, 1101);
             _swapOnUniswap(IERC20(fromAave), destToken, IERC20(fromAave).universalBalanceOf(address(this)), flags);
@@ -2184,7 +2119,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         }
 
         if (!destToken.isETH()) {
-            IAaveToken toAave = _getAaveToken(destToken);
+            IAaveToken toAave = aaveRegistry.aTokenByToken(destToken);
             _swapOnUniswap(fromToken, IERC20(toAave), amount, flags);
             toAave.redeem(toAave.balanceOf(address(this)));
             return;

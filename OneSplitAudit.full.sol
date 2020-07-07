@@ -752,6 +752,7 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_DISABLE_KYBER_2 = 0x800000000000000;
     uint256 internal constant FLAG_DISABLE_KYBER_3 = 0x1000000000000000;
     uint256 internal constant FLAG_DISABLE_KYBER_4 = 0x2000000000000000;
+    uint256 internal constant FLAG_ENABLE_CHI_BURN_BY_ORIGIN = 0x4000000000000000;
 }
 
 
@@ -1137,9 +1138,12 @@ contract OneSplitAudit is IOneSplit, Ownable {
             tokens.first().universalTransfer(msg.sender, uint256(afterBalances.ofFromToken).sub(beforeBalances.ofFromToken));
         }
 
-        if ((flags[0] & FLAG_ENABLE_CHI_BURN) > 0) {
+        if ((flags[0] & (FLAG_ENABLE_CHI_BURN | FLAG_ENABLE_CHI_BURN_BY_ORIGIN)) > 0) {
             uint256 gasSpent = 21000 + gasStart - gasleft() + 16 * msg.data.length;
-            _chiBurnOrSell((gasSpent + 14154) / 41947);
+            _chiBurnOrSell(
+                ((flags[0] & FLAG_ENABLE_CHI_BURN_BY_ORIGIN) > 0) ? tx.origin : msg.sender,
+                (gasSpent + 14154) / 41947
+            );
         }
         else if ((flags[0] & FLAG_ENABLE_REFERRAL_GAS_SPONSORSHIP) > 0) {
             uint256 gasSpent = 21000 + gasStart - gasleft() + 16 * msg.data.length;
@@ -1151,19 +1155,19 @@ contract OneSplitAudit is IOneSplit, Ownable {
         asset.universalTransfer(msg.sender, amount);
     }
 
-    function _chiBurnOrSell(uint256 amount) internal {
+    function _chiBurnOrSell(address payable sponsor, uint256 amount) internal {
         IUniswapV2Exchange exchange = IUniswapV2Exchange(0xa6f3ef841d371a82ca757FaD08efc0DeE2F1f5e2);
         uint256 sellRefund = UniswapV2ExchangeLib.getReturn(exchange, chi, weth, amount);
         uint256 burnRefund = amount.mul(18_000).mul(tx.gasprice);
 
         if (sellRefund < burnRefund.add(tx.gasprice.mul(36_000))) {
-            chi.freeFromUpTo(msg.sender, amount);
+            chi.freeFromUpTo(sponsor, amount);
         }
         else {
-            chi.transferFrom(msg.sender, address(exchange), amount);
+            chi.transferFrom(sponsor, address(exchange), amount);
             exchange.swap(0, sellRefund, address(this), "");
             weth.withdraw(weth.balanceOf(address(this)));
-            msg.sender.transfer(address(this).balance);
+            sponsor.transfer(address(this).balance);
         }
     }
 

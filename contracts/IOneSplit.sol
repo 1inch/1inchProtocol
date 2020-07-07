@@ -94,6 +94,7 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_DISABLE_KYBER_2 = 0x800000000000000;
     uint256 internal constant FLAG_DISABLE_KYBER_3 = 0x1000000000000000;
     uint256 internal constant FLAG_DISABLE_KYBER_4 = 0x2000000000000000;
+    uint256 internal constant FLAG_ENABLE_CHI_BURN_BY_ORIGIN = 0x4000000000000000;
 }
 
 
