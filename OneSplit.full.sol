@@ -112,9 +112,9 @@ pragma solidity ^0.5.0;
 
 
 contract IOneSplitConsts {
-    // flags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_KYBER + ...
+    // flags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_BANCOR + ...
     uint256 internal constant FLAG_DISABLE_UNISWAP = 0x01;
-    uint256 internal constant FLAG_DISABLE_KYBER = 0x02; // Deprecated
+    uint256 internal constant DEPRECATED_FLAG_DISABLE_KYBER = 0x02; // Deprecated
     uint256 internal constant FLAG_DISABLE_BANCOR = 0x04;
     uint256 internal constant FLAG_DISABLE_OASIS = 0x08;
     uint256 internal constant FLAG_DISABLE_COMPOUND = 0x10;
@@ -122,15 +122,15 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_DISABLE_CHAI = 0x40;
     uint256 internal constant FLAG_DISABLE_AAVE = 0x80;
     uint256 internal constant FLAG_DISABLE_SMART_TOKEN = 0x100;
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_ETH = 0x200; // Turned off by default
+    uint256 internal constant DEPRECATED_FLAG_ENABLE_MULTI_PATH_ETH = 0x200; // Deprecated, Turned off by default
     uint256 internal constant FLAG_DISABLE_BDAI = 0x400;
     uint256 internal constant FLAG_DISABLE_IEARN = 0x800;
     uint256 internal constant FLAG_DISABLE_CURVE_COMPOUND = 0x1000;
     uint256 internal constant FLAG_DISABLE_CURVE_USDT = 0x2000;
     uint256 internal constant FLAG_DISABLE_CURVE_Y = 0x4000;
     uint256 internal constant FLAG_DISABLE_CURVE_BINANCE = 0x8000;
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_DAI = 0x10000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_USDC = 0x20000; // Turned off by default
+    uint256 internal constant DEPRECATED_FLAG_ENABLE_MULTI_PATH_DAI = 0x10000; // Deprecated, Turned off by default
+    uint256 internal constant DEPRECATED_FLAG_ENABLE_MULTI_PATH_USDC = 0x20000; // Deprecated, Turned off by default
     uint256 internal constant FLAG_DISABLE_CURVE_SYNTHETIX = 0x40000;
     uint256 internal constant FLAG_DISABLE_WETH = 0x80000;
     uint256 internal constant FLAG_DISABLE_UNISWAP_COMPOUND = 0x100000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
@@ -147,10 +147,10 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_DISABLE_CURVE_PAX = 0x80000000;
     uint256 internal constant FLAG_DISABLE_CURVE_RENBTC = 0x100000000;
     uint256 internal constant FLAG_DISABLE_CURVE_TBTC = 0x200000000;
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_USDT = 0x400000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_WBTC = 0x800000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_TBTC = 0x1000000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_RENBTC = 0x2000000000; // Turned off by default
+    uint256 internal constant DEPRECATED_FLAG_ENABLE_MULTI_PATH_USDT = 0x400000000; // Deprecated, Turned off by default
+    uint256 internal constant DEPRECATED_FLAG_ENABLE_MULTI_PATH_WBTC = 0x800000000; // Deprecated, Turned off by default
+    uint256 internal constant DEPRECATED_FLAG_ENABLE_MULTI_PATH_TBTC = 0x1000000000; // Deprecated, Turned off by default
+    uint256 internal constant DEPRECATED_FLAG_ENABLE_MULTI_PATH_RENBTC = 0x2000000000; // Deprecated, Turned off by default
     uint256 internal constant FLAG_DISABLE_DFORCE_SWAP = 0x4000000000;
     uint256 internal constant FLAG_DISABLE_SHELL = 0x8000000000;
     uint256 internal constant FLAG_ENABLE_CHI_BURN = 0x10000000000;
@@ -165,11 +165,11 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_DISABLE_BALANCER_1 = 0x2000000000000;
     uint256 internal constant FLAG_DISABLE_BALANCER_2 = 0x4000000000000;
     uint256 internal constant FLAG_DISABLE_BALANCER_3 = 0x8000000000000;
-    uint256 internal constant FLAG_ENABLE_KYBER_UNISWAP_RESERVE = 0x10000000000000; // Deprecated, Turned off by default
-    uint256 internal constant FLAG_ENABLE_KYBER_OASIS_RESERVE = 0x20000000000000; // Deprecated, Turned off by default
-    uint256 internal constant FLAG_ENABLE_KYBER_BANCOR_RESERVE = 0x40000000000000; // Deprecated, Turned off by default
+    uint256 internal constant DEPRECATED_FLAG_ENABLE_KYBER_UNISWAP_RESERVE = 0x10000000000000; // Deprecated, Turned off by default
+    uint256 internal constant DEPRECATED_FLAG_ENABLE_KYBER_OASIS_RESERVE = 0x20000000000000; // Deprecated, Turned off by default
+    uint256 internal constant DEPRECATED_FLAG_ENABLE_KYBER_BANCOR_RESERVE = 0x40000000000000; // Deprecated, Turned off by default
     uint256 internal constant FLAG_ENABLE_REFERRAL_GAS_SPONSORSHIP = 0x80000000000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_COMP = 0x100000000000000; // Turned off by default
+    uint256 internal constant DEPRECATED_FLAG_ENABLE_MULTI_PATH_COMP = 0x100000000000000; // Deprecated, Turned off by default
     uint256 internal constant FLAG_DISABLE_KYBER_ALL = 0x200000000000000;
     uint256 internal constant FLAG_DISABLE_KYBER_1 = 0x400000000000000;
     uint256 internal constant FLAG_DISABLE_KYBER_2 = 0x800000000000000;
@@ -216,6 +216,35 @@ contract IOneSplit is IOneSplitConsts {
         uint256 minReturn,
         uint256[] memory distribution,
         uint256 flags
+    )
+        public
+        payable
+        returns(uint256 returnAmount);
+}
+
+
+contract IOneSplitMulti is IOneSplit {
+    function getExpectedReturnWithGasMulti(
+        IERC20[] memory tokens,
+        uint256 amount,
+        uint256[] memory parts,
+        uint256[] memory flags,
+        uint256[] memory destTokenEthPriceTimesGasPrices
+    )
+        public
+        view
+        returns(
+            uint256[] memory returnAmounts,
+            uint256 estimateGasAmount,
+            uint256[] memory distribution
+        );
+
+    function swapMulti(
+        IERC20[] memory tokens,
+        uint256 amount,
+        uint256 minReturn,
+        uint256[] memory distribution,
+        uint256[] memory flags
     )
         public
         payable
@@ -1444,7 +1473,6 @@ contract OneSplitRoot is IOneSplitView {
     IWETH constant internal weth = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IChai constant internal chai = IChai(0x06AF07097C9Eeb7fD685c692751D5C66dB49c215);
     IERC20 constant internal dai = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
-    IERC20 constant internal bnt = IERC20(0x1F573D6Fb3F13d689FF844B4cE37794d79a7FF1C);
     IERC20 constant internal usdc = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
     IERC20 constant internal usdt = IERC20(0xdAC17F958D2ee523a2206206994597C13D831ec7);
     IERC20 constant internal tusd = IERC20(0x0000000000085d4780B73119b644AE5ecd22b376);
@@ -1456,7 +1484,6 @@ contract OneSplitRoot is IOneSplitView {
     IERC20 constant internal tbtc = IERC20(0x1bBE271d15Bb64dF0bc6CD28Df9Ff322F2eBD847);
     IERC20 constant internal hbtc = IERC20(0x0316EB71485b0Ab14103307bf65a021042c6d380);
     IERC20 constant internal sbtc = IERC20(0xfE18be6b3Bd88A2D2A7f928d00292E7a9963CfC6);
-    IERC20 constant internal comp = IERC20(0xc00e94Cb662C3520282E6f5717214004A7f26888);
 
     IKyberNetworkProxy constant internal kyberNetworkProxy = IKyberNetworkProxy(0x9AAb3f75489902f3a48495025729a0AF77d4b11e);
     IKyberStorage constant internal kyberStorage = IKyberStorage(0xC8fb12402cB16970F3C5F4b48Ff68Eb9D1289301);
@@ -3899,173 +3926,6 @@ contract OneSplit is IOneSplit, OneSplitRoot {
     }
 }
 
-// File: contracts/OneSplitMultiPath.sol
-
-pragma solidity ^0.5.0;
-
-
-
-contract OneSplitMultiPathBase is IOneSplitConsts, OneSplitRoot {
-    function _getMultiPathToken(uint256 flags) internal pure returns(IERC20 midToken) {
-        uint256[8] memory allFlags = [
-            FLAG_ENABLE_MULTI_PATH_ETH,
-            FLAG_ENABLE_MULTI_PATH_DAI,
-            FLAG_ENABLE_MULTI_PATH_USDC,
-            FLAG_ENABLE_MULTI_PATH_USDT,
-            FLAG_ENABLE_MULTI_PATH_WBTC,
-            FLAG_ENABLE_MULTI_PATH_TBTC,
-            FLAG_ENABLE_MULTI_PATH_RENBTC,
-            FLAG_ENABLE_MULTI_PATH_COMP
-        ];
-
-        IERC20[8] memory allMidTokens = [
-            ETH_ADDRESS,
-            dai,
-            usdc,
-            usdt,
-            wbtc,
-            tbtc,
-            renbtc,
-            comp
-        ];
-
-        for (uint i = 0; i < allFlags.length; i++) {
-            if (flags.check(allFlags[i])) {
-                require(midToken == IERC20(0), "OneSplit: Do not use multipath with each other");
-                midToken = allMidTokens[i];
-            }
-        }
-    }
-}
-
-
-contract OneSplitMultiPathView is OneSplitViewWrapBase, OneSplitMultiPathBase {
-    function getExpectedReturnWithGas(
-        IERC20 fromToken,
-        IERC20 destToken,
-        uint256 amount,
-        uint256 parts,
-        uint256 flags,
-        uint256 destTokenEthPriceTimesGasPrice
-    )
-        public
-        view
-        returns (
-            uint256 returnAmount,
-            uint256 estimateGasAmount,
-            uint256[] memory distribution
-        )
-    {
-        if (fromToken == destToken) {
-            return (amount, 0, new uint256[](DEXES_COUNT));
-        }
-
-        IERC20 midToken = _getMultiPathToken(flags);
-
-        if (midToken != IERC20(0)) {
-            if (_tokensEqual(fromToken, midToken) || _tokensEqual(midToken, destToken)) {
-                return super.getExpectedReturnWithGas(
-                    fromToken,
-                    destToken,
-                    amount,
-                    parts,
-                    flags,
-                    destTokenEthPriceTimesGasPrice
-                );
-            }
-
-            // Stack too deep
-            uint256 _flags = flags;
-            IERC20 _destToken = destToken;
-            uint256 _destTokenEthPriceTimesGasPrice = destTokenEthPriceTimesGasPrice;
-
-            (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
-                fromToken,
-                midToken,
-                amount,
-                parts,
-                _flags,
-                _scaleDestTokenEthPriceTimesGasPrice(
-                    _destToken,
-                    midToken,
-                    _destTokenEthPriceTimesGasPrice
-                )
-            );
-
-            uint256[] memory dist;
-            uint256 estimateGasAmount2;
-            (returnAmount, estimateGasAmount2, dist) = super.getExpectedReturnWithGas(
-                midToken,
-                destToken,
-                returnAmount,
-                parts,
-                _flags, // Double tap into the same source is not an issue since price wouldn't be worse
-                destTokenEthPriceTimesGasPrice
-            );
-            for (uint i = 0; i < distribution.length; i++) {
-                distribution[i] = distribution[i].add(dist[i] << 8);
-            }
-            return (returnAmount, estimateGasAmount + estimateGasAmount2, distribution);
-        }
-
-        return super.getExpectedReturnWithGas(
-            fromToken,
-            destToken,
-            amount,
-            parts,
-            flags,
-            destTokenEthPriceTimesGasPrice
-        );
-    }
-}
-
-
-contract OneSplitMultiPath is OneSplitBaseWrap, OneSplitMultiPathBase {
-    function _swap(
-        IERC20 fromToken,
-        IERC20 destToken,
-        uint256 amount,
-        uint256[] memory distribution,
-        uint256 flags
-    ) internal {
-        IERC20 midToken = _getMultiPathToken(flags);
-
-        if (midToken != IERC20(0) && !_tokensEqual(fromToken, midToken) && !_tokensEqual(midToken, destToken)) {
-            uint256[] memory dist = new uint256[](distribution.length);
-            for (uint i = 0; i < distribution.length; i++) {
-                dist[i] = distribution[i] & 0xFF;
-            }
-            super._swap(
-                fromToken,
-                midToken,
-                amount,
-                dist,
-                flags
-            );
-
-            for (uint i = 0; i < distribution.length; i++) {
-                dist[i] = (distribution[i] >> 8) & 0xFF;
-            }
-            super._swap(
-                midToken,
-                destToken,
-                midToken.universalBalanceOf(address(this)),
-                dist,
-                flags
-            );
-            return;
-        }
-
-        super._swap(
-            fromToken,
-            destToken,
-            amount,
-            distribution,
-            flags
-        );
-    }
-}
-
 // File: contracts/OneSplitCompound.sol
 
 pragma solidity ^0.5.0;
@@ -5974,8 +5834,6 @@ pragma solidity ^0.5.0;
 
 
 
-//import "./OneSplitSmartToken.sol";
-
 
 contract OneSplitViewWrap is
     OneSplitViewWrapBase,
@@ -5988,9 +5846,7 @@ contract OneSplitViewWrap is
     OneSplitIearnView,
     OneSplitIdleView,
     OneSplitWethView,
-    OneSplitDMMView,
-    OneSplitMultiPathView
-    //OneSplitSmartTokenView
+    OneSplitDMMView
 {
     IOneSplitView public oneSplitView;
 
@@ -6091,9 +5947,7 @@ contract OneSplitWrap is
     OneSplitIearn,
     OneSplitIdle,
     OneSplitWeth,
-    OneSplitDMM,
-    OneSplitMultiPath
-    //OneSplitSmartToken
+    OneSplitDMM
 {
     IOneSplitView public oneSplitView;
     IOneSplit public oneSplit;
@@ -6161,8 +6015,8 @@ contract OneSplitWrap is
     function getExpectedReturnWithGasMulti(
         IERC20[] memory tokens,
         uint256 amount,
-        uint256 parts,
-        uint256 flags,
+        uint256[] memory parts,
+        uint256[] memory flags,
         uint256[] memory destTokenEthPriceTimesGasPrices
     )
         public
@@ -6191,8 +6045,8 @@ contract OneSplitWrap is
                 _tokens[i - 1],
                 _tokens[i],
                 (i == 1) ? amount : returnAmounts[i - 2],
-                parts,
-                flags,
+                parts[i],
+                flags[i],
                 destTokenEthPriceTimesGasPrices[i]
             );
             estimateGasAmount = estimateGasAmount.add(amount);
@@ -6229,7 +6083,7 @@ contract OneSplitWrap is
         uint256 amount,
         uint256 minReturn,
         uint256[] memory distribution,
-        uint256 flags
+        uint256[] memory flags
     ) public payable returns(uint256 returnAmount) {
         tokens[0].universalTransferFrom(msg.sender, address(this), amount);
 
@@ -6249,7 +6103,7 @@ contract OneSplitWrap is
                 tokens[i],
                 returnAmount,
                 dist,
-                flags
+                flags[i]
             );
             returnAmount = tokens[i].universalBalanceOf(address(this));
             tokens[i - 1].universalTransfer(msg.sender, tokens[i - 1].universalBalanceOf(address(this)));
