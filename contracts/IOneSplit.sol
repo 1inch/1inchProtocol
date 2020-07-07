@@ -33,7 +33,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract IOneSplitConsts {
     // flags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_KYBER + ...
     uint256 internal constant FLAG_DISABLE_UNISWAP = 0x01;
-    uint256 internal constant FLAG_DISABLE_KYBER = 0x02;
+    uint256 internal constant FLAG_DISABLE_KYBER = 0x02; // Deprecated
     uint256 internal constant FLAG_DISABLE_BANCOR = 0x04;
     uint256 internal constant FLAG_DISABLE_OASIS = 0x08;
     uint256 internal constant FLAG_DISABLE_COMPOUND = 0x10;
@@ -84,11 +84,16 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_DISABLE_BALANCER_1 = 0x2000000000000;
     uint256 internal constant FLAG_DISABLE_BALANCER_2 = 0x4000000000000;
     uint256 internal constant FLAG_DISABLE_BALANCER_3 = 0x8000000000000;
-    uint256 internal constant FLAG_ENABLE_KYBER_UNISWAP_RESERVE = 0x10000000000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_KYBER_OASIS_RESERVE = 0x20000000000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_KYBER_BANCOR_RESERVE = 0x40000000000000; // Turned off by default
+    uint256 internal constant FLAG_ENABLE_KYBER_UNISWAP_RESERVE = 0x10000000000000; // Deprecated, Turned off by default
+    uint256 internal constant FLAG_ENABLE_KYBER_OASIS_RESERVE = 0x20000000000000; // Deprecated, Turned off by default
+    uint256 internal constant FLAG_ENABLE_KYBER_BANCOR_RESERVE = 0x40000000000000; // Deprecated, Turned off by default
     uint256 internal constant FLAG_ENABLE_REFERRAL_GAS_SPONSORSHIP = 0x80000000000000; // Turned off by default
     uint256 internal constant FLAG_ENABLE_MULTI_PATH_COMP = 0x100000000000000; // Turned off by default
+    uint256 internal constant FLAG_DISABLE_KYBER_ALL = 0x200000000000000;
+    uint256 internal constant FLAG_DISABLE_KYBER_1 = 0x400000000000000;
+    uint256 internal constant FLAG_DISABLE_KYBER_2 = 0x800000000000000;
+    uint256 internal constant FLAG_DISABLE_KYBER_3 = 0x1000000000000000;
+    uint256 internal constant FLAG_DISABLE_KYBER_4 = 0x2000000000000000;
 }
 
 
