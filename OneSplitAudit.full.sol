@@ -1092,7 +1092,9 @@ contract OneSplitAudit is IOneSplit, Ownable {
         address referral,
         uint256 feePercent
     ) public payable returns(uint256 returnAmount) {
-        require(tokens.length >= 2 && tokens.first() != tokens.last() && amount > 0, "OneSplit: swap makes no sense");
+        require(tokens.length >= 2 && amount > 0, "OneSplit: swap makes no sense");
+        require(tokens.length == distribution.length, "OneSplit: distribution array is too short");
+        require(tokens.length == flags.length, "OneSplit: flags array is too short");
         require((msg.value != 0) == tokens.first().isETH(), "OneSplit: msg.value should be used only for ETH swap");
         require(feePercent <= 0.03e18, "OneSplit: feePercent out of range");
 
