@@ -228,9 +228,8 @@ contract OneSplitAudit is IOneSplit, Ownable {
         tokens[0] = fromToken;
         tokens[1] = destToken;
 
-        uint256[] memory flagsArray = new uint256[](2);
+        uint256[] memory flagsArray = new uint256[](1);
         flagsArray[0] = flags;
-        flagsArray[1] = flags;
 
         swapWithReferralMulti(
             tokens,
@@ -261,8 +260,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
         uint256 feePercent
     ) public payable returns(uint256 returnAmount) {
         require(tokens.length >= 2 && amount > 0, "OneSplit: swap makes no sense");
-        require(tokens.length == distribution.length, "OneSplit: distribution array is too short");
-        require(tokens.length == flags.length, "OneSplit: flags array is too short");
+        require(flags.length == tokens.length - 1, "OneSplit: flags array length is invalid");
         require((msg.value != 0) == tokens.first().isETH(), "OneSplit: msg.value should be used only for ETH swap");
         require(feePercent <= 0.03e18, "OneSplit: feePercent out of range");
 
