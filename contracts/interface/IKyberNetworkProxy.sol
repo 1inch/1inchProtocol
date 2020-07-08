@@ -4,21 +4,25 @@ import "./IKyberNetworkContract.sol";
 
 
 interface IKyberNetworkProxy {
-    function getExpectedRate(IERC20 src, IERC20 dest, uint256 srcQty)
-        external
-        view
-        returns (uint256 expectedRate, uint256 slippageRate);
+    function getExpectedRateAfterFee(
+        IERC20 src,
+        IERC20 dest,
+        uint256 srcQty,
+        uint256 platformFeeBps,
+        bytes calldata hint
+    ) external view returns (uint256 expectedRate);
 
-    function tradeWithHint(
+    function tradeWithHintAndFee(
         IERC20 src,
         uint256 srcAmount,
         IERC20 dest,
-        address destAddress,
+        address payable destAddress,
         uint256 maxDestAmount,
         uint256 minConversionRate,
-        address walletId,
+        address payable platformWallet,
+        uint256 platformFeeBps,
         bytes calldata hint
-    ) external payable returns (uint256);
+    ) external payable returns (uint256 destAmount);
 
     function kyberNetworkContract() external view returns (IKyberNetworkContract);
 

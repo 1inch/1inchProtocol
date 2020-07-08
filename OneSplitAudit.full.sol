@@ -689,9 +689,9 @@ pragma solidity ^0.5.0;
 
 
 contract IOneSplitConsts {
-    // flags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_KYBER + ...
+    // flags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_BANCOR + ...
     uint256 internal constant FLAG_DISABLE_UNISWAP = 0x01;
-    uint256 internal constant FLAG_DISABLE_KYBER = 0x02;
+    uint256 internal constant DEPRECATED_FLAG_DISABLE_KYBER = 0x02; // Deprecated
     uint256 internal constant FLAG_DISABLE_BANCOR = 0x04;
     uint256 internal constant FLAG_DISABLE_OASIS = 0x08;
     uint256 internal constant FLAG_DISABLE_COMPOUND = 0x10;
@@ -699,15 +699,15 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_DISABLE_CHAI = 0x40;
     uint256 internal constant FLAG_DISABLE_AAVE = 0x80;
     uint256 internal constant FLAG_DISABLE_SMART_TOKEN = 0x100;
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_ETH = 0x200; // Turned off by default
+    uint256 internal constant DEPRECATED_FLAG_ENABLE_MULTI_PATH_ETH = 0x200; // Deprecated, Turned off by default
     uint256 internal constant FLAG_DISABLE_BDAI = 0x400;
     uint256 internal constant FLAG_DISABLE_IEARN = 0x800;
     uint256 internal constant FLAG_DISABLE_CURVE_COMPOUND = 0x1000;
     uint256 internal constant FLAG_DISABLE_CURVE_USDT = 0x2000;
     uint256 internal constant FLAG_DISABLE_CURVE_Y = 0x4000;
     uint256 internal constant FLAG_DISABLE_CURVE_BINANCE = 0x8000;
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_DAI = 0x10000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_USDC = 0x20000; // Turned off by default
+    uint256 internal constant DEPRECATED_FLAG_ENABLE_MULTI_PATH_DAI = 0x10000; // Deprecated, Turned off by default
+    uint256 internal constant DEPRECATED_FLAG_ENABLE_MULTI_PATH_USDC = 0x20000; // Deprecated, Turned off by default
     uint256 internal constant FLAG_DISABLE_CURVE_SYNTHETIX = 0x40000;
     uint256 internal constant FLAG_DISABLE_WETH = 0x80000;
     uint256 internal constant FLAG_DISABLE_UNISWAP_COMPOUND = 0x100000; // Works only when one of assets is ETH or FLAG_ENABLE_MULTI_PATH_ETH
@@ -724,10 +724,10 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_DISABLE_CURVE_PAX = 0x80000000;
     uint256 internal constant FLAG_DISABLE_CURVE_RENBTC = 0x100000000;
     uint256 internal constant FLAG_DISABLE_CURVE_TBTC = 0x200000000;
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_USDT = 0x400000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_WBTC = 0x800000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_TBTC = 0x1000000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_RENBTC = 0x2000000000; // Turned off by default
+    uint256 internal constant DEPRECATED_FLAG_ENABLE_MULTI_PATH_USDT = 0x400000000; // Deprecated, Turned off by default
+    uint256 internal constant DEPRECATED_FLAG_ENABLE_MULTI_PATH_WBTC = 0x800000000; // Deprecated, Turned off by default
+    uint256 internal constant DEPRECATED_FLAG_ENABLE_MULTI_PATH_TBTC = 0x1000000000; // Deprecated, Turned off by default
+    uint256 internal constant DEPRECATED_FLAG_ENABLE_MULTI_PATH_RENBTC = 0x2000000000; // Deprecated, Turned off by default
     uint256 internal constant FLAG_DISABLE_DFORCE_SWAP = 0x4000000000;
     uint256 internal constant FLAG_DISABLE_SHELL = 0x8000000000;
     uint256 internal constant FLAG_ENABLE_CHI_BURN = 0x10000000000;
@@ -742,11 +742,17 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_DISABLE_BALANCER_1 = 0x2000000000000;
     uint256 internal constant FLAG_DISABLE_BALANCER_2 = 0x4000000000000;
     uint256 internal constant FLAG_DISABLE_BALANCER_3 = 0x8000000000000;
-    uint256 internal constant FLAG_ENABLE_KYBER_UNISWAP_RESERVE = 0x10000000000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_KYBER_OASIS_RESERVE = 0x20000000000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_KYBER_BANCOR_RESERVE = 0x40000000000000; // Turned off by default
+    uint256 internal constant DEPRECATED_FLAG_ENABLE_KYBER_UNISWAP_RESERVE = 0x10000000000000; // Deprecated, Turned off by default
+    uint256 internal constant DEPRECATED_FLAG_ENABLE_KYBER_OASIS_RESERVE = 0x20000000000000; // Deprecated, Turned off by default
+    uint256 internal constant DEPRECATED_FLAG_ENABLE_KYBER_BANCOR_RESERVE = 0x40000000000000; // Deprecated, Turned off by default
     uint256 internal constant FLAG_ENABLE_REFERRAL_GAS_SPONSORSHIP = 0x80000000000000; // Turned off by default
-    uint256 internal constant FLAG_ENABLE_MULTI_PATH_COMP = 0x100000000000000; // Turned off by default
+    uint256 internal constant DEPRECATED_FLAG_ENABLE_MULTI_PATH_COMP = 0x100000000000000; // Deprecated, Turned off by default
+    uint256 internal constant FLAG_DISABLE_KYBER_ALL = 0x200000000000000;
+    uint256 internal constant FLAG_DISABLE_KYBER_1 = 0x400000000000000;
+    uint256 internal constant FLAG_DISABLE_KYBER_2 = 0x800000000000000;
+    uint256 internal constant FLAG_DISABLE_KYBER_3 = 0x1000000000000000;
+    uint256 internal constant FLAG_DISABLE_KYBER_4 = 0x2000000000000000;
+    uint256 internal constant FLAG_ENABLE_CHI_BURN_BY_ORIGIN = 0x4000000000000000;
 }
 
 
@@ -794,6 +800,35 @@ contract IOneSplit is IOneSplitConsts {
         returns(uint256 returnAmount);
 }
 
+
+contract IOneSplitMulti is IOneSplit {
+    function getExpectedReturnWithGasMulti(
+        IERC20[] memory tokens,
+        uint256 amount,
+        uint256[] memory parts,
+        uint256[] memory flags,
+        uint256[] memory destTokenEthPriceTimesGasPrices
+    )
+        public
+        view
+        returns(
+            uint256[] memory returnAmounts,
+            uint256 estimateGasAmount,
+            uint256[] memory distribution
+        );
+
+    function swapMulti(
+        IERC20[] memory tokens,
+        uint256 amount,
+        uint256 minReturn,
+        uint256[] memory distribution,
+        uint256[] memory flags
+    )
+        public
+        payable
+        returns(uint256 returnAmount);
+}
+
 // File: contracts/OneSplitAudit.sol
 
 pragma solidity ^0.5.0;
@@ -817,23 +852,36 @@ interface IReferralGasSponsor {
 }
 
 
+library Array {
+    function first(IERC20[] memory arr) internal pure returns(IERC20) {
+        return arr[0];
+    }
+
+    function last(IERC20[] memory arr) internal pure returns(IERC20) {
+        return arr[arr.length - 1];
+    }
+}
+
+
 //
 // Security assumptions:
 // 1. It is safe to have infinite approves of any tokens to this smart contract,
 //    since it could only call `transferFrom()` with first argument equal to msg.sender
 // 2. It is safe to call `swap()` with reliable `minReturn` argument,
 //    if returning amount will not reach `minReturn` value whole swap will be reverted.
-// 3. Additionally CHI tokens could be burned from caller if FLAG_ENABLE_CHI_BURN flag
-//    is presented: (flags & 0x10000000000) != 0. Burned amount would refund up to 43% of gas fees.
+// 3. Additionally CHI tokens could be burned from caller in case of FLAG_ENABLE_CHI_BURN (0x10000000000)
+//    presented in `flags` or from transaction origin in case of FLAG_ENABLE_CHI_BURN_BY_ORIGIN (0x4000000000000000)
+//    presented in `flags`. Burned amount would refund up to 43% of gas fees.
 //
 contract OneSplitAudit is IOneSplit, Ownable {
     using SafeMath for uint256;
     using UniversalERC20 for IERC20;
+    using Array for IERC20[];
 
     IWETH constant internal weth = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IFreeFromUpTo public constant chi = IFreeFromUpTo(0x0000000000004946c0e9F43F4Dee607b0eF1fA1c);
 
-    IOneSplit public oneSplitImpl;
+    IOneSplitMulti public oneSplitImpl;
 
     event ImplementationUpdated(address indexed newImpl);
 
@@ -844,11 +892,12 @@ contract OneSplitAudit is IOneSplit, Ownable {
         uint256 destTokenAmount,
         uint256 minReturn,
         uint256[] distribution,
-        uint256 flags,
-        address referral
+        uint256[] flags,
+        address referral,
+        uint256 feePercent
     );
 
-    constructor(IOneSplit impl) public {
+    constructor(IOneSplitMulti impl) public {
         setNewImpl(impl);
     }
 
@@ -857,7 +906,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
         require(msg.sender != tx.origin, "OneSplit: do not send ETH directly");
     }
 
-    function setNewImpl(IOneSplit impl) public onlyOwner {
+    function setNewImpl(IOneSplitMulti impl) public onlyOwner {
         oneSplitImpl = impl;
         emit ImplementationUpdated(address(impl));
     }
@@ -929,6 +978,38 @@ contract OneSplitAudit is IOneSplit, Ownable {
         );
     }
 
+    /// @notice Calculate expected returning amount of first `tokens` element to
+    /// last `tokens` element through ann the middle tokens with corresponding
+    /// `parts`, `flags` and `destTokenEthPriceTimesGasPrices` array values of each step
+    /// @param tokens (IERC20[]) Address of token or `address(0)` for Ether
+    /// @param amount (uint256) Amount for `fromToken`
+    /// @param parts (uint256[]) Number of pieces source volume could be splitted
+    /// @param flags (uint256[]) Flags for enabling and disabling some features, default 0
+    /// @param destTokenEthPriceTimesGasPrices (uint256[]) destToken price to ETH multiplied by gas price
+    function getExpectedReturnWithGasMulti(
+        IERC20[] memory tokens,
+        uint256 amount,
+        uint256[] memory parts,
+        uint256[] memory flags,
+        uint256[] memory destTokenEthPriceTimesGasPrices
+    )
+        public
+        view
+        returns(
+            uint256[] memory returnAmounts,
+            uint256 estimateGasAmount,
+            uint256[] memory distribution
+        )
+    {
+        return oneSplitImpl.getExpectedReturnWithGasMulti(
+            tokens,
+            amount,
+            parts,
+            flags,
+            destTokenEthPriceTimesGasPrices
+        );
+    }
+
     /// @notice Swap `amount` of `fromToken` to `destToken`
     /// @param fromToken (IERC20) Address of token or `address(0)` for Ether
     /// @param destToken (IERC20) Address of token or `address(0)` for Ether
@@ -943,7 +1024,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
         uint256 minReturn,
         uint256[] memory distribution,
         uint256 flags // See contants in IOneSplit.sol
-    ) public payable returns(uint256 returnAmount) {
+    ) public payable returns(uint256) {
         return swapWithReferral(
             fromToken,
             destToken,
@@ -956,11 +1037,6 @@ contract OneSplitAudit is IOneSplit, Ownable {
         );
     }
 
-    struct Balances {
-        uint128 ofFromToken;
-        uint128 ofDestToken;
-    }
-
     /// @notice Swap `amount` of `fromToken` to `destToken`
     /// param fromToken (IERC20) Address of token or `address(0)` for Ether
     /// param destToken (IERC20) Address of token or `address(0)` for Ether
@@ -971,73 +1047,108 @@ contract OneSplitAudit is IOneSplit, Ownable {
     /// @param referral (address) Address of referral
     /// @param feePercent (uint256) Fees percents normalized to 1e18, limited to 0.03e18 (3%)
     function swapWithReferral(
-        IERC20 /*fromToken*/,
-        IERC20 /*destToken*/,
+        IERC20 fromToken,
+        IERC20 destToken,
         uint256 amount,
         uint256 minReturn,
         uint256[] memory distribution,
         uint256 flags, // See contants in IOneSplit.sol
         address referral,
         uint256 feePercent
+    ) public payable returns(uint256) {
+        IERC20[] memory tokens = new IERC20[](2);
+        tokens[0] = fromToken;
+        tokens[1] = destToken;
+
+        uint256[] memory flagsArray = new uint256[](2);
+        flagsArray[0] = flags;
+        flagsArray[1] = flags;
+
+        swapWithReferralMulti(
+            tokens,
+            amount,
+            minReturn,
+            distribution,
+            flagsArray,
+            referral,
+            feePercent
+        );
+    }
+
+    /// @notice Swap `amount` of first element of `tokens` to the latest element of `destToken`
+    /// @param tokens (IERC20[]) Addresses of token or `address(0)` for Ether
+    /// @param amount (uint256) Amount for `fromToken`
+    /// @param minReturn (uint256) Minimum expected return, else revert
+    /// @param distribution (uint256[]) Array of weights for volume distribution returned by `getExpectedReturn`
+    /// @param flags (uint256[]) Flags for enabling and disabling some features, default 0
+    /// @param referral (address) Address of referral
+    /// @param feePercent (uint256) Fees percents normalized to 1e18, limited to 0.03e18 (3%)
+    function swapWithReferralMulti(
+        IERC20[] memory tokens,
+        uint256 amount,
+        uint256 minReturn,
+        uint256[] memory distribution,
+        uint256[] memory flags,
+        address referral,
+        uint256 feePercent
     ) public payable returns(uint256 returnAmount) {
-        require(_fromToken() != _destToken() && amount > 0, "OneSplit: swap makes no sense");
-        require((msg.value != 0) == _fromToken().isETH(), "OneSplit: msg.value should be used only for ETH swap");
+        require(tokens.length >= 2 && amount > 0, "OneSplit: swap makes no sense");
+        require(tokens.length == distribution.length, "OneSplit: distribution array is too short");
+        require(tokens.length == flags.length, "OneSplit: flags array is too short");
+        require((msg.value != 0) == tokens.first().isETH(), "OneSplit: msg.value should be used only for ETH swap");
         require(feePercent <= 0.03e18, "OneSplit: feePercent out of range");
 
         uint256 gasStart = gasleft();
 
-        Balances memory beforeBalances = Balances({
-            ofFromToken: uint128(_fromToken().universalBalanceOf(address(this)).sub(msg.value)),
-            ofDestToken: uint128(_destToken().universalBalanceOf(address(this)))
-        });
+        Balances memory beforeBalances = _getFirstAndLastBalances(tokens);
 
         // Transfer From
-        _fromToken().universalTransferFromSenderToThis(amount);
-        uint256 confirmed = _fromToken().universalBalanceOf(address(this)).sub(beforeBalances.ofFromToken);
+        tokens.first().universalTransferFromSenderToThis(amount);
+        uint256 confirmed = tokens.first().universalBalanceOf(address(this)).sub(beforeBalances.ofFromToken);
 
         // Swap
-        _fromToken().universalApprove(address(oneSplitImpl), confirmed);
-        oneSplitImpl.swap.value(_fromToken().isETH() ? confirmed : 0)(
-            _fromToken(),
-            _destToken(),
+        tokens.first().universalApprove(address(oneSplitImpl), confirmed);
+        oneSplitImpl.swapMulti.value(tokens.first().isETH() ? confirmed : 0)(
+            tokens,
             confirmed,
             minReturn,
             distribution,
             flags
         );
 
-        Balances memory afterBalances = Balances({
-            ofFromToken: uint128(_fromToken().universalBalanceOf(address(this))),
-            ofDestToken: uint128(_destToken().universalBalanceOf(address(this)))
-        });
+        Balances memory afterBalances = _getFirstAndLastBalances(tokens);
 
         // Return
         returnAmount = uint256(afterBalances.ofDestToken).sub(beforeBalances.ofDestToken);
         require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
-        _destToken().universalTransfer(referral, returnAmount.mul(feePercent).div(1e18));
-        _destToken().universalTransfer(msg.sender, returnAmount.sub(returnAmount.mul(feePercent).div(1e18)));
+        tokens.last().universalTransfer(referral, returnAmount.mul(feePercent).div(1e18));
+        tokens.last().universalTransfer(msg.sender, returnAmount.sub(returnAmount.mul(feePercent).div(1e18)));
 
         emit Swapped(
-            _fromToken(),
-            _destToken(),
+            tokens.first(),
+            tokens.last(),
             amount,
             returnAmount,
             minReturn,
             distribution,
             flags,
-            referral
+            referral,
+            feePercent
         );
 
         // Return remainder
         if (afterBalances.ofFromToken > beforeBalances.ofFromToken) {
-            _fromToken().universalTransfer(msg.sender, uint256(afterBalances.ofFromToken).sub(beforeBalances.ofFromToken));
+            tokens.first().universalTransfer(msg.sender, uint256(afterBalances.ofFromToken).sub(beforeBalances.ofFromToken));
         }
 
-        if ((flags & FLAG_ENABLE_CHI_BURN) > 0) {
+        if ((flags[0] & (FLAG_ENABLE_CHI_BURN | FLAG_ENABLE_CHI_BURN_BY_ORIGIN)) > 0) {
             uint256 gasSpent = 21000 + gasStart - gasleft() + 16 * msg.data.length;
-            _chiBurnOrSell((gasSpent + 14154) / 41947);
+            _chiBurnOrSell(
+                ((flags[0] & FLAG_ENABLE_CHI_BURN_BY_ORIGIN) > 0) ? tx.origin : msg.sender,
+                (gasSpent + 14154) / 41947
+            );
         }
-        else if ((flags & FLAG_ENABLE_REFERRAL_GAS_SPONSORSHIP) > 0) {
+        else if ((flags[0] & FLAG_ENABLE_REFERRAL_GAS_SPONSORSHIP) > 0) {
             uint256 gasSpent = 21000 + gasStart - gasleft() + 16 * msg.data.length;
             IReferralGasSponsor(referral).makeGasDiscount(gasSpent, returnAmount, msg.data);
         }
@@ -1047,33 +1158,31 @@ contract OneSplitAudit is IOneSplit, Ownable {
         asset.universalTransfer(msg.sender, amount);
     }
 
-    function _chiBurnOrSell(uint256 amount) internal {
+    function _chiBurnOrSell(address payable sponsor, uint256 amount) internal {
         IUniswapV2Exchange exchange = IUniswapV2Exchange(0xa6f3ef841d371a82ca757FaD08efc0DeE2F1f5e2);
         uint256 sellRefund = UniswapV2ExchangeLib.getReturn(exchange, chi, weth, amount);
         uint256 burnRefund = amount.mul(18_000).mul(tx.gasprice);
 
         if (sellRefund < burnRefund.add(tx.gasprice.mul(36_000))) {
-            chi.freeFromUpTo(msg.sender, amount);
+            chi.freeFromUpTo(sponsor, amount);
         }
         else {
-            chi.transferFrom(msg.sender, address(exchange), amount);
+            chi.transferFrom(sponsor, address(exchange), amount);
             exchange.swap(0, sellRefund, address(this), "");
             weth.withdraw(weth.balanceOf(address(this)));
-            msg.sender.transfer(address(this).balance);
+            sponsor.transfer(address(this).balance);
         }
     }
 
-    // Helps to avoid "Stack too deep" in swap() method
-    function _fromToken() private pure returns(IERC20 token) {
-        assembly {
-            token := calldataload(4)
-        }
+    struct Balances {
+        uint128 ofFromToken;
+        uint128 ofDestToken;
     }
 
-    // Helps to avoid "Stack too deep" in swap() method
-    function _destToken() private pure returns(IERC20 token) {
-        assembly {
-            token := calldataload(36)
-        }
+    function _getFirstAndLastBalances(IERC20[] memory tokens) internal view returns(Balances memory) {
+        return Balances({
+            ofFromToken: uint128(tokens.first().universalBalanceOf(address(this)).sub(msg.value)),
+            ofDestToken: uint128(tokens.last().universalBalanceOf(address(this)))
+        });
     }
 }

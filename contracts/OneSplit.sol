@@ -2,7 +2,6 @@ pragma solidity ^0.5.0;
 
 import "./IOneSplit.sol";
 import "./OneSplitBase.sol";
-import "./OneSplitMultiPath.sol";
 import "./OneSplitCompound.sol";
 import "./OneSplitFulcrum.sol";
 import "./OneSplitChai.sol";
@@ -13,7 +12,6 @@ import "./OneSplitAave.sol";
 import "./OneSplitWeth.sol";
 import "./OneSplitMStable.sol";
 import "./OneSplitDMM.sol";
-//import "./OneSplitSmartToken.sol";
 
 
 contract OneSplitViewWrap is
@@ -27,9 +25,7 @@ contract OneSplitViewWrap is
     OneSplitIearnView,
     OneSplitIdleView,
     OneSplitWethView,
-    OneSplitDMMView,
-    OneSplitMultiPathView
-    //OneSplitSmartTokenView
+    OneSplitDMMView
 {
     IOneSplitView public oneSplitView;
 
@@ -130,9 +126,7 @@ contract OneSplitWrap is
     OneSplitIearn,
     OneSplitIdle,
     OneSplitWeth,
-    OneSplitDMM,
-    OneSplitMultiPath
-    //OneSplitSmartToken
+    OneSplitDMM
 {
     IOneSplitView public oneSplitView;
     IOneSplit public oneSplit;
@@ -200,8 +194,8 @@ contract OneSplitWrap is
     function getExpectedReturnWithGasMulti(
         IERC20[] memory tokens,
         uint256 amount,
-        uint256 parts,
-        uint256 flags,
+        uint256[] memory parts,
+        uint256[] memory flags,
         uint256[] memory destTokenEthPriceTimesGasPrices
     )
         public
@@ -230,8 +224,8 @@ contract OneSplitWrap is
                 _tokens[i - 1],
                 _tokens[i],
                 (i == 1) ? amount : returnAmounts[i - 2],
-                parts,
-                flags,
+                parts[i],
+                flags[i],
                 destTokenEthPriceTimesGasPrices[i]
             );
             estimateGasAmount = estimateGasAmount.add(amount);
@@ -268,7 +262,7 @@ contract OneSplitWrap is
         uint256 amount,
         uint256 minReturn,
         uint256[] memory distribution,
-        uint256 flags
+        uint256[] memory flags
     ) public payable returns(uint256 returnAmount) {
         tokens[0].universalTransferFrom(msg.sender, address(this), amount);
 
@@ -288,7 +282,7 @@ contract OneSplitWrap is
                 tokens[i],
                 returnAmount,
                 dist,
-                flags
+                flags[i]
             );
             returnAmount = tokens[i].universalBalanceOf(address(this));
             tokens[i - 1].universalTransfer(msg.sender, tokens[i - 1].universalBalanceOf(address(this)));
