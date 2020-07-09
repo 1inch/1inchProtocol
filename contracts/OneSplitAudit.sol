@@ -248,6 +248,30 @@ contract OneSplitAudit is IOneSplit, Ownable {
     /// @param minReturn (uint256) Minimum expected return, else revert
     /// @param distribution (uint256[]) Array of weights for volume distribution returned by `getExpectedReturn`
     /// @param flags (uint256[]) Flags for enabling and disabling some features, default 0
+    function swapMulti(
+        IERC20[] memory tokens,
+        uint256 amount,
+        uint256 minReturn,
+        uint256[] memory distribution,
+        uint256[] memory flags
+    ) public payable returns(uint256 returnAmount) {
+        swapWithReferralMulti(
+            tokens,
+            amount,
+            minReturn,
+            distribution,
+            flags,
+            address(0),
+            0
+        );
+    }
+
+    /// @notice Swap `amount` of first element of `tokens` to the latest element of `destToken`
+    /// @param tokens (IERC20[]) Addresses of token or `address(0)` for Ether
+    /// @param amount (uint256) Amount for `fromToken`
+    /// @param minReturn (uint256) Minimum expected return, else revert
+    /// @param distribution (uint256[]) Array of weights for volume distribution returned by `getExpectedReturn`
+    /// @param flags (uint256[]) Flags for enabling and disabling some features, default 0
     /// @param referral (address) Address of referral
     /// @param feePercent (uint256) Fees percents normalized to 1e18, limited to 0.03e18 (3%)
     function swapWithReferralMulti(
