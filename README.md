@@ -109,13 +109,19 @@ If you need Ether instead of any token use `address(0)` or `address(0xEeeeeEeeeE
 
 ### getExpectedReturn
 ```
-getExpectedReturn(
-    fromToken,
-    destToken,
-    amount,
-    parts,
-    flags
+function getExpectedReturn(
+    IERC20 fromToken,
+    IERC20 destToken,
+    uint256 amount,
+    uint256 parts,
+    uint256 flags
 )
+    public
+    view
+    returns(
+        uint256 returnAmount,
+        uint256[] memory distribution
+    )
 ```
 
 Calculate expected returning amount of desired token
@@ -164,14 +170,21 @@ contract.methods.getExpectedReturn(
 
 ### getExpectedReturnWithGas
 ```
-getExpectedReturnWithGas(
-    fromToken,
-    destToken,
-    amount,
-    parts,
-    flags,
-    destTokenEthPriceTimesGasPrice
+function getExpectedReturnWithGas(
+    IERC20 fromToken,
+    IERC20 destToken,
+    uint256 amount,
+    uint256 parts,
+    uint256 flags,
+    uint256 destTokenEthPriceTimesGasPrice
 )
+    public
+    view
+    returns(
+        uint256 returnAmount,
+        uint256 estimateGasAmount,
+        uint256[] memory distribution
+    )
 ```
 
 Calculate expected returning amount of desired token taking into account how gas protocols affect price
@@ -198,16 +211,58 @@ Return values:
  // TO DO: ...
 ```
 
+### getExpectedReturnWithGasMulti
+```
+function getExpectedReturnWithGasMulti(
+    IERC20[] memory tokens,
+    uint256 amount,
+    uint256[] memory parts,
+    uint256[] memory flags,
+    uint256[] memory destTokenEthPriceTimesGasPrices
+)
+    public
+    view
+    returns(
+        uint256[] memory returnAmounts,
+        uint256 estimateGasAmount,
+        uint256[] memory distribution
+    )
+```
+
+Calculate expected returning amount of first `tokens` element to last `tokens` element through and the middle tokens with corresponding `parts`, `flags` and `destTokenEthPriceTimesGasPrices` array values of each step.<br>
+The length of each array (`parts`, `flags` and `destTokenEthPriceTimesGasPrices`) should be 1 element less than `tokens` array length. Each element from `parts`, `flags` and `destTokenEthPriceTimesGasPrices` corresponds to 2 neighboring elements from `tokens` array.
+
+| Params | Type | Description |
+| ----- | ----- | ----- |
+| tokens | IERC20[] | The sequence of tokens swaps (`tokens[0] -> tokens[1] -> ...`) |
+| amount | uint256 | Amount for `tokens[0]` |
+| parts | uint256[] | The sequence of number of pieces source volume could be splitted (Works like granularity, higly affects gas usage. Should be called offchain, but could be called onchain if user swaps not his own funds, but this is still considered as not safe) |
+| flags | uint256[] | The sequence of flags for enabling and disabling some features (default: `0`), see flags description |
+| destTokenEthPriceTimesGasPrice | uint256[] | The sequence of numbers `returnAmount * gas_price`, where `returnAmount` is result of `getExpectedReturn(fromToken, destToken, amount, parts, flags)` |
+  
+Return values: 
+
+| Params | Type | Description |
+| ----- | ----- | ----- |
+| returnAmount | uint256[] | Expected returning amounts of desired tokens in `tokens` array |
+| estimateGasAmount | uint256 | Expected gas amount of exchange |
+| distribution | uint256[] | Array of weights for volume distribution  |
+  
+**Example:**
+```
+ // TO DO: ...
+```
+
 ### swap
 ```
-swap(
-    fromToken,
-    destToken,
-    amount,
-    minReturn,
-    distribution,
-    flags
-)
+function swap(
+    IERC20 fromToken,
+    IERC20 destToken,
+    uint256 amount,
+    uint256 minReturn,
+    uint256[] memory distribution,
+    uint256 flags
+) public payable returns(uint256)
 ```
 
 Swap `amount` of `fromToken` to `destToken`
@@ -236,18 +291,55 @@ Return values:
  // TO DO: ...
 ```
 
+### swapMulti
+```
+function swapMulti(
+    IERC20[] memory tokens,
+    uint256 amount,
+    uint256 minReturn,
+    uint256[] memory distribution,
+    uint256[] memory flags
+) public payable returns(uint256)
+```
+
+Swap `amount` of first element of `tokens` to the latest element.<br>
+The length of `flags` array should be 1 element less than `tokens` array length. Each element from `flags` array corresponds to 2 neighboring elements from `tokens` array.
+
+| Params | Type | Description |
+| ----- | ----- | ----- |
+| tokens | IERC20[] | Addresses of tokens or `address(0)` for Ether |
+| amount | uint256 | Amount for `tokens[0]` |
+| minReturn | uint256 | Minimum expected return, else revert transaction |
+| distribution | uint256[] | Array of weights for volume distribution (returned by `getExpectedReturn`) |
+| flags | uint256[] | The sequence of flags for enabling and disabling some features (default: `0`), see flags description |
+  
+**Notice:** Make sure the `flags` param coincides `flags` param in `getExpectedReturnWithGasMulti` method if you want the same result
+  
+**Notice:** This method is equal to `swapWithReferralMulti(fromToken, destToken, amount, minReturn, distribution, flags, address(0), 0)`
+  
+Return values: 
+  
+| Params | Type | Description |
+| ----- | ----- | ----- |
+| returnAmount | uint256 | Recieved amount of desired token |
+
+**Example:**
+```
+ // TO DO: ...
+```
+
 ### swapWithReferral
 ```
-swapWithReferral(
-    fromToken,
-    destToken,
-    amount,
-    minReturn,
-    distribution,
-    flags,
-    referral,
-    feePercent
-)
+function swapWithReferral(
+    IERC20 fromToken,
+    IERC20 destToken,
+    uint256 amount,
+    uint256 minReturn,
+    uint256[] memory distribution,
+    uint256 flags,
+    address referral,
+    uint256 feePercent
+) public payable returns(uint256)
 ```
   
 Swap `amount` of `fromToken` to `destToken`
@@ -275,6 +367,65 @@ Return values:
 ```
  // TO DO: ...
 ```
+
+### swapWithReferralMulti
+```
+function swapWithReferralMulti(
+    IERC20[] memory tokens,
+    uint256 amount,
+    uint256 minReturn,
+    uint256[] memory distribution,
+    uint256[] memory flags,
+    address referral,
+    uint256 feePercent
+) public payable returns(uint256 returnAmount)
+```
+  
+Swap `amount` of first element of `tokens` to the latest element.<br>
+The length of `flags` array should be 1 element less than `tokens` array length. Each element from `flags` array corresponds to 2 neighboring elements from `tokens` array.
+
+  
+| Params | Type | Description |
+| ----- | ----- | ----- |
+| tokens | IERC20[] | Addresses of tokens or `address(0)` for Ether |
+| amount | uint256 | Amount for `tokens[0]` |
+| minReturn | uint256 | Minimum expected return, else revert transaction |
+| distribution | uint256[] | Array of weights for volume distribution (returned by `getExpectedReturn`) |
+| flags | uint256[] | The sequence of flags for enabling and disabling some features (default: `0`), see flags description |
+| referral | address | Referrer's address (exception with flag `FLAG_ENABLE_REFERRAL_GAS_SPONSORSHIP`) |
+| feePercent | uint256 | Fees percents normalized to 1e18, limited to 0.03e18 (3%) |
+  
+**Notice:** Make sure the `flags` param coincides `flags` param in `getExpectedReturnWithGasMulti` method if you want the same result
+  
+Return values: 
+  
+| Params | Type | Description |
+| ----- | ----- | ----- |
+| returnAmount | uint256 | Recieved amount of desired token |
+
+**Example:**
+```
+ // TO DO: ...
+```
+
+### makeGasDiscount
+```
+function makeGasDiscount(
+    uint256 gasSpent,
+    uint256 returnAmount,
+    bytes calldata msgSenderCalldata
+)
+```
+
+In case developer wants to manage burning `GAS` or `CHI` tokens with developer's own smartcontract one should implement this method and use `FLAG_ENABLE_REFERRAL_GAS_SPONSORSHIP` flag. `1proto.eth` will call `makeGasDiscount` in developer's smartcontract.
+
+| Params | Type | Description |
+| ----- | ----- | ----- |
+| gasSpent | uint256 | How many gas was spent |
+| returnAmount | uint256 | Recieved amount of desired token |
+| msgSenderCalldata | bytes | Arguments from `swap`, `swapWithReferral` or `swapWithReferralMulti` method |
+
+**Notice:** There is no such method in `1proto.eth`.
   
 ## Flags
 ### Flag types
@@ -404,4 +555,4 @@ flags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_KYBER + ...
   | ---- | ---- | ---- |
   | FLAG_ENABLE_CHI_BURN | `0x10000000000` | Burns `CHI` token to save gas. Make sure to approve `CHI` token to `1split.eth` smart contract |
   | FLAG_ENABLE_CHI_BURN_BY_ORIGIN | `0x4000000000000000` | This flag extends the functionality of `FLAG_ENABLE_CHI_BURN` flag. Burns `CHI` token from address which sign swap transaction instead of address which call swap method |
-  | FLAG_ENABLE_REFERRAL_GAS_SPONSORSHIP | `0x80000000000000` | Turning on this flag means that parameter `referral` (method `swapWithReferral`) matches the address of the user smartcontract which has `makeGasDiscount` method. So this method can burn `GAS` token, `CHI` token by itself or it can add other functionality.|
+  | FLAG_ENABLE_REFERRAL_GAS_SPONSORSHIP | `0x80000000000000` | Turning on this flag means that parameter `referral` (methods `swapWithReferral` and `swapWithReferralMulti`) matches the address of the user smartcontract which has `makeGasDiscount` method. So this method can burn `GAS` token, `CHI` token by itself or it can add other functionality.|
