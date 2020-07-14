@@ -69,7 +69,9 @@ To use this service you have to call methods at [OneSplitAudit](https://github.c
 
 ![How to use it](./img/howtouseit.png)
 
-First of all call method `getExpectedReturn` (see methods section), it returns `distribution` array. Each element of this array matches element of `splitExchanges` (see above) and represents fraction of trading volume.<br>
+To swap tokens you have to figure out way from left to right points by one of paths on scheme above.
+
+For example, first of all call method `getExpectedReturn` (see methods section), it returns `distribution` array. Each element of this array matches element of `splitExchanges` (see above) and represents fraction of trading volume.<br>
 Then call `getExpectedReturnWithGas` to take into account gas when splitting. This method returns more profitable `distribution` array for exchange.<br>
 Then call method `swap` or `swapWithReferral` (see methods section) with param `distribution` which was recieved earlier from method `getExpectedReturn`.
 
@@ -217,7 +219,7 @@ If you need Ether instead of any token use `address(0)` or `address(0xEeeeeEeeeE
   | minReturn | uint256 | Minimum expected return, else revert transaction |
   | distribution | uint256[] | Array of weights for volume distribution (returned by `getExpectedReturn`) |
   | flags | uint256 | Flags for enabling and disabling some features (default: `0`), see flags description |
-  | referral | address | Referrer's address |
+  | referral | address | Referrer's address (exception with flag `FLAG_ENABLE_REFERRAL_GAS_SPONSORSHIP`) |
   | feePercent | uint256 | Fees percents normalized to 1e18, limited to 0.03e18 (3%) |
   
   **Notice:** Make sure the `flags` param coincides `flags` param in `getExpectedReturn` method if you want the same result
