@@ -28,11 +28,11 @@ contract OneSplitMStableView is OneSplitViewWrapBase {
         if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_MSTABLE_MUSD)) {
             if (fromToken == IERC20(musd)) {
                 if (destToken == usdc || destToken == dai || destToken == usdt || destToken == tusd) {
-                    (,, returnAmount) = musd_helper.getRedeemValidity(fromToken, amount, destToken);
+                    (,, returnAmount,) = musd_helper.getRedeemValidity(fromToken, amount, destToken);
                     return (returnAmount, 300_000, new uint256[](DEXES_COUNT));
                 }
                 else {
-                    (,, returnAmount) = musd_helper.getRedeemValidity(fromToken, amount, dai);
+                    (,, returnAmount,) = musd_helper.getRedeemValidity(fromToken, amount, dai);
                     (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                         dai,
                         destToken,
@@ -64,7 +64,7 @@ contract OneSplitMStableView is OneSplitViewWrapBase {
                             destTokenEthPriceTimesGasPrice
                         )
                     );
-                    (,, returnAmount) = musd_helper.getRedeemValidity(dai, returnAmount, destToken);
+                    (,, returnAmount,) = musd_helper.getRedeemValidity(dai, returnAmount, destToken);
                     return (returnAmount, estimateGasAmount + 300_000, distribution);
                 }
             }
@@ -97,14 +97,14 @@ contract OneSplitMStable is OneSplitBaseWrap {
         if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_MSTABLE_MUSD)) {
             if (fromToken == IERC20(musd)) {
                 if (destToken == usdc || destToken == dai || destToken == usdt || destToken == tusd) {
-                    (,, uint256 result) = musd_helper.getRedeemValidity(fromToken, amount, destToken);
+                    (,,, uint256 result) = musd_helper.getRedeemValidity(fromToken, amount, destToken);
                     musd.redeem(
                         destToken,
                         result
                     );
                 }
                 else {
-                    (,, uint256 result) = musd_helper.getRedeemValidity(fromToken, amount, dai);
+                    (,,, uint256 result) = musd_helper.getRedeemValidity(fromToken, amount, dai);
                     musd.redeem(
                         dai,
                         result

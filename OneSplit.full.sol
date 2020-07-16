@@ -1316,7 +1316,53 @@ contract IMStable is IERC20 {
         returns (uint256 massetRedeemed);
 }
 
-interface IMassetRedemptionValidator {
+interface IMassetValidationHelper {
+    /**
+     * @dev Returns a valid bAsset to redeem
+     * @param _mAsset Masset addr
+     * @return valid bool
+     * @return string message
+     * @return address of bAsset to redeem
+     */
+    function suggestRedeemAsset(
+        IERC20 _mAsset
+    )
+        external
+        view
+        returns (
+            bool valid,
+            string memory err,
+            address token
+        );
+
+    /**
+     * @dev Returns a valid bAsset with which to mint
+     * @param _mAsset Masset addr
+     * @return valid bool
+     * @return string message
+     * @return address of bAsset to mint
+     */
+    function suggestMintAsset(
+        IERC20 _mAsset
+    )
+        external
+        view
+        returns (
+            bool valid,
+            string memory err,
+            address token
+        );
+
+    /**
+     * @dev Determines if a given Redemption is valid
+     * @param _mAsset Address of the given mAsset (e.g. mUSD)
+     * @param _mAssetQuantity Amount of mAsset to redeem (in mUSD units)
+     * @param _outputBasset Desired output bAsset
+     * @return valid
+     * @return validity reason
+     * @return output in bAsset units
+     * @return bAssetQuantityArg - required input argument to the 'redeem' call
+     */
     function getRedeemValidity(
         IERC20 _mAsset,
         uint256 _mAssetQuantity,
@@ -1324,7 +1370,12 @@ interface IMassetRedemptionValidator {
     )
         external
         view
-        returns (bool, string memory, uint256 output);
+        returns (
+            bool valid,
+            string memory,
+            uint256 output,
+            uint256 bassetQuantityArg
+        );
 }
 
 // File: contracts/interface/IBalancerRegistry.sol
@@ -1538,7 +1589,7 @@ contract OneSplitRoot is IOneSplitView {
     IUniswapV2Factory constant internal uniswapV2 = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
     IDForceSwap constant internal dforceSwap = IDForceSwap(0x03eF3f37856bD08eb47E2dE7ABc4Ddd2c19B60F2);
     IMStable constant internal musd = IMStable(0xe2f2a5C287993345a840Db3B0845fbC70f5935a5);
-    IMassetRedemptionValidator constant internal musd_helper = IMassetRedemptionValidator(0x4c5e03065bC52cCe84F3ac94DF14bbAC27eac89b);
+    IMassetValidationHelper constant internal musd_helper = IMassetValidationHelper(0xaBcC93c3be238884cc3309C19Afd128fAfC16911);
     IBalancerRegistry constant internal balancerRegistry = IBalancerRegistry(0x65e67cbc342712DF67494ACEfc06fe951EE93982);
     ICurveCalculator constant internal curveCalculator = ICurveCalculator(0xc1DB00a8E5Ef7bfa476395cdbcc98235477cDE4E);
     ICurveRegistry constant internal curveRegistry = ICurveRegistry(0x7002B727Ef8F5571Cb5F9D70D13DBEEb4dFAe9d1);
@@ -2727,7 +2778,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
-        uint256 flags,
+        uint256 /*flags*/,
         bytes memory hint
     ) private view returns(uint256) {
         (, bytes memory data) = address(kyberNetworkProxy).staticcall(
@@ -2736,7 +2787,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
                 fromToken,
                 destToken,
                 amount,
-                flags.check(1 << 255) ? 10 : 0,
+                10,
                 hint
             )
         );
@@ -2814,7 +2865,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
                     ETH_ADDRESS,
                     destToken,
                     rets[i],
-                    flags.check(1 << 255) ? 10 : 0,
+                    10,
                     destHint
                 );
                 rets[i] = rate.mul(rets[i]).mul(destTokenDecimals).div(1e36);
@@ -3629,11 +3680,10 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
-        uint256 flags,
+        uint256 /*flags*/,
         bytes32 reserveId
     ) internal {
         uint256 returnAmount = amount;
-        uint256 bps = flags.check(1 << 255) ? 10 : 0;
 
         bytes32[] memory reserveIds = new bytes32[](1);
         reserveIds[0] = reserveId;
@@ -3655,7 +3705,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
                 uint256(-1),
                 0,
                 0x4D37f28D2db99e8d35A6C725a5f1749A085850a3,
-                bps,
+                10,
                 fromHint
             );
         }
@@ -3676,7 +3726,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
                 uint256(-1),
                 0,
                 0x4D37f28D2db99e8d35A6C725a5f1749A085850a3,
-                bps,
+                10,
                 destHint
             );
         }
@@ -5323,11 +5373,11 @@ contract OneSplitMStableView is OneSplitViewWrapBase {
         if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_MSTABLE_MUSD)) {
             if (fromToken == IERC20(musd)) {
                 if (destToken == usdc || destToken == dai || destToken == usdt || destToken == tusd) {
-                    (,, returnAmount) = musd_helper.getRedeemValidity(fromToken, amount, destToken);
+                    (,, returnAmount,) = musd_helper.getRedeemValidity(fromToken, amount, destToken);
                     return (returnAmount, 300_000, new uint256[](DEXES_COUNT));
                 }
                 else {
-                    (,, returnAmount) = musd_helper.getRedeemValidity(fromToken, amount, dai);
+                    (,, returnAmount,) = musd_helper.getRedeemValidity(fromToken, amount, dai);
                     (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
                         dai,
                         destToken,
@@ -5359,7 +5409,7 @@ contract OneSplitMStableView is OneSplitViewWrapBase {
                             destTokenEthPriceTimesGasPrice
                         )
                     );
-                    (,, returnAmount) = musd_helper.getRedeemValidity(dai, returnAmount, destToken);
+                    (,, returnAmount,) = musd_helper.getRedeemValidity(dai, returnAmount, destToken);
                     return (returnAmount, estimateGasAmount + 300_000, distribution);
                 }
             }
@@ -5392,14 +5442,14 @@ contract OneSplitMStable is OneSplitBaseWrap {
         if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_MSTABLE_MUSD)) {
             if (fromToken == IERC20(musd)) {
                 if (destToken == usdc || destToken == dai || destToken == usdt || destToken == tusd) {
-                    (,, uint256 result) = musd_helper.getRedeemValidity(fromToken, amount, destToken);
+                    (,,, uint256 result) = musd_helper.getRedeemValidity(fromToken, amount, destToken);
                     musd.redeem(
                         destToken,
                         result
                     );
                 }
                 else {
-                    (,, uint256 result) = musd_helper.getRedeemValidity(fromToken, amount, dai);
+                    (,,, uint256 result) = musd_helper.getRedeemValidity(fromToken, amount, dai);
                     musd.redeem(
                         dai,
                         result

@@ -1,5 +1,6 @@
 pragma solidity ^0.5.0;
 
+import "@openzeppelin/contracts/math/Math.sol";
 import "@openzeppelin/contracts/ownership/Ownable.sol";
 import "./interface/IWETH.sol";
 import "./interface/IUniswapV2Exchange.sol";
@@ -293,6 +294,12 @@ contract OneSplitAudit is IOneSplit, Ownable {
         Balances memory beforeBalances = _getFirstAndLastBalances(tokens, true);
 
         // Transfer From
+        if (amount == uint256(-1)) {
+            amount = Math.min(
+                tokens.first().balanceOf(msg.sender),
+                tokens.first().allowance(msg.sender, address(this))
+            );
+        }
         tokens.first().universalTransferFromSenderToThis(amount);
         uint256 confirmed = tokens.first().universalBalanceOf(address(this)).sub(beforeBalances.ofFromToken);
 
