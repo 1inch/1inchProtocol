@@ -79,8 +79,9 @@ contract OneSplitRoot is IOneSplitView {
     using UniswapV2ExchangeLib for IUniswapV2Exchange;
     using ChaiHelper for IChai;
 
-    uint256 constant internal DEXES_COUNT = 31;
+    uint256 constant internal DEXES_COUNT = 34;
     IERC20 constant internal ETH_ADDRESS = IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+    IERC20 constant internal ZERO_ADDRESS = IERC20(0);
 
     IBancorEtherToken constant internal bancorEtherToken = IBancorEtherToken(0xc0829421C1d260BD3cB3E0F06cfE2D52db2cE315);
     IWETH constant internal weth = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
@@ -120,7 +121,7 @@ contract OneSplitRoot is IOneSplitView {
     IAaveLendingPool constant internal aave = IAaveLendingPool(0x398eC7346DcD622eDc5ae82352F02bE94C62d119);
     ICompound constant internal compound = ICompound(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
     ICompoundEther constant internal cETH = ICompoundEther(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
-    IMooniswapRegistry constant internal mooniswapRegistry = IMooniswapRegistry(0x7079E8517594e5b21d2B9a0D17cb33F5FE2bca70);
+    IMooniswapRegistry constant internal mooniswapRegistry = IMooniswapRegistry(0xEa579905818Ae70051C057e5E6aF3A5dC85745A4);
     IUniswapV2Factory constant internal uniswapV2 = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
     IDForceSwap constant internal dforceSwap = IDForceSwap(0x03eF3f37856bD08eb47E2dE7ABc4Ddd2c19B60F2);
     IMStable constant internal musd = IMStable(0xe2f2a5C287993345a840Db3B0845fbC70f5935a5);
@@ -455,7 +456,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             true,  // "Uniswap Compound",
             true,  // "Uniswap CHAI",
             true,  // "Uniswap Aave",
-            false, // "Mooniswap",
+            true,  // "Mooniswap 1",
             true,  // "Uniswap V2",
             true,  // "Uniswap V2 (ETH)",
             true,  // "Uniswap V2 (DAI)",
@@ -473,7 +474,10 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             true,  // "Kyber 1"
             true,  // "Kyber 2"
             true,  // "Kyber 3"
-            true   // "Kyber 4"
+            true,  // "Kyber 4"
+            true,  // "Mooniswap 2"
+            true,  // "Mooniswap 3"
+            true   // "Mooniswap 4"
         ];
 
         for (uint i = 0; i < DEXES_COUNT; i++) {
@@ -514,7 +518,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             invert != flags.check(FLAG_DISABLE_UNISWAP_ALL | FLAG_DISABLE_UNISWAP_COMPOUND)   ? _calculateNoReturn : calculateUniswapCompound,
             invert != flags.check(FLAG_DISABLE_UNISWAP_ALL | FLAG_DISABLE_UNISWAP_CHAI)       ? _calculateNoReturn : calculateUniswapChai,
             invert != flags.check(FLAG_DISABLE_UNISWAP_ALL | FLAG_DISABLE_UNISWAP_AAVE)       ? _calculateNoReturn : calculateUniswapAave,
-            invert != flags.check(FLAG_DISABLE_MOONISWAP)                                     ? _calculateNoReturn : calculateMooniswap,
+            invert != flags.check(FLAG_DISABLE_MOONISWAP_ALL | FLAG_DISABLE_MOONISWAP)        ? _calculateNoReturn : calculateMooniswap,
             invert != flags.check(FLAG_DISABLE_UNISWAP_V2_ALL | FLAG_DISABLE_UNISWAP_V2)      ? _calculateNoReturn : calculateUniswapV2,
             invert != flags.check(FLAG_DISABLE_UNISWAP_V2_ALL | FLAG_DISABLE_UNISWAP_V2_ETH)  ? _calculateNoReturn : calculateUniswapV2ETH,
             invert != flags.check(FLAG_DISABLE_UNISWAP_V2_ALL | FLAG_DISABLE_UNISWAP_V2_DAI)  ? _calculateNoReturn : calculateUniswapV2DAI,
@@ -532,7 +536,10 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             invert != flags.check(FLAG_DISABLE_KYBER_ALL | FLAG_DISABLE_KYBER_1)              ? _calculateNoReturn : calculateKyber1,
             invert != flags.check(FLAG_DISABLE_KYBER_ALL | FLAG_DISABLE_KYBER_2)              ? _calculateNoReturn : calculateKyber2,
             invert != flags.check(FLAG_DISABLE_KYBER_ALL | FLAG_DISABLE_KYBER_3)              ? _calculateNoReturn : calculateKyber3,
-            invert != flags.check(FLAG_DISABLE_KYBER_ALL | FLAG_DISABLE_KYBER_4)              ? _calculateNoReturn : calculateKyber4
+            invert != flags.check(FLAG_DISABLE_KYBER_ALL | FLAG_DISABLE_KYBER_4)              ? _calculateNoReturn : calculateKyber4,
+            invert != flags.check(FLAG_DISABLE_MOONISWAP_ALL | FLAG_DISABLE_MOONISWAP_ETH)    ? _calculateNoReturn : calculateMooniswapOverETH,
+            invert != flags.check(FLAG_DISABLE_MOONISWAP_ALL | FLAG_DISABLE_MOONISWAP_DAI)    ? _calculateNoReturn : calculateMooniswapOverDAI,
+            invert != flags.check(FLAG_DISABLE_MOONISWAP_ALL | FLAG_DISABLE_MOONISWAP_USDC)   ? _calculateNoReturn : calculateMooniswapOverUSDC
         ];
     }
 
@@ -1478,6 +1485,36 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return (rets, 500_000);
     }
 
+    function calculateMooniswapMany(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256[] memory amounts
+    ) internal view returns(uint256[] memory rets, uint256 gas) {
+        rets = new uint256[](amounts.length);
+
+        IMooniswap mooniswap = mooniswapRegistry.pools(
+            fromToken.isETH() ? ZERO_ADDRESS : fromToken,
+            destToken.isETH() ? ZERO_ADDRESS : destToken
+        );
+        if (mooniswap == IMooniswap(0)) {
+            return (rets, 0);
+        }
+
+        uint256 fromBalance = mooniswap.getBalanceForAddition(fromToken.isETH() ? ZERO_ADDRESS : fromToken);
+        uint256 destBalance = mooniswap.getBalanceForRemoval(destToken.isETH() ? ZERO_ADDRESS : destToken);
+        if (fromBalance == 0 || destBalance == 0) {
+            return (rets, 0);
+        }
+
+        for (uint i = 0; i < amounts.length; i++) {
+            rets[i] = amounts[i].mul(destBalance).div(
+                fromBalance.add(amounts[i])
+            );
+        }
+
+        return (rets, (fromToken.isETH() || destToken.isETH()) ? 80_000 : 110_000);
+    }
+
     function calculateMooniswap(
         IERC20 fromToken,
         IERC20 destToken,
@@ -1485,22 +1522,59 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         uint256 parts,
         uint256 /*flags*/
     ) internal view returns(uint256[] memory rets, uint256 gas) {
-        IMooniswap mooniswap = mooniswapRegistry.target();
-        (bool success, bytes memory data) = address(mooniswap).staticcall.gas(1000000)(
-            abi.encodeWithSelector(
-                mooniswap.getReturn.selector,
-                fromToken,
-                destToken,
-                amount
-            )
+        return calculateMooniswapMany(
+            fromToken,
+            destToken,
+            _linearInterpolation(amount, parts)
         );
+    }
 
-        if (!success || data.length == 0) {
+    function calculateMooniswapOverETH(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags
+    ) internal view returns(uint256[] memory rets, uint256 gas) {
+        if (fromToken.isETH() || destToken.isETH()) {
             return (new uint256[](parts), 0);
         }
 
-        uint256 maxRet = abi.decode(data, (uint256));
-        return (_linearInterpolation(maxRet, parts), 1_000_000);
+        (uint256[] memory results, uint256 gas1) = calculateMooniswap(fromToken, ZERO_ADDRESS, amount, parts, flags);
+        (rets, gas) = calculateMooniswapMany(ZERO_ADDRESS, destToken, results);
+        gas = gas.add(gas1);
+    }
+
+    function calculateMooniswapOverDAI(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags
+    ) internal view returns(uint256[] memory rets, uint256 gas) {
+        if (fromToken == dai || destToken == dai) {
+            return (new uint256[](parts), 0);
+        }
+
+        (uint256[] memory results, uint256 gas1) = calculateMooniswap(fromToken, dai, amount, parts, flags);
+        (rets, gas) = calculateMooniswapMany(dai, destToken, results);
+        gas = gas.add(gas1);
+    }
+
+    function calculateMooniswapOverUSDC(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags
+    ) internal view returns(uint256[] memory rets, uint256 gas) {
+        if (fromToken == usdc || destToken == usdc) {
+            return (new uint256[](parts), 0);
+        }
+
+        (uint256[] memory results, uint256 gas1) = calculateMooniswap(fromToken, usdc, amount, parts, flags);
+        (rets, gas) = calculateMooniswapMany(usdc, destToken, results);
+        gas = gas.add(gas1);
     }
 
     function calculateUniswapV2(
@@ -1768,7 +1842,10 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             _swapOnKyber1,
             _swapOnKyber2,
             _swapOnKyber3,
-            _swapOnKyber4
+            _swapOnKyber4,
+            _swapOnMooniswapETH,
+            _swapOnMooniswapDAI,
+            _swapOnMooniswapUSDC
         ];
 
         require(distribution.length <= reserves.length, "OneSplit: Distribution array should not exceed reserves array size");
@@ -2132,14 +2209,48 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         uint256 amount,
         uint256 /*flags*/
     ) internal {
-        IMooniswap mooniswap = mooniswapRegistry.target();
+        IMooniswap mooniswap = mooniswapRegistry.pools(
+            fromToken.isETH() ? ZERO_ADDRESS : fromToken,
+            destToken.isETH() ? ZERO_ADDRESS : destToken
+        );
         fromToken.universalApprove(address(mooniswap), amount);
         mooniswap.swap.value(fromToken.isETH() ? amount : 0)(
-            fromToken,
-            destToken,
+            fromToken.isETH() ? ZERO_ADDRESS : fromToken,
+            destToken.isETH() ? ZERO_ADDRESS : destToken,
             amount,
-            0
+            0,
+            0x4D37f28D2db99e8d35A6C725a5f1749A085850a3
         );
+    }
+
+    function _swapOnMooniswapETH(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 flags
+    ) internal {
+        _swapOnMooniswap(fromToken, ZERO_ADDRESS, amount, flags);
+        _swapOnMooniswap(ZERO_ADDRESS, destToken, address(this).balance, flags);
+    }
+
+    function _swapOnMooniswapDAI(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 flags
+    ) internal {
+        _swapOnMooniswap(fromToken, dai, amount, flags);
+        _swapOnMooniswap(dai, destToken, dai.balanceOf(address(this)), flags);
+    }
+
+    function _swapOnMooniswapUSDC(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 flags
+    ) internal {
+        _swapOnMooniswap(fromToken, usdc, amount, flags);
+        _swapOnMooniswap(usdc, destToken, usdc.balanceOf(address(this)), flags);
     }
 
     function _swapOnNowhere(

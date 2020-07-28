@@ -27,20 +27,29 @@ contract OneSplitMStableView is OneSplitViewWrapBase {
 
         if (flags.check(FLAG_DISABLE_ALL_WRAP_SOURCES) == flags.check(FLAG_DISABLE_MSTABLE_MUSD)) {
             if (fromToken == IERC20(musd)) {
-                if (destToken == usdc || destToken == dai || destToken == usdt || destToken == tusd) {
-                    (,, returnAmount,) = musd_helper.getRedeemValidity(fromToken, amount, destToken);
-                    return (returnAmount, 300_000, new uint256[](DEXES_COUNT));
+                {
+                    (bool valid1,, uint256 res1,) = musd_helper.getRedeemValidity(musd, amount, destToken);
+                    if (valid1) {
+                        return (res1, 300_000, new uint256[](DEXES_COUNT));
+                    }
                 }
-                else {
-                    (,, returnAmount,) = musd_helper.getRedeemValidity(fromToken, amount, dai);
-                    (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
-                        dai,
-                        destToken,
-                        returnAmount,
-                        parts,
-                        flags,
-                        destTokenEthPriceTimesGasPrice
-                    );
+
+                (bool valid,, address token) = musd_helper.suggestRedeemAsset(musd);
+                if (valid) {
+                    (,, returnAmount,) = musd_helper.getRedeemValidity(musd, amount, IERC20(token));
+                    if (IERC20(token) != destToken) {
+                        (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
+                            IERC20(token),
+                            destToken,
+                            returnAmount,
+                            parts,
+                            flags,
+                            destTokenEthPriceTimesGasPrice
+                        );
+                    } else {
+                        distribution = new uint256[](DEXES_COUNT);
+                    }
+
                     return (returnAmount, estimateGasAmount + 300_000, distribution);
                 }
             }
@@ -52,20 +61,27 @@ contract OneSplitMStableView is OneSplitViewWrapBase {
                 }
                 else {
                     IERC20 _destToken = destToken;
-                    (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
-                        fromToken,
-                        dai,
-                        amount,
-                        parts,
-                        flags,
-                        _scaleDestTokenEthPriceTimesGasPrice(
-                            _destToken,
-                            dai,
-                            destTokenEthPriceTimesGasPrice
-                        )
-                    );
-                    (,, returnAmount,) = musd_helper.getRedeemValidity(dai, returnAmount, destToken);
-                    return (returnAmount, estimateGasAmount + 300_000, distribution);
+                    (bool valid,, address token) = musd_helper.suggestMintAsset(_destToken);
+                    if (valid) {
+                        if (IERC20(token) != fromToken) {
+                            (returnAmount, estimateGasAmount, distribution) = super.getExpectedReturnWithGas(
+                                fromToken,
+                                IERC20(token),
+                                amount,
+                                parts,
+                                flags,
+                                _scaleDestTokenEthPriceTimesGasPrice(
+                                    _destToken,
+                                    IERC20(token),
+                                    destTokenEthPriceTimesGasPrice
+                                )
+                            );
+                        } else {
+                            returnAmount = amount;
+                        }
+                        (,, returnAmount) = musd.getSwapOutput(IERC20(token), _destToken, returnAmount);
+                        return (returnAmount, estimateGasAmount + 300_000, distribution);
+                    }
                 }
             }
         }
