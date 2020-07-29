@@ -1,26 +1,54 @@
 const { BN, expectRevert } = require('@openzeppelin/test-helpers');
 const { expect } = require('chai');
 const assert = require('assert');
+const { exit } = require('process');
 
 const OneSplitView = artifacts.require('OneSplitView');
 const OneSplitViewWrap = artifacts.require('OneSplitViewWrap');
 const OneSplit = artifacts.require('OneSplit');
 const OneSplitWrap = artifacts.require('OneSplitWrap');
+const IMooniswapRegistry = artifacts.require('IMooniswapRegistry');
+const IMooniswap = artifacts.require('IMooniswap');
 
 const DISABLE_ALL = new BN('20000000', 16).add(new BN('40000000', 16));
 const CURVE_SYNTHETIX = new BN('40000', 16);
 const CURVE_COMPOUND = new BN('1000', 16);
 const CURVE_ALL = new BN('200000000000', 16);
-const KYBER_ALL = new BN('200000000000000', 16)
+const KYBER_ALL = new BN('200000000000000', 16);
+const MOONISWAP_ALL = new BN('8000000000000000', 16);
 
 contract('OneSplit', function ([_, addr1]) {
     describe('OneSplit', async function () {
         before(async function () {
+            // let mr = await IMooniswapRegistry.at('0xEa579905818Ae70051C057e5E6aF3A5dC85745A4');
+            // let addr = await mr.pools('0x0000000000000000000000000000000000000000', '0x6B175474E89094C44Da98b954EedeAC495271d0F');
+            // let p = await IMooniswap.at(addr);
+            // console.log('p.address', addr);
+            // console.log('add', await p.getBalanceForAddition('0x0000000000000000000000000000000000000000'));
+            // console.log('rem', await p.getBalanceForRemoval('0x6B175474E89094C44Da98b954EedeAC495271d0F'));
+
+            // exit(1);
             this.subSplitView = await OneSplitView.new();
             this.splitView = await OneSplitViewWrap.new(this.subSplitView.address);
 
             const subSplit = await OneSplit.new(this.splitView.address);
             this.split = await OneSplitWrap.new(this.splitView.address, subSplit.address);
+        });
+
+        it.only('should work with Mooniswap ETH => DAI', async function () {
+            const res = await this.split.getExpectedReturn(
+                '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // ETH
+                '0x6B175474E89094C44Da98b954EedeAC495271d0F', // DAI
+                '100000000', // 1.0
+                10,
+                DISABLE_ALL.add(MOONISWAP_ALL), // enable only Mooniswap
+            );
+
+            console.log('Swap: 1 ETH');
+            console.log('returnAmount:', res.returnAmount.toString() / 1e8 + ' DAI');
+            // console.log('distribution:', res.distribution.map(a => a.toString()));
+            // console.log('raw:', res.returnAmount.toString());
+            expect(res.returnAmount).to.be.bignumber.above('20999999969');
         });
 
         it('should work with Uniswap USDT => BAL', async function () {
@@ -37,6 +65,22 @@ contract('OneSplit', function ([_, addr1]) {
             // console.log('distribution:', res.distribution.map(a => a.toString()));
             // console.log('raw:', res.returnAmount.toString());
             expect(res.returnAmount).to.be.bignumber.equals('0');
+        });
+
+        it('should work with DAI => mUSD', async function () {
+            const res = await this.split.getExpectedReturn(
+                '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC
+                '0xe2f2a5C287993345a840Db3B0845fbC70f5935a5', // mUSD
+                '2000000', // 2.0
+                1,
+                DISABLE_ALL.add(web3.utils.toBN('0x20000000000')), // enable only mStable mUSD
+            );
+
+            console.log('Swap: 2 USDC');
+            console.log('returnAmount:', res.returnAmount.toString() / 1e8 + ' mUSD');
+            // console.log('distribution:', res.distribution.map(a => a.toString()));
+            // console.log('raw:', res.returnAmount.toString());
+            expect(res.returnAmount).to.be.bignumber.equals('2000000000000000000');
         });
 
         it('should work with Bancor USDT => BAL', async function () {
@@ -71,7 +115,7 @@ contract('OneSplit', function ([_, addr1]) {
             expect(res.returnAmount).to.be.bignumber.above('200000000000000000000');
         });
 
-        it.only('should work with Kyber ETH => DAI', async function () {
+        it('should work with Kyber ETH => DAI', async function () {
             const res = await this.split.getExpectedReturn(
                 '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // ETH
                 '0x6B175474E89094C44Da98b954EedeAC495271d0F', // DAI

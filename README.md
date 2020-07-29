@@ -43,7 +43,15 @@ let splitExchanges = [
     "Curve tBTC",
     "Dforce XSwap",
     "Shell",
-    "mStable mUSD"
+    "mStable mUSD",
+    "Curve sBTC",
+    "Balancer 1",
+    "Balancer 2",
+    "Balancer 3",
+    "Kyber 1",
+    "Kyber 2",
+    "Kyber 3",
+    "Kyber 4"
 ]
 ```
 
@@ -57,7 +65,8 @@ let wrapExchanges = [
     "Compound",
     "Iearn",
     "Idle",
-    "WETH"
+    "WETH",
+    "mUSD"
 ]
 ```
 
