@@ -124,7 +124,7 @@ contract OneSplitRoot is IOneSplitView {
     IUniswapV2Factory constant internal uniswapV2 = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
     IDForceSwap constant internal dforceSwap = IDForceSwap(0x03eF3f37856bD08eb47E2dE7ABc4Ddd2c19B60F2);
     IMStable constant internal musd = IMStable(0xe2f2a5C287993345a840Db3B0845fbC70f5935a5);
-    IMassetRedemptionValidator constant internal musd_helper = IMassetRedemptionValidator(0x4c5e03065bC52cCe84F3ac94DF14bbAC27eac89b);
+    IMassetValidationHelper constant internal musd_helper = IMassetValidationHelper(0xaBcC93c3be238884cc3309C19Afd128fAfC16911);
     IBalancerRegistry constant internal balancerRegistry = IBalancerRegistry(0x65e67cbc342712DF67494ACEfc06fe951EE93982);
     ICurveCalculator constant internal curveCalculator = ICurveCalculator(0xc1DB00a8E5Ef7bfa476395cdbcc98235477cDE4E);
     ICurveRegistry constant internal curveRegistry = ICurveRegistry(0x7002B727Ef8F5571Cb5F9D70D13DBEEb4dFAe9d1);
@@ -1313,7 +1313,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
-        uint256 flags,
+        uint256 /*flags*/,
         bytes memory hint
     ) private view returns(uint256) {
         (, bytes memory data) = address(kyberNetworkProxy).staticcall(
@@ -1322,7 +1322,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
                 fromToken,
                 destToken,
                 amount,
-                flags.check(1 << 255) ? 10 : 0,
+                10,
                 hint
             )
         );
@@ -1400,7 +1400,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
                     ETH_ADDRESS,
                     destToken,
                     rets[i],
-                    flags.check(1 << 255) ? 10 : 0,
+                    10,
                     destHint
                 );
                 rets[i] = rate.mul(rets[i]).mul(destTokenDecimals).div(1e36);
@@ -2215,11 +2215,10 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
-        uint256 flags,
+        uint256 /*flags*/,
         bytes32 reserveId
     ) internal {
         uint256 returnAmount = amount;
-        uint256 bps = flags.check(1 << 255) ? 10 : 0;
 
         bytes32[] memory reserveIds = new bytes32[](1);
         reserveIds[0] = reserveId;
@@ -2241,7 +2240,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
                 uint256(-1),
                 0,
                 0x4D37f28D2db99e8d35A6C725a5f1749A085850a3,
-                bps,
+                10,
                 fromHint
             );
         }
@@ -2262,7 +2261,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
                 uint256(-1),
                 0,
                 0x4D37f28D2db99e8d35A6C725a5f1749A085850a3,
-                bps,
+                10,
                 destHint
             );
         }

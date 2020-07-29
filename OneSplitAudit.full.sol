@@ -1,4 +1,36 @@
 
+// File: @openzeppelin/contracts/math/Math.sol
+
+pragma solidity ^0.5.0;
+
+/**
+ * @dev Standard math utilities missing in the Solidity language.
+ */
+library Math {
+    /**
+     * @dev Returns the largest of two numbers.
+     */
+    function max(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a >= b ? a : b;
+    }
+
+    /**
+     * @dev Returns the smallest of two numbers.
+     */
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
+    }
+
+    /**
+     * @dev Returns the average of two numbers. The result is rounded towards
+     * zero.
+     */
+    function average(uint256 a, uint256 b) internal pure returns (uint256) {
+        // (a + b) / 2 can overflow, so we distribute
+        return (a / 2) + (b / 2) + ((a % 2 + b % 2) / 2);
+    }
+}
+
 // File: @openzeppelin/contracts/GSN/Context.sol
 
 pragma solidity ^0.5.0;
@@ -839,6 +871,7 @@ pragma solidity ^0.5.0;
 
 
 
+
 contract IFreeFromUpTo is IERC20 {
     function freeFromUpTo(address from, uint256 value) external returns(uint256 freed);
 }
@@ -1060,9 +1093,8 @@ contract OneSplitAudit is IOneSplit, Ownable {
         tokens[0] = fromToken;
         tokens[1] = destToken;
 
-        uint256[] memory flagsArray = new uint256[](2);
+        uint256[] memory flagsArray = new uint256[](1);
         flagsArray[0] = flags;
-        flagsArray[1] = flags;
 
         swapWithReferralMulti(
             tokens,
@@ -1072,6 +1104,30 @@ contract OneSplitAudit is IOneSplit, Ownable {
             flagsArray,
             referral,
             feePercent
+        );
+    }
+
+    /// @notice Swap `amount` of first element of `tokens` to the latest element of `destToken`
+    /// @param tokens (IERC20[]) Addresses of token or `address(0)` for Ether
+    /// @param amount (uint256) Amount for `fromToken`
+    /// @param minReturn (uint256) Minimum expected return, else revert
+    /// @param distribution (uint256[]) Array of weights for volume distribution returned by `getExpectedReturn`
+    /// @param flags (uint256[]) Flags for enabling and disabling some features, default 0
+    function swapMulti(
+        IERC20[] memory tokens,
+        uint256 amount,
+        uint256 minReturn,
+        uint256[] memory distribution,
+        uint256[] memory flags
+    ) public payable returns(uint256) {
+        swapWithReferralMulti(
+            tokens,
+            amount,
+            minReturn,
+            distribution,
+            flags,
+            address(0),
+            0
         );
     }
 
@@ -1093,17 +1149,23 @@ contract OneSplitAudit is IOneSplit, Ownable {
         uint256 feePercent
     ) public payable returns(uint256 returnAmount) {
         require(tokens.length >= 2 && amount > 0, "OneSplit: swap makes no sense");
-        require(tokens.length == distribution.length, "OneSplit: distribution array is too short");
-        require(tokens.length == flags.length, "OneSplit: flags array is too short");
+        require(flags.length == tokens.length - 1, "OneSplit: flags array length is invalid");
         require((msg.value != 0) == tokens.first().isETH(), "OneSplit: msg.value should be used only for ETH swap");
         require(feePercent <= 0.03e18, "OneSplit: feePercent out of range");
 
         uint256 gasStart = gasleft();
 
-        Balances memory beforeBalances = _getFirstAndLastBalances(tokens);
+        Balances memory beforeBalances = _getFirstAndLastBalances(tokens, true);
 
         // Transfer From
-        tokens.first().universalTransferFromSenderToThis(amount);
+        tokens.first().universalTransferFromSenderToThis(
+            amount != uint256(-1)
+            ? amount
+            : Math.min(
+                tokens.first().balanceOf(msg.sender),
+                tokens.first().allowance(msg.sender, address(this))
+            )
+        );
         uint256 confirmed = tokens.first().universalBalanceOf(address(this)).sub(beforeBalances.ofFromToken);
 
         // Swap
@@ -1116,10 +1178,10 @@ contract OneSplitAudit is IOneSplit, Ownable {
             flags
         );
 
-        Balances memory afterBalances = _getFirstAndLastBalances(tokens);
+        Balances memory afterBalances = _getFirstAndLastBalances(tokens, false);
 
         // Return
-        returnAmount = uint256(afterBalances.ofDestToken).sub(beforeBalances.ofDestToken);
+        returnAmount = afterBalances.ofDestToken.sub(beforeBalances.ofDestToken);
         require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
         tokens.last().universalTransfer(referral, returnAmount.mul(feePercent).div(1e18));
         tokens.last().universalTransfer(msg.sender, returnAmount.sub(returnAmount.mul(feePercent).div(1e18)));
@@ -1138,7 +1200,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
 
         // Return remainder
         if (afterBalances.ofFromToken > beforeBalances.ofFromToken) {
-            tokens.first().universalTransfer(msg.sender, uint256(afterBalances.ofFromToken).sub(beforeBalances.ofFromToken));
+            tokens.first().universalTransfer(msg.sender, afterBalances.ofFromToken.sub(beforeBalances.ofFromToken));
         }
 
         if ((flags[0] & (FLAG_ENABLE_CHI_BURN | FLAG_ENABLE_CHI_BURN_BY_ORIGIN)) > 0) {
@@ -1175,14 +1237,14 @@ contract OneSplitAudit is IOneSplit, Ownable {
     }
 
     struct Balances {
-        uint128 ofFromToken;
-        uint128 ofDestToken;
+        uint256 ofFromToken;
+        uint256 ofDestToken;
     }
 
-    function _getFirstAndLastBalances(IERC20[] memory tokens) internal view returns(Balances memory) {
+    function _getFirstAndLastBalances(IERC20[] memory tokens, bool subValue) internal view returns(Balances memory) {
         return Balances({
-            ofFromToken: uint128(tokens.first().universalBalanceOf(address(this)).sub(msg.value)),
-            ofDestToken: uint128(tokens.last().universalBalanceOf(address(this)))
+            ofFromToken: tokens.first().universalBalanceOf(address(this)).sub(subValue ? msg.value : 0),
+            ofDestToken: tokens.last().universalBalanceOf(address(this))
         });
     }
 }
