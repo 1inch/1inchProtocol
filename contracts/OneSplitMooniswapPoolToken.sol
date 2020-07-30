@@ -320,11 +320,9 @@ contract OneSplitMooniswapToken is OneSplitBaseWrap, OneSplitMooniswapTokenBase 
             IMooniswap(address(poolToken)).tokens(1)
         ];
 
-        uint256[] memory emptyMinReturns = new uint256[](0);
-
         IMooniswap(address(poolToken)).withdraw(
             amount,
-            emptyMinReturns
+            new uint256[](0)
         );
 
         uint256[] memory dist = new uint256[](distribution.length);
