@@ -153,7 +153,7 @@ contract OneSplitMooniswapTokenView is OneSplitViewWrapBase, OneSplitMooniswapTo
                 continue;
             }
 
-            (uint256 ret, ,uint256[] memory dist) = this.getExpectedReturnWithGas(
+            (uint256 ret, ,uint256[] memory dist) = super.getExpectedReturnWithGas(
                 details.tokens[i].token,
                 toToken,
                 exchangeAmount,
@@ -200,7 +200,7 @@ contract OneSplitMooniswapTokenView is OneSplitViewWrapBase, OneSplitMooniswapTo
                 continue;
             }
 
-            (amounts[i], ,dist) = this.getExpectedReturnWithGas(
+            (amounts[i], ,dist) = super.getExpectedReturnWithGas(
                 fromToken,
                 details.tokens[i].token,
                 amounts[i],
@@ -336,11 +336,10 @@ contract OneSplitMooniswapToken is OneSplitBaseWrap, OneSplitMooniswapTokenBase 
                 dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
             }
 
-            this.swap(
+            super._swap(
                 tokens[i],
                 toToken,
                 tokens[i].universalBalanceOf(address(this)),
-                0,
                 dist,
                 flags
             );
@@ -374,11 +373,10 @@ contract OneSplitMooniswapToken is OneSplitBaseWrap, OneSplitMooniswapTokenBase 
                 dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
             }
 
-            this.swap(
+            super._swap(
                 fromToken,
                 tokens[i],
                 amounts[i],
-                0,
                 dist,
                 flags
             );
