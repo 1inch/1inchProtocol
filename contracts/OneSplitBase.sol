@@ -121,7 +121,7 @@ contract OneSplitRoot is IOneSplitView {
     IAaveLendingPool constant internal aave = IAaveLendingPool(0x398eC7346DcD622eDc5ae82352F02bE94C62d119);
     ICompound constant internal compound = ICompound(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
     ICompoundEther constant internal cETH = ICompoundEther(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
-    IMooniswapRegistry constant internal mooniswapRegistry = IMooniswapRegistry(0xEa579905818Ae70051C057e5E6aF3A5dC85745A4);
+    IMooniswapRegistry constant internal mooniswapRegistry = IMooniswapRegistry(0x401E434FFA0095F11d3298E778d36eBa0d66D29a);
     IUniswapV2Factory constant internal uniswapV2 = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
     IDForceSwap constant internal dforceSwap = IDForceSwap(0x03eF3f37856bD08eb47E2dE7ABc4Ddd2c19B60F2);
     IMStable constant internal musd = IMStable(0xe2f2a5C287993345a840Db3B0845fbC70f5935a5);
@@ -1418,40 +1418,41 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
     }
 
     function calculateBancor(
-        IERC20 fromToken,
-        IERC20 destToken,
-        uint256 amount,
+        IERC20 /*fromToken*/,
+        IERC20 /*destToken*/,
+        uint256 /*amount*/,
         uint256 parts,
         uint256 /*flags*/
     ) internal view returns(uint256[] memory rets, uint256 gas) {
-        IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
+        return (new uint256[](parts), 0);
+        // IBancorNetwork bancorNetwork = IBancorNetwork(bancorContractRegistry.addressOf("BancorNetwork"));
 
-        address[] memory path = bancorFinder.buildBancorPath(
-            fromToken.isETH() ? bancorEtherToken : fromToken,
-            destToken.isETH() ? bancorEtherToken : destToken
-        );
+        // address[] memory path = bancorFinder.buildBancorPath(
+        //     fromToken.isETH() ? bancorEtherToken : fromToken,
+        //     destToken.isETH() ? bancorEtherToken : destToken
+        // );
 
-        rets = _linearInterpolation(amount, parts);
-        for (uint i = 0; i < parts; i++) {
-            (bool success, bytes memory data) = address(bancorNetwork).staticcall.gas(500000)(
-                abi.encodeWithSelector(
-                    bancorNetwork.getReturnByPath.selector,
-                    path,
-                    rets[i]
-                )
-            );
-            if (!success || data.length == 0) {
-                for (; i < parts; i++) {
-                    rets[i] = 0;
-                }
-                break;
-            } else {
-                (uint256 ret,) = abi.decode(data, (uint256,uint256));
-                rets[i] = ret;
-            }
-        }
+        // rets = _linearInterpolation(amount, parts);
+        // for (uint i = 0; i < parts; i++) {
+        //     (bool success, bytes memory data) = address(bancorNetwork).staticcall.gas(500000)(
+        //         abi.encodeWithSelector(
+        //             bancorNetwork.getReturnByPath.selector,
+        //             path,
+        //             rets[i]
+        //         )
+        //     );
+        //     if (!success || data.length == 0) {
+        //         for (; i < parts; i++) {
+        //             rets[i] = 0;
+        //         }
+        //         break;
+        //     } else {
+        //         (uint256 ret,) = abi.decode(data, (uint256,uint256));
+        //         rets[i] = ret;
+        //     }
+        // }
 
-        return (rets, path.length.mul(150_000));
+        // return (rets, path.length.mul(150_000));
     }
 
     function calculateOasis(

@@ -1,7 +1,6 @@
-const { BN, expectRevert } = require('@openzeppelin/test-helpers');
+const { BN, ether, expectRevert } = require('@openzeppelin/test-helpers');
 const { expect } = require('chai');
 const assert = require('assert');
-const { exit } = require('process');
 
 const OneSplitView = artifacts.require('OneSplitView');
 const OneSplitViewWrap = artifacts.require('OneSplitViewWrap');
@@ -35,17 +34,33 @@ contract('OneSplit', function ([_, addr1]) {
             this.split = await OneSplitWrap.new(this.splitView.address, subSplit.address);
         });
 
+        // it.only('should work with ETH => CHAI', async function () {
+        //     const res = await this.split.swap(
+        //         '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // ETH
+        //         '0x06AF07097C9Eeb7fD685c692751D5C66dB49c215', // CHAI
+        //         '100000000000000000000', // 100.0
+        //         10,
+        //         0, // enable all
+        //         { value: '100000000000000000000' }
+        //     );
+
+        //     console.log('Swap: 100 ETH');
+        //     console.log('returnAmount:', res.returnAmount.toString() / 1e8 + ' CHAI');
+        //     // console.log('distribution:', res.distribution.map(a => a.toString()));
+        //     // console.log('raw:', res.returnAmount.toString());
+        // });
+
         it.only('should work with Mooniswap ETH => DAI', async function () {
             const res = await this.split.getExpectedReturn(
                 '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // ETH
                 '0x6B175474E89094C44Da98b954EedeAC495271d0F', // DAI
-                '100000000', // 1.0
+                '1000000000000000000', // 1.0
                 10,
                 DISABLE_ALL.add(MOONISWAP_ALL), // enable only Mooniswap
             );
 
             console.log('Swap: 1 ETH');
-            console.log('returnAmount:', res.returnAmount.toString() / 1e8 + ' DAI');
+            console.log('returnAmount:', res.returnAmount.toString() / 1e18 + ' DAI');
             // console.log('distribution:', res.distribution.map(a => a.toString()));
             // console.log('raw:', res.returnAmount.toString());
             expect(res.returnAmount).to.be.bignumber.above('20999999969');
