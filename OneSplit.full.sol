@@ -1220,6 +1220,10 @@ library UniversalERC20 {
         return (address(token) == address(ZERO_ADDRESS) || address(token) == address(ETH_ADDRESS));
     }
 
+    function eq(IERC20 a, IERC20 b) internal pure returns(bool) {
+        return a == b || (isETH(a) && isETH(b));
+    }
+
     function notExist(IERC20 token) internal pure returns(bool) {
         return (address(token) == address(-1));
     }
@@ -5969,7 +5973,7 @@ contract OneSplitMooniswapTokenView is OneSplitViewWrapBase, OneSplitMooniswapTo
             uint256[] memory distribution
         )
     {
-        if (fromToken == toToken) {
+        if (fromToken.eq(toToken)) {
             return (amount, 0, new uint256[](DEXES_COUNT));
         }
 
@@ -6065,7 +6069,7 @@ contract OneSplitMooniswapTokenView is OneSplitViewWrapBase, OneSplitMooniswapTo
                 .mul(details.tokens[i].reserve)
                 .div(details.totalSupply);
 
-            if (toToken == details.tokens[i].token) {
+            if (toToken.eq(details.tokens[i].token)) {
                 returnAmount = returnAmount.add(exchangeAmount);
                 continue;
             }
@@ -6113,7 +6117,7 @@ contract OneSplitMooniswapTokenView is OneSplitViewWrapBase, OneSplitMooniswapTo
         uint256[] memory dist = new uint256[](distribution.length);
         for (uint i = 0; i < 2; i++) {
 
-            if (fromToken == details.tokens[i].token) {
+            if (fromToken.eq(details.tokens[i].token)) {
                 continue;
             }
 
@@ -6156,7 +6160,7 @@ contract OneSplitMooniswapToken is OneSplitBaseWrap, OneSplitMooniswapTokenBase 
         uint256[] memory distribution,
         uint256 flags
     ) internal {
-        if (fromToken == toToken) {
+        if (fromToken.eq(toToken)) {
             return;
         }
 
@@ -6245,7 +6249,7 @@ contract OneSplitMooniswapToken is OneSplitBaseWrap, OneSplitMooniswapTokenBase 
         uint256[] memory dist = new uint256[](distribution.length);
         for (uint i = 0; i < 2; i++) {
 
-            if (toToken == tokens[i]) {
+            if (toToken.eq(tokens[i])) {
                 continue;
             }
 
@@ -6283,7 +6287,7 @@ contract OneSplitMooniswapToken is OneSplitBaseWrap, OneSplitMooniswapTokenBase 
         uint256[] memory dist = new uint256[](distribution.length);
         for (uint i = 0; i < 2; i++) {
 
-            if (fromToken == tokens[i]) {
+            if (fromToken.eq(tokens[i])) {
                 continue;
             }
 
