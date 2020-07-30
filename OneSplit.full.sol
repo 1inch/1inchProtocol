@@ -180,6 +180,7 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_DISABLE_MOONISWAP_ETH = 0x10000000000000000;
     uint256 internal constant FLAG_DISABLE_MOONISWAP_DAI = 0x20000000000000000;
     uint256 internal constant FLAG_DISABLE_MOONISWAP_USDC = 0x40000000000000000;
+    uint256 internal constant FLAG_DISABLE_MOONISWAP_POOL_TOKEN = 0x80000000000000000;
 }
 
 
@@ -924,10 +925,17 @@ pragma solidity ^0.5.0;
 
 interface IMooniswapRegistry {
     function pools(IERC20 token1, IERC20 token2) external view returns(IMooniswap);
+    function isPool(IMooniswap addr) external view returns(bool);
 }
 
 
 interface IMooniswap {
+    function tokens(uint256 i) external view returns (IERC20);
+
+    function deposit(uint256[] calldata amounts, uint256 minReturn) external payable returns(uint256 fairSupply);
+
+    function withdraw(uint256 amount, uint256[] calldata minReturns) external;
+
     function getBalanceForAddition(IERC20 token) external view returns(uint256);
 
     function getBalanceForRemoval(IERC20 token) external view returns(uint256);
@@ -5874,9 +5882,462 @@ contract OneSplitDMM is OneSplitBaseWrap, OneSplitDMMBase {
     }
 }
 
+// File: @openzeppelin/contracts/math/Math.sol
+
+pragma solidity ^0.5.0;
+
+/**
+ * @dev Standard math utilities missing in the Solidity language.
+ */
+library Math {
+    /**
+     * @dev Returns the largest of two numbers.
+     */
+    function max(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a >= b ? a : b;
+    }
+
+    /**
+     * @dev Returns the smallest of two numbers.
+     */
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
+    }
+
+    /**
+     * @dev Returns the average of two numbers. The result is rounded towards
+     * zero.
+     */
+    function average(uint256 a, uint256 b) internal pure returns (uint256) {
+        // (a + b) / 2 can overflow, so we distribute
+        return (a / 2) + (b / 2) + ((a % 2 + b % 2) / 2);
+    }
+}
+
+// File: contracts/OneSplitMooniswapPoolToken.sol
+
+pragma solidity ^0.5.0;
+
+
+
+
+
+contract OneSplitMooniswapTokenBase {
+    using SafeMath for uint256;
+    using Math for uint256;
+    using UniversalERC20 for IERC20;
+
+    IMooniswapRegistry constant mooniswapFactory = IMooniswapRegistry(0x401E434FFA0095F11d3298E778d36eBa0d66D29a);
+
+    function isLiquidityPool(IERC20 token) internal view returns (bool) {
+        (bool success, bytes memory data) = address(token).staticcall.gas(2000)(
+            abi.encode(IMooniswapRegistry(address(mooniswapFactory)).isPool.selector)
+        );
+        if (!success || data.length == 0) {
+            return false;
+        }
+        return abi.decode(data, (bool));
+    }
+
+    struct TokenInfo {
+        IERC20 token;
+        uint256 reserve;
+    }
+
+    struct PoolDetails {
+        TokenInfo[2] tokens;
+        uint256 totalSupply;
+    }
+
+    function _getPoolDetails(IMooniswap pool) internal view returns (PoolDetails memory details) {
+        for (uint i = 0; i < 2; i++) {
+            IERC20 token = pool.tokens(i);
+            details.tokens[i] = TokenInfo({
+                token: token,
+                reserve: token.universalBalanceOf(address(pool))
+            });
+        }
+
+        details.totalSupply = IERC20(address(pool)).totalSupply();
+    }
+}
+
+
+contract OneSplitMooniswapTokenView is OneSplitViewWrapBase, OneSplitMooniswapTokenBase {
+
+    function getExpectedReturnWithGas(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags,
+        uint256 destTokenEthPriceTimesGasPrice
+    )
+        public
+        view
+        returns (
+            uint256 returnAmount,
+            uint256,
+            uint256[] memory distribution
+        )
+    {
+        if (fromToken == toToken) {
+            return (amount, 0, new uint256[](DEXES_COUNT));
+        }
+
+
+        if (!flags.check(FLAG_DISABLE_MOONISWAP_POOL_TOKEN)) {
+            bool isPoolTokenFrom = isLiquidityPool(fromToken);
+            bool isPoolTokenTo = isLiquidityPool(toToken);
+
+            if (isPoolTokenFrom && isPoolTokenTo) {
+                (
+                uint256 returnETHAmount,
+                uint256[] memory poolTokenFromDistribution
+                ) = _getExpectedReturnFromMooniswapPoolToken(
+                    fromToken,
+                    ETH_ADDRESS,
+                    amount,
+                    parts,
+                    FLAG_DISABLE_MOONISWAP_POOL_TOKEN
+                );
+
+                (
+                uint256 returnPoolTokenToAmount,
+                uint256[] memory poolTokenToDistribution
+                ) = _getExpectedReturnToMooniswapPoolToken(
+                    ETH_ADDRESS,
+                    toToken,
+                    returnETHAmount,
+                    parts,
+                    FLAG_DISABLE_MOONISWAP_POOL_TOKEN
+                );
+
+                for (uint i = 0; i < poolTokenToDistribution.length; i++) {
+                    poolTokenFromDistribution[i] |= poolTokenToDistribution[i] << 128;
+                }
+
+                return (returnPoolTokenToAmount, 0, poolTokenFromDistribution);
+            }
+
+            if (isPoolTokenFrom) {
+                (returnAmount, distribution) = _getExpectedReturnFromMooniswapPoolToken(
+                    fromToken,
+                    toToken,
+                    amount,
+                    parts,
+                    FLAG_DISABLE_MOONISWAP_POOL_TOKEN
+                );
+                return (returnAmount, 0, distribution);
+            }
+
+            if (isPoolTokenTo) {
+                (returnAmount, distribution) = _getExpectedReturnToMooniswapPoolToken(
+                    fromToken,
+                    toToken,
+                    amount,
+                    parts,
+                    FLAG_DISABLE_MOONISWAP_POOL_TOKEN
+                );
+                return (returnAmount, 0, distribution);
+            }
+        }
+
+        return super.getExpectedReturnWithGas(
+            fromToken,
+            toToken,
+            amount,
+            parts,
+            flags,
+            destTokenEthPriceTimesGasPrice
+        );
+    }
+
+    function _getExpectedReturnFromMooniswapPoolToken(
+        IERC20 poolToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags
+    )
+        private
+        view
+        returns(
+            uint256 returnAmount,
+            uint256[] memory distribution
+        )
+    {
+        distribution = new uint256[](DEXES_COUNT);
+
+        PoolDetails memory details = _getPoolDetails(IMooniswap(address(poolToken)));
+
+        for (uint i = 0; i < 2; i++) {
+
+            uint256 exchangeAmount = amount
+                .mul(details.tokens[i].reserve)
+                .div(details.totalSupply);
+
+            if (toToken == details.tokens[i].token) {
+                returnAmount = returnAmount.add(exchangeAmount);
+                continue;
+            }
+
+            (uint256 ret, ,uint256[] memory dist) = this.getExpectedReturnWithGas(
+                details.tokens[i].token,
+                toToken,
+                exchangeAmount,
+                parts,
+                flags,
+                0
+            );
+
+            returnAmount = returnAmount.add(ret);
+            for (uint j = 0; j < distribution.length; j++) {
+                distribution[j] |= dist[j] << (i * 8);
+            }
+        }
+
+        return (returnAmount, distribution);
+    }
+
+    function _getExpectedReturnToMooniswapPoolToken(
+        IERC20 fromToken,
+        IERC20 poolToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 flags
+    )
+        private
+        view
+        returns(
+            uint256 returnAmount,
+            uint256[] memory distribution
+        )
+    {
+        distribution = new uint256[](DEXES_COUNT);
+
+        PoolDetails memory details = _getPoolDetails(IMooniswap(address(poolToken)));
+
+        // will overwritten to liquidity amounts
+        uint256[2] memory amounts;
+        amounts[0] = amount.div(2);
+        amounts[1] = amount.sub(amounts[0]);
+        uint256[] memory dist = new uint256[](distribution.length);
+        for (uint i = 0; i < 2; i++) {
+
+            if (fromToken == details.tokens[i].token) {
+                continue;
+            }
+
+            (amounts[i], ,dist) = this.getExpectedReturnWithGas(
+                fromToken,
+                details.tokens[i].token,
+                amounts[i],
+                parts,
+                flags,
+                0
+            );
+
+            for (uint j = 0; j < distribution.length; j++) {
+                distribution[j] |= dist[j] << (i * 8);
+            }
+        }
+
+        returnAmount = uint256(-1);
+        for (uint i = 0; i < 2; i++) {
+            returnAmount = Math.min(
+                returnAmount,
+                details.totalSupply.mul(amounts[i]).div(details.tokens[i].reserve)
+            );
+        }
+
+        return (
+            returnAmount,
+            distribution
+        );
+    }
+
+}
+
+
+contract OneSplitMooniswapToken is OneSplitBaseWrap, OneSplitMooniswapTokenBase {
+    function _swap(
+        IERC20 fromToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256[] memory distribution,
+        uint256 flags
+    ) internal {
+        if (fromToken == toToken) {
+            return;
+        }
+
+        if (!flags.check(FLAG_DISABLE_MOONISWAP_POOL_TOKEN)) {
+            bool isPoolTokenFrom = isLiquidityPool(fromToken);
+            bool isPoolTokenTo = isLiquidityPool(toToken);
+
+            if (isPoolTokenFrom && isPoolTokenTo) {
+                uint256[] memory dist = new uint256[](distribution.length);
+                for (uint i = 0; i < distribution.length; i++) {
+                    dist[i] = distribution[i] & ((1 << 128) - 1);
+                }
+
+                uint256 ethBalanceBefore = ETH_ADDRESS.universalBalanceOf(address(this));
+
+                _swapFromMooniswapToken(
+                    fromToken,
+                    ETH_ADDRESS,
+                    amount,
+                    dist,
+                    FLAG_DISABLE_MOONISWAP_POOL_TOKEN
+                );
+
+                for (uint i = 0; i < distribution.length; i++) {
+                    dist[i] = distribution[i] >> 128;
+                }
+
+                uint256 ethBalanceAfter = ETH_ADDRESS.universalBalanceOf(address(this));
+
+                return _swapToMooniswapToken(
+                    ETH_ADDRESS,
+                    toToken,
+                    ethBalanceAfter.sub(ethBalanceBefore),
+                    dist,
+                    FLAG_DISABLE_MOONISWAP_POOL_TOKEN
+                );
+            }
+
+            if (isPoolTokenFrom) {
+                return _swapFromMooniswapToken(
+                    fromToken,
+                    toToken,
+                    amount,
+                    distribution,
+                    FLAG_DISABLE_MOONISWAP_POOL_TOKEN
+                );
+            }
+
+            if (isPoolTokenTo) {
+                return _swapToMooniswapToken(
+                    fromToken,
+                    toToken,
+                    amount,
+                    distribution,
+                    FLAG_DISABLE_MOONISWAP_POOL_TOKEN
+                );
+            }
+        }
+
+        return super._swap(
+            fromToken,
+            toToken,
+            amount,
+            distribution,
+            flags
+        );
+    }
+
+    function _swapFromMooniswapToken(
+        IERC20 poolToken,
+        IERC20 toToken,
+        uint256 amount,
+        uint256[] memory distribution,
+        uint256 flags
+    ) private {
+        IERC20[2] memory tokens = [
+            IMooniswap(address(poolToken)).tokens(0),
+            IMooniswap(address(poolToken)).tokens(1)
+        ];
+
+        uint256[] memory emptyMinReturns = new uint256[](0);
+
+        IMooniswap(address(poolToken)).withdraw(
+            amount,
+            emptyMinReturns
+        );
+
+        uint256[] memory dist = new uint256[](distribution.length);
+        for (uint i = 0; i < 2; i++) {
+
+            if (toToken == tokens[i]) {
+                continue;
+            }
+
+            for (uint j = 0; j < distribution.length; j++) {
+                dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
+            }
+
+            this.swap(
+                tokens[i],
+                toToken,
+                tokens[i].universalBalanceOf(address(this)),
+                0,
+                dist,
+                flags
+            );
+        }
+    }
+
+    function _swapToMooniswapToken(
+        IERC20 fromToken,
+        IERC20 poolToken,
+        uint256 amount,
+        uint256[] memory distribution,
+        uint256 flags
+    ) private {
+        IERC20[2] memory tokens = [
+            IMooniswap(address(poolToken)).tokens(0),
+            IMooniswap(address(poolToken)).tokens(1)
+        ];
+
+        // will overwritten to liquidity amounts
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = amount.div(2);
+        amounts[1] = amount.sub(amounts[0]);
+        uint256[] memory dist = new uint256[](distribution.length);
+        for (uint i = 0; i < 2; i++) {
+
+            tokens[i].universalApprove(address(poolToken), uint256(-1));
+
+            if (fromToken == tokens[i]) {
+                continue;
+            }
+
+            for (uint j = 0; j < distribution.length; j++) {
+                dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
+            }
+
+            this.swap(
+                fromToken,
+                tokens[i],
+                amounts[i],
+                0,
+                dist,
+                flags
+            );
+
+            amounts[i] = tokens[i].universalBalanceOf(address(this));
+        }
+
+        uint256 ethValue = (tokens[0].isETH() ? amounts[0] : 0) + (tokens[1].isETH() ? amounts[1] : 0);
+        IMooniswap(address(poolToken)).deposit.value(ethValue)(
+            amounts,
+            0
+        );
+
+        for (uint i = 0; i < 2; i++) {
+            tokens[i].universalTransfer(
+                msg.sender,
+                tokens[i].universalBalanceOf(address(this))
+            );
+        }
+    }
+}
+
 // File: contracts/OneSplit.sol
 
 pragma solidity ^0.5.0;
+
 
 
 
@@ -5902,7 +6363,8 @@ contract OneSplitViewWrap is
     OneSplitIearnView,
     OneSplitIdleView,
     OneSplitWethView,
-    OneSplitDMMView
+    OneSplitDMMView,
+    OneSplitMooniswapTokenView
 {
     IOneSplitView public oneSplitView;
 
@@ -6003,7 +6465,8 @@ contract OneSplitWrap is
     OneSplitIearn,
     OneSplitIdle,
     OneSplitWeth,
-    OneSplitDMM
+    OneSplitDMM,
+    OneSplitMooniswapToken
 {
     IOneSplitView public oneSplitView;
     IOneSplit public oneSplit;
