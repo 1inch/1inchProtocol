@@ -366,7 +366,7 @@ contract OneSplitMooniswapToken is OneSplitBaseWrap, OneSplitMooniswapTokenBase 
         uint256[] memory dist = new uint256[](distribution.length);
         for (uint i = 0; i < 2; i++) {
 
-            tokens[i].universalApprove(address(poolToken), uint256(-1));
+            tokens[i].universalApprove(address(poolToken), amounts[i]);
 
             if (fromToken == tokens[i]) {
                 continue;
