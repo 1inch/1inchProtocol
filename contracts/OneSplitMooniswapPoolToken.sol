@@ -10,18 +10,6 @@ contract OneSplitMooniswapTokenBase {
     using Math for uint256;
     using UniversalERC20 for IERC20;
 
-    IMooniswapRegistry constant mooniswapFactory = IMooniswapRegistry(0x401E434FFA0095F11d3298E778d36eBa0d66D29a);
-
-    function isLiquidityPool(IERC20 token) internal view returns (bool) {
-        (bool success, bytes memory data) = address(token).staticcall.gas(2000)(
-            abi.encode(IMooniswapRegistry(address(mooniswapFactory)).isPool.selector)
-        );
-        if (!success || data.length == 0) {
-            return false;
-        }
-        return abi.decode(data, (bool));
-    }
-
     struct TokenInfo {
         IERC20 token;
         uint256 reserve;
@@ -70,13 +58,13 @@ contract OneSplitMooniswapTokenView is OneSplitViewWrapBase, OneSplitMooniswapTo
 
 
         if (!flags.check(FLAG_DISABLE_MOONISWAP_POOL_TOKEN)) {
-            bool isPoolTokenFrom = isLiquidityPool(fromToken);
-            bool isPoolTokenTo = isLiquidityPool(toToken);
+            bool isPoolTokenFrom = mooniswapRegistry.isPool(address(fromToken));
+            bool isPoolTokenTo = mooniswapRegistry.isPool(address(toToken));
 
             if (isPoolTokenFrom && isPoolTokenTo) {
                 (
-                uint256 returnETHAmount,
-                uint256[] memory poolTokenFromDistribution
+                    uint256 returnETHAmount,
+                    uint256[] memory poolTokenFromDistribution
                 ) = _getExpectedReturnFromMooniswapPoolToken(
                     fromToken,
                     ETH_ADDRESS,
@@ -86,8 +74,8 @@ contract OneSplitMooniswapTokenView is OneSplitViewWrapBase, OneSplitMooniswapTo
                 );
 
                 (
-                uint256 returnPoolTokenToAmount,
-                uint256[] memory poolTokenToDistribution
+                    uint256 returnPoolTokenToAmount,
+                    uint256[] memory poolTokenToDistribution
                 ) = _getExpectedReturnToMooniswapPoolToken(
                     ETH_ADDRESS,
                     toToken,
@@ -256,8 +244,8 @@ contract OneSplitMooniswapToken is OneSplitBaseWrap, OneSplitMooniswapTokenBase 
         }
 
         if (!flags.check(FLAG_DISABLE_MOONISWAP_POOL_TOKEN)) {
-            bool isPoolTokenFrom = isLiquidityPool(fromToken);
-            bool isPoolTokenTo = isLiquidityPool(toToken);
+            bool isPoolTokenFrom = mooniswapRegistry.isPool(address(fromToken));
+            bool isPoolTokenTo = mooniswapRegistry.isPool(address(toToken));
 
             if (isPoolTokenFrom && isPoolTokenTo) {
                 uint256[] memory dist = new uint256[](distribution.length);

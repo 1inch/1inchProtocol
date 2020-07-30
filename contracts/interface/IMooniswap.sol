@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IMooniswapRegistry {
     function pools(IERC20 token1, IERC20 token2) external view returns(IMooniswap);
-    function isPool(IMooniswap addr) external view returns(bool);
+    function isPool(address addr) external view returns(bool);
 }
 
 
