@@ -12,6 +12,7 @@ import "./OneSplitAave.sol";
 import "./OneSplitWeth.sol";
 import "./OneSplitMStable.sol";
 import "./OneSplitDMM.sol";
+import "./OneSplitMooniswapPoolToken.sol";
 
 
 contract OneSplitViewWrap is
@@ -25,7 +26,8 @@ contract OneSplitViewWrap is
     OneSplitIearnView,
     OneSplitIdleView,
     OneSplitWethView,
-    OneSplitDMMView
+    OneSplitDMMView,
+    OneSplitMooniswapTokenView
 {
     IOneSplitView public oneSplitView;
 
@@ -126,7 +128,8 @@ contract OneSplitWrap is
     OneSplitIearn,
     OneSplitIdle,
     OneSplitWeth,
-    OneSplitDMM
+    OneSplitDMM,
+    OneSplitMooniswapToken
 {
     IOneSplitView public oneSplitView;
     IOneSplit public oneSplit;
