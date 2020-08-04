@@ -52,7 +52,7 @@ contract OneSplitMooniswapTokenView is OneSplitViewWrapBase, OneSplitMooniswapTo
             uint256[] memory distribution
         )
     {
-        if (fromToken == toToken) {
+        if (fromToken.eq(toToken)) {
             return (amount, 0, new uint256[](DEXES_COUNT));
         }
 
@@ -148,12 +148,12 @@ contract OneSplitMooniswapTokenView is OneSplitViewWrapBase, OneSplitMooniswapTo
                 .mul(details.tokens[i].reserve)
                 .div(details.totalSupply);
 
-            if (toToken == details.tokens[i].token) {
+            if (toToken.eq(details.tokens[i].token)) {
                 returnAmount = returnAmount.add(exchangeAmount);
                 continue;
             }
 
-            (uint256 ret, ,uint256[] memory dist) = this.getExpectedReturnWithGas(
+            (uint256 ret, ,uint256[] memory dist) = super.getExpectedReturnWithGas(
                 details.tokens[i].token,
                 toToken,
                 exchangeAmount,
@@ -196,11 +196,11 @@ contract OneSplitMooniswapTokenView is OneSplitViewWrapBase, OneSplitMooniswapTo
         uint256[] memory dist = new uint256[](distribution.length);
         for (uint i = 0; i < 2; i++) {
 
-            if (fromToken == details.tokens[i].token) {
+            if (fromToken.eq(details.tokens[i].token)) {
                 continue;
             }
 
-            (amounts[i], ,dist) = this.getExpectedReturnWithGas(
+            (amounts[i], ,dist) = super.getExpectedReturnWithGas(
                 fromToken,
                 details.tokens[i].token,
                 amounts[i],
@@ -239,7 +239,7 @@ contract OneSplitMooniswapToken is OneSplitBaseWrap, OneSplitMooniswapTokenBase 
         uint256[] memory distribution,
         uint256 flags
     ) internal {
-        if (fromToken == toToken) {
+        if (fromToken.eq(toToken)) {
             return;
         }
 
@@ -328,7 +328,7 @@ contract OneSplitMooniswapToken is OneSplitBaseWrap, OneSplitMooniswapTokenBase 
         uint256[] memory dist = new uint256[](distribution.length);
         for (uint i = 0; i < 2; i++) {
 
-            if (toToken == tokens[i]) {
+            if (toToken.eq(tokens[i])) {
                 continue;
             }
 
@@ -336,11 +336,10 @@ contract OneSplitMooniswapToken is OneSplitBaseWrap, OneSplitMooniswapTokenBase 
                 dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
             }
 
-            this.swap(
+            super._swap(
                 tokens[i],
                 toToken,
                 tokens[i].universalBalanceOf(address(this)),
-                0,
                 dist,
                 flags
             );
@@ -366,7 +365,7 @@ contract OneSplitMooniswapToken is OneSplitBaseWrap, OneSplitMooniswapTokenBase 
         uint256[] memory dist = new uint256[](distribution.length);
         for (uint i = 0; i < 2; i++) {
 
-            if (fromToken == tokens[i]) {
+            if (fromToken.eq(tokens[i])) {
                 continue;
             }
 
@@ -374,11 +373,10 @@ contract OneSplitMooniswapToken is OneSplitBaseWrap, OneSplitMooniswapTokenBase 
                 dist[j] = (distribution[j] >> (i * 8)) & 0xFF;
             }
 
-            this.swap(
+            super._swap(
                 fromToken,
                 tokens[i],
                 amounts[i],
-                0,
                 dist,
                 flags
             );
