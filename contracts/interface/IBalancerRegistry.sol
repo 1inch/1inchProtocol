@@ -4,6 +4,9 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 
 interface IBalancerPool {
+    function getBalance(IERC20 token)
+        external view returns (uint256 balance);
+
     function swapExactAmountIn(
         IERC20 tokenIn,
         uint256 tokenAmountIn,

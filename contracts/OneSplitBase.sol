@@ -28,6 +28,7 @@ import "./interface/IMStable.sol";
 import "./interface/IBalancerRegistry.sol";
 import "./IOneSplit.sol";
 import "./UniversalERC20.sol";
+import "./BalancerLib.sol";
 
 
 contract IOneSplitView is IOneSplitConsts {
@@ -557,16 +558,18 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
 
     // View Helpers
 
+    struct Balances {
+        uint256 src;
+        uint256 dst;
+    }
+
     function _calculateBalancer(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
         uint256 parts,
-        uint256 /*flags*/,
         uint256 poolIndex
     ) internal view returns(uint256[] memory rets, uint256 gas) {
-        rets = new uint256[](parts);
-
         address[] memory pools = balancerRegistry.getBestPoolsWithLimit(
             address(fromToken.isETH() ? weth : fromToken),
             address(destToken.isETH() ? weth : destToken),
@@ -576,24 +579,43 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             return (rets, 0);
         }
 
-        (bool success, bytes memory result) = address(balancerRegistry).staticcall(
-            abi.encodeWithSelector(
-                balancerRegistry.getPoolReturns.selector,
-                pools[poolIndex],
-                address(fromToken.isETH() ? weth : fromToken),
-                address(destToken.isETH() ? weth : destToken),
-                _linearInterpolation(amount, parts)
-            )
+        return _calculateBalancerPool(
+            fromToken,
+            destToken,
+            IBalancerPool(pools[poolIndex]),
+            _linearInterpolation(amount, parts)
         );
+    }
 
-        if (!success || result.length == 0) {
-            return (rets, 0);
+    function _calculateBalancerPool(
+        IERC20 fromToken,
+        IERC20 destToken,
+        IBalancerPool pool,
+        uint256[] memory amounts
+    ) internal view returns(uint256[] memory rets, uint256 gas) {
+        (uint256 fromWeight, uint256 destWeight, uint256 swapFee) = balancerRegistry.getPairInfo(address(pool), address(fromToken), address(destToken));
+        if (fromToken >= destToken) {
+            (fromWeight, destWeight) = (destWeight, fromWeight);
         }
 
-        return (
-            abi.decode(result, (uint256[])),
-            100_000
-        );
+        Balances memory balances = Balances({
+            src: pool.getBalance(fromToken),
+            dst: pool.getBalance(destToken)
+        });
+
+        rets = new uint256[](amounts.length);
+        for (uint i = 0; i < amounts.length && amounts[i] < balances.src.div(2); i++) {
+            rets[i] = BalancerLib.calcOutGivenIn(
+                balances.src,
+                fromWeight,
+                balances.dst,
+                destWeight,
+                amounts[i],
+                swapFee
+            );
+        }
+
+        return (rets, 75_000 + (fromToken.isETH() || destToken.isETH() ? 0 : 65_000));
     }
 
     function calculateBalancer1(
@@ -601,14 +623,13 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 destToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 /*flags*/
     ) internal view returns(uint256[] memory rets, uint256 gas) {
         return _calculateBalancer(
             fromToken,
             destToken,
             amount,
             parts,
-            flags,
             0
         );
     }
@@ -618,14 +639,13 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 destToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 /*flags*/
     ) internal view returns(uint256[] memory rets, uint256 gas) {
         return _calculateBalancer(
             fromToken,
             destToken,
             amount,
             parts,
-            flags,
             1
         );
     }
@@ -635,14 +655,13 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 destToken,
         uint256 amount,
         uint256 parts,
-        uint256 flags
+        uint256 /*flags*/
     ) internal view returns(uint256[] memory rets, uint256 gas) {
         return _calculateBalancer(
             fromToken,
             destToken,
             amount,
             parts,
-            flags,
             2
         );
     }
