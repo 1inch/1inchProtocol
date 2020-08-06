@@ -10,6 +10,8 @@ interface IMooniswapRegistry {
 
 
 interface IMooniswap {
+    function fee() external view returns (uint256);
+
     function tokens(uint256 i) external view returns (IERC20);
 
     function deposit(uint256[] calldata amounts, uint256 minReturn) external payable returns(uint256 fairSupply);

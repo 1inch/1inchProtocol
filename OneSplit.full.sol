@@ -930,6 +930,8 @@ interface IMooniswapRegistry {
 
 
 interface IMooniswap {
+    function fee() external view returns (uint256);
+
     function tokens(uint256 i) external view returns (IERC20);
 
     function deposit(uint256[] calldata amounts, uint256 minReturn) external payable returns(uint256 fairSupply);
@@ -1399,13 +1401,19 @@ interface IMassetValidationHelper {
         );
 }
 
-// File: contracts/interface/IBalancerRegistry.sol
+// File: contracts/interface/IBalancerPool.sol
 
 pragma solidity ^0.5.0;
 
 
 
 interface IBalancerPool {
+    function getSwapFee()
+        external view returns (uint256 balance);
+
+    function getDenormalizedWeight(IERC20 token)
+        external view returns (uint256 balance);
+
     function getBalance(IERC20 token)
         external view returns (uint256 balance);
 
@@ -1421,7 +1429,24 @@ interface IBalancerPool {
 }
 
 
+// 0xA961672E8Db773be387e775bc4937C678F3ddF9a
+interface IBalancerHelper {
+    function getReturns(
+        IBalancerPool pool,
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256[] calldata amounts
+    )
+        external
+        view
+        returns(uint256[] memory rets);
+}
+
+// File: contracts/interface/IBalancerRegistry.sol
+
 pragma solidity ^0.5.0;
+
+
 
 
 interface IBalancerRegistry {
@@ -2051,6 +2076,7 @@ contract OneSplitRoot is IOneSplitView {
     ICurveRegistry constant internal curveRegistry = ICurveRegistry(0x7002B727Ef8F5571Cb5F9D70D13DBEEb4dFAe9d1);
     ICompoundRegistry constant internal compoundRegistry = ICompoundRegistry(0xF451Dbd7Ba14BFa7B1B78A766D3Ed438F79EE1D1);
     IAaveRegistry constant internal aaveRegistry = IAaveRegistry(0xEd8b133B7B88366E01Bb9E38305Ab11c26521494);
+    IBalancerHelper constant internal balancerHelper = IBalancerHelper(0xA961672E8Db773be387e775bc4937C678F3ddF9a);
 
     int256 internal constant VERY_NEGATIVE_VALUE = -1e72;
 
@@ -2498,43 +2524,13 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             return (rets, 0);
         }
 
-        return _calculateBalancerPool(
+        rets = balancerHelper.getReturns(
+            IBalancerPool(pools[poolIndex]),
             fromToken,
             destToken,
-            IBalancerPool(pools[poolIndex]),
             _linearInterpolation(amount, parts)
         );
-    }
-
-    function _calculateBalancerPool(
-        IERC20 fromToken,
-        IERC20 destToken,
-        IBalancerPool pool,
-        uint256[] memory amounts
-    ) internal view returns(uint256[] memory rets, uint256 gas) {
-        (uint256 fromWeight, uint256 destWeight, uint256 swapFee) = balancerRegistry.getPairInfo(address(pool), address(fromToken), address(destToken));
-        if (fromToken >= destToken) {
-            (fromWeight, destWeight) = (destWeight, fromWeight);
-        }
-
-        Balances memory balances = Balances({
-            src: pool.getBalance(fromToken),
-            dst: pool.getBalance(destToken)
-        });
-
-        rets = new uint256[](amounts.length);
-        for (uint i = 0; i < amounts.length && amounts[i] < balances.src.div(2); i++) {
-            rets[i] = BalancerLib.calcOutGivenIn(
-                balances.src,
-                fromWeight,
-                balances.dst,
-                destWeight,
-                amounts[i],
-                swapFee
-            );
-        }
-
-        return (rets, 75_000 + (fromToken.isETH() || destToken.isETH() ? 0 : 65_000));
+        gas = 75_000 + (fromToken.isETH() || destToken.isETH() ? 0 : 65_000);
     }
 
     function calculateBalancer1(
@@ -3439,6 +3435,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             return (rets, 0);
         }
 
+        uint256 fee = mooniswap.fee();
         uint256 fromBalance = mooniswap.getBalanceForAddition(fromToken.isETH() ? ZERO_ADDRESS : fromToken);
         uint256 destBalance = mooniswap.getBalanceForRemoval(destToken.isETH() ? ZERO_ADDRESS : destToken);
         if (fromBalance == 0 || destBalance == 0) {
@@ -3446,8 +3443,9 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         }
 
         for (uint i = 0; i < amounts.length; i++) {
-            rets[i] = amounts[i].mul(destBalance).div(
-                fromBalance.add(amounts[i])
+            uint256 amount = amounts[i].sub(amounts[i].mul(fee).div(1e18));
+            rets[i] = amount.mul(destBalance).div(
+                fromBalance.add(amount)
             );
         }
 

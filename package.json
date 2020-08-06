@@ -42,6 +42,7 @@
         "dist:audit": "truffle-flattener ./contracts/OneSplitAudit.sol > OneSplitAudit.full.sol && solcjs --bin --abi --optimize OneSplitAudit.full.sol && mv OneSplitAudit_full_sol_OneSplitAudit.bin OneSplitAudit.full.bin && mv OneSplitAudit_full_sol_OneSplitAudit.abi OneSplitAudit.full.abi && rm *_sol_*",
         "dist:bnt": "truffle-flattener ./contracts/BancorFinder.sol > BancorFinder.full.sol && solcjs --bin --abi --optimize BancorFinder.full.sol && mv BancorFinder_full_sol_BancorFinder.bin BancorFinder.full.bin && mv BancorFinder_full_sol_BancorFinder.abi BancorFinder.full.abi && rm *_sol_*",
         "dist:comp": "truffle-flattener ./contracts/CompoundRegistry.sol > CompoundRegistry.full.sol && solcjs --bin --abi --optimize CompoundRegistry.full.sol && mv CompoundRegistry_full_sol_CompoundRegistry.bin CompoundRegistry.full.bin && mv CompoundRegistry_full_sol_CompoundRegistry.abi CompoundRegistry.full.abi && rm *_sol_*",
+        "dist:bal": "truffle-flattener ./contracts/BalancerHelper.sol > BalancerHelper.full.sol && solcjs --bin --abi --optimize BalancerHelper.full.sol && mv BalancerHelper_full_sol_BalancerHelper.bin BalancerHelper.full.bin && mv BalancerHelper_full_sol_BalancerHelper.abi BalancerHelper.full.abi && rm *_sol_*",
         "dist:aave": "truffle-flattener ./contracts/AaveRegistry.sol > AaveRegistry.full.sol && solcjs --bin --abi --optimize AaveRegistry.full.sol && mv AaveRegistry_full_sol_AaveRegistry.bin AaveRegistry.full.bin && mv AaveRegistry_full_sol_AaveRegistry.abi AaveRegistry.full.abi && rm *_sol_*"
     }
 }
