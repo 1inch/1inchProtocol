@@ -15,6 +15,7 @@ const CURVE_COMPOUND = new BN('1000', 16);
 const CURVE_ALL = new BN('200000000000', 16);
 const KYBER_ALL = new BN('200000000000000', 16);
 const MOONISWAP_ALL = new BN('8000000000000000', 16);
+const BALANCER_ALL = new BN('1000000000000', 16);
 
 contract('OneSplit', function ([_, addr1]) {
     describe('OneSplit', async function () {
@@ -57,6 +58,22 @@ contract('OneSplit', function ([_, addr1]) {
                 '1000000000000000000', // 1.0
                 10,
                 DISABLE_ALL.add(MOONISWAP_ALL), // enable only Mooniswap
+            );
+
+            console.log('Swap: 1 ETH');
+            console.log('returnAmount:', res.returnAmount.toString() / 1e6 + ' USDC');
+            // console.log('distribution:', res.distribution.map(a => a.toString()));
+            // console.log('raw:', res.returnAmount.toString());
+            expect(res.returnAmount).to.be.bignumber.above('390000000');
+        });
+
+        it.only('should work with Balancer ETH => DAI', async function () {
+            const res = await this.split.getExpectedReturn(
+                '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // ETH
+                '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC
+                '1000000000000000000', // 1.0
+                10,
+                DISABLE_ALL.add(BALANCER_ALL), // enable only Mooniswap
             );
 
             console.log('Swap: 1 ETH');

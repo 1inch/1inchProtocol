@@ -582,8 +582,8 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
 
         rets = balancerHelper.getReturns(
             IBalancerPool(pools[poolIndex]),
-            fromToken,
-            destToken,
+            fromToken.isETH() ? weth : fromToken,
+            destToken.isETH() ? weth : destToken,
             _linearInterpolation(amount, parts)
         );
         gas = 75_000 + (fromToken.isETH() || destToken.isETH() ? 0 : 65_000);
