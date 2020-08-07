@@ -394,7 +394,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             // Prepend zero and sub gas
             int256 gas = int256(gases[i].mul(destTokenEthPriceTimesGasPrice).div(1e18));
             matrix[i] = new int256[](parts + 1);
-            for (uint j = 0; j < parts; j++) {
+            for (uint j = 0; j < rets.length; j++) {
                 matrix[i][j + 1] = int256(rets[j]) - gas;
                 atLeastOnePositive = atLeastOnePositive || (matrix[i][j + 1] > 0);
             }
@@ -577,7 +577,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             poolIndex + 1
         );
         if (poolIndex >= pools.length) {
-            return (rets, 0);
+            return (new uint256[](parts), 0);
         }
 
         rets = balancerHelper.getReturns(
@@ -2212,7 +2212,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             destToken.isETH() ? ZERO_ADDRESS : destToken,
             amount,
             0,
-            0x4D37f28D2db99e8d35A6C725a5f1749A085850a3
+            0x68a17B587CAF4f9329f0e372e3A78D23A46De6b5
         );
     }
 
@@ -2319,7 +2319,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
-        uint256 /*flags*/,
+        uint256 flags,
         bytes32 reserveId
     ) internal {
         uint256 returnAmount = amount;
@@ -2343,8 +2343,8 @@ contract OneSplit is IOneSplit, OneSplitRoot {
                 address(this),
                 uint256(-1),
                 0,
-                0x4D37f28D2db99e8d35A6C725a5f1749A085850a3,
-                10,
+                0x68a17B587CAF4f9329f0e372e3A78D23A46De6b5,
+                (flags >> 255) * 10,
                 fromHint
             );
         }
@@ -2364,8 +2364,8 @@ contract OneSplit is IOneSplit, OneSplitRoot {
                 address(this),
                 uint256(-1),
                 0,
-                0x4D37f28D2db99e8d35A6C725a5f1749A085850a3,
-                10,
+                0x68a17B587CAF4f9329f0e372e3A78D23A46De6b5,
+                (flags >> 255) * 10,
                 destHint
             );
         }
@@ -2423,7 +2423,11 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         IERC20 fromTokenReal = fromToken.isETH() ? weth : fromToken;
         IERC20 toTokenReal = destToken.isETH() ? weth : destToken;
         IUniswapV2Exchange exchange = uniswapV2.getPair(fromTokenReal, toTokenReal);
-        returnAmount = exchange.getReturn(fromTokenReal, toTokenReal, amount);
+        bool needSync;
+        (returnAmount, needSync) = exchange.getReturn(fromTokenReal, toTokenReal, amount);
+        if (needSync) {
+            exchange.sync();
+        }
 
         fromTokenReal.universalTransfer(address(exchange), amount);
         if (uint256(address(fromTokenReal)) < uint256(address(toTokenReal))) {

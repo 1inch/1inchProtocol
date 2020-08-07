@@ -67,7 +67,7 @@ contract('OneSplit', function ([_, addr1]) {
             expect(res.returnAmount).to.be.bignumber.above('390000000');
         });
 
-        it.only('should work with Balancer ETH => DAI', async function () {
+        it('should work with Balancer ETH => DAI', async function () {
             const res = await this.split.getExpectedReturn(
                 '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // ETH
                 '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC
@@ -78,6 +78,22 @@ contract('OneSplit', function ([_, addr1]) {
 
             console.log('Swap: 1 ETH');
             console.log('returnAmount:', res.returnAmount.toString() / 1e6 + ' USDC');
+            // console.log('distribution:', res.distribution.map(a => a.toString()));
+            // console.log('raw:', res.returnAmount.toString());
+            expect(res.returnAmount).to.be.bignumber.above('390000000');
+        });
+
+        it('should work with ETH => COMP', async function () {
+            const res = await this.split.getExpectedReturn(
+                '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // ETH
+                '0xc00e94Cb662C3520282E6f5717214004A7f26888', // USDC
+                '1000000000000000000', // 1.0
+                1,
+                0,
+            );
+
+            console.log('Swap: 1 ETH');
+            console.log('returnAmount:', res.returnAmount.toString() / 1e18 + ' COMP');
             // console.log('distribution:', res.distribution.map(a => a.toString()));
             // console.log('raw:', res.returnAmount.toString());
             expect(res.returnAmount).to.be.bignumber.above('390000000');
