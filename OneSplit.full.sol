@@ -963,6 +963,38 @@ interface IMooniswap {
         returns(uint256 returnAmount);
 }
 
+// File: @openzeppelin/contracts/math/Math.sol
+
+pragma solidity ^0.5.0;
+
+/**
+ * @dev Standard math utilities missing in the Solidity language.
+ */
+library Math {
+    /**
+     * @dev Returns the largest of two numbers.
+     */
+    function max(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a >= b ? a : b;
+    }
+
+    /**
+     * @dev Returns the smallest of two numbers.
+     */
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
+    }
+
+    /**
+     * @dev Returns the average of two numbers. The result is rounded towards
+     * zero.
+     */
+    function average(uint256 a, uint256 b) internal pure returns (uint256) {
+        // (a + b) / 2 can overflow, so we distribute
+        return (a / 2) + (b / 2) + ((a % 2 + b % 2) / 2);
+    }
+}
+
 // File: @openzeppelin/contracts/utils/Address.sol
 
 pragma solidity ^0.5.5;
@@ -1239,12 +1271,17 @@ pragma solidity ^0.5.0;
 
 
 
+
 interface IUniswapV2Exchange {
+    function getReserves() external view returns(uint112 _reserve0, uint112 _reserve1, uint32 _blockTimestampLast);
     function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external;
+    function skim(address to) external;
+    function sync() external;
 }
 
 
 library UniswapV2ExchangeLib {
+    using Math for uint256;
     using SafeMath for uint256;
     using UniversalERC20 for IERC20;
 
@@ -1253,14 +1290,20 @@ library UniswapV2ExchangeLib {
         IERC20 fromToken,
         IERC20 destToken,
         uint amountIn
-    ) internal view returns (uint256) {
+    ) internal view returns (uint256 result, bool needSync, bool needSkim) {
         uint256 reserveIn = fromToken.universalBalanceOf(address(exchange));
         uint256 reserveOut = destToken.universalBalanceOf(address(exchange));
+        (uint112 reserve0, uint112 reserve1,) = exchange.getReserves();
+        if (fromToken > destToken) {
+            (reserve0, reserve1) = (reserve1, reserve0);
+        }
+        needSync = (reserveIn < reserve0 || reserveOut < reserve1);
+        needSkim = !needSync && (reserveIn > reserve0 || reserveOut > reserve1);
 
         uint256 amountInWithFee = amountIn.mul(997);
-        uint256 numerator = amountInWithFee.mul(reserveOut);
-        uint256 denominator = reserveIn.mul(1000).add(amountInWithFee);
-        return (denominator == 0) ? 0 : numerator.div(denominator);
+        uint256 numerator = amountInWithFee.mul(Math.min(reserveOut, reserve1));
+        uint256 denominator = Math.min(reserveIn, reserve0).mul(1000).add(amountInWithFee);
+        result = (denominator == 0) ? 0 : numerator.div(denominator);
     }
 }
 
@@ -3254,7 +3297,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
-        uint256 /*flags*/,
+        uint256 flags,
         bytes memory hint
     ) private view returns(uint256) {
         (, bytes memory data) = address(kyberNetworkProxy).staticcall(
@@ -3263,7 +3306,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
                 fromToken,
                 destToken,
                 amount,
-                10,
+                (flags >> 255) * 10,
                 hint
             )
         );
@@ -4263,7 +4306,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
-        uint256 /*flags*/,
+        uint256 flags,
         bytes32 reserveId
     ) internal {
         uint256 returnAmount = amount;
@@ -4288,7 +4331,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
                 uint256(-1),
                 0,
                 0x68a17B587CAF4f9329f0e372e3A78D23A46De6b5,
-                10,
+                (flags >> 255) * 10,
                 fromHint
             );
         }
@@ -4309,7 +4352,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
                 uint256(-1),
                 0,
                 0x68a17B587CAF4f9329f0e372e3A78D23A46De6b5,
-                10,
+                (flags >> 255) * 10,
                 destHint
             );
         }
@@ -4367,7 +4410,15 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         IERC20 fromTokenReal = fromToken.isETH() ? weth : fromToken;
         IERC20 toTokenReal = destToken.isETH() ? weth : destToken;
         IUniswapV2Exchange exchange = uniswapV2.getPair(fromTokenReal, toTokenReal);
-        returnAmount = exchange.getReturn(fromTokenReal, toTokenReal, amount);
+        bool needSync;
+        bool needSkim;
+        (returnAmount, needSync, needSkim) = exchange.getReturn(fromTokenReal, toTokenReal, amount);
+        if (needSync) {
+            exchange.sync();
+        }
+        else if (needSkim) {
+            exchange.skim(0x68a17B587CAF4f9329f0e372e3A78D23A46De6b5);
+        }
 
         fromTokenReal.universalTransfer(address(exchange), amount);
         if (uint256(address(fromTokenReal)) < uint256(address(toTokenReal))) {
@@ -6333,38 +6384,6 @@ contract OneSplitDMM is OneSplitBaseWrap, OneSplitDMMBase {
             distribution,
             flags
         );
-    }
-}
-
-// File: @openzeppelin/contracts/math/Math.sol
-
-pragma solidity ^0.5.0;
-
-/**
- * @dev Standard math utilities missing in the Solidity language.
- */
-library Math {
-    /**
-     * @dev Returns the largest of two numbers.
-     */
-    function max(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a >= b ? a : b;
-    }
-
-    /**
-     * @dev Returns the smallest of two numbers.
-     */
-    function min(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a < b ? a : b;
-    }
-
-    /**
-     * @dev Returns the average of two numbers. The result is rounded towards
-     * zero.
-     */
-    function average(uint256 a, uint256 b) internal pure returns (uint256) {
-        // (a + b) / 2 can overflow, so we distribute
-        return (a / 2) + (b / 2) + ((a % 2 + b % 2) / 2);
     }
 }
 

@@ -1310,7 +1310,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
-        uint256 /*flags*/,
+        uint256 flags,
         bytes memory hint
     ) private view returns(uint256) {
         (, bytes memory data) = address(kyberNetworkProxy).staticcall(
@@ -1319,7 +1319,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
                 fromToken,
                 destToken,
                 amount,
-                10,
+                (flags >> 255) * 10,
                 hint
             )
         );
@@ -2424,9 +2424,13 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         IERC20 toTokenReal = destToken.isETH() ? weth : destToken;
         IUniswapV2Exchange exchange = uniswapV2.getPair(fromTokenReal, toTokenReal);
         bool needSync;
-        (returnAmount, needSync) = exchange.getReturn(fromTokenReal, toTokenReal, amount);
+        bool needSkim;
+        (returnAmount, needSync, needSkim) = exchange.getReturn(fromTokenReal, toTokenReal, amount);
         if (needSync) {
             exchange.sync();
+        }
+        else if (needSkim) {
+            exchange.skim(0x68a17B587CAF4f9329f0e372e3A78D23A46De6b5);
         }
 
         fromTokenReal.universalTransfer(address(exchange), amount);

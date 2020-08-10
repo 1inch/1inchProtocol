@@ -179,6 +179,22 @@ contract('OneSplit', function ([_, addr1]) {
             expect(res.returnAmount).to.be.bignumber.above('200000000000000000000');
         });
 
+        it.only('should work with Kyber ETH => USDT', async function () {
+            const res = await this.split.getExpectedReturn(
+                '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // ETH
+                '0xdAC17F958D2ee523a2206206994597C13D831ec7', // USDT
+                '50000000000000000000', // 50.0
+                10,
+                DISABLE_ALL.add(KYBER_ALL), // enable only Kyber
+            );
+
+            console.log('Swap: 1 ETH');
+            console.log('returnAmount:', res.returnAmount.toString() / 1e6 + ' USDT');
+            console.log('distribution:', res.distribution.map(a => a.toString()));
+            // console.log('raw:', res.returnAmount.toString());
+            expect(res.returnAmount).to.be.bignumber.above('200000000000000000000');
+        });
+
         it('should split among BTC Curves', async function () {
             const res = await this.split.getExpectedReturn(
                 '0xEB4C2781e4ebA804CE9a9803C67d0893436bB27D', // renBTC

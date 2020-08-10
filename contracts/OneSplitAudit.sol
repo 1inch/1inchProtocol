@@ -357,7 +357,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
 
     function _chiBurnOrSell(address payable sponsor, uint256 amount) internal {
         IUniswapV2Exchange exchange = IUniswapV2Exchange(0xa6f3ef841d371a82ca757FaD08efc0DeE2F1f5e2);
-        (uint256 sellRefund,) = UniswapV2ExchangeLib.getReturn(exchange, chi, weth, amount);
+        (uint256 sellRefund,,) = UniswapV2ExchangeLib.getReturn(exchange, chi, weth, amount);
         uint256 burnRefund = amount.mul(18_000).mul(tx.gasprice);
 
         if (sellRefund < burnRefund.add(tx.gasprice.mul(36_000))) {
