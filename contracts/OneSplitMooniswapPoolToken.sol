@@ -388,7 +388,7 @@ contract OneSplitMooniswapToken is OneSplitBaseWrap, OneSplitMooniswapTokenBase 
         uint256 ethValue = (tokens[0].isETH() ? amounts[0] : 0) + (tokens[1].isETH() ? amounts[1] : 0);
         IMooniswap(address(poolToken)).deposit.value(ethValue)(
             amounts,
-            0
+            new uint256[](2)
         );
 
         for (uint i = 0; i < 2; i++) {

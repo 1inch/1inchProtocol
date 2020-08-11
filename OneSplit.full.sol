@@ -934,7 +934,7 @@ interface IMooniswap {
 
     function tokens(uint256 i) external view returns (IERC20);
 
-    function deposit(uint256[] calldata amounts, uint256 minReturn) external payable returns(uint256 fairSupply);
+    function deposit(uint256[] calldata amounts, uint256[] calldata minAmounts) external payable returns(uint256 fairSupply);
 
     function withdraw(uint256 amount, uint256[] calldata minReturns) external;
 
@@ -2109,7 +2109,7 @@ contract OneSplitRoot is IOneSplitView {
     IAaveLendingPool constant internal aave = IAaveLendingPool(0x398eC7346DcD622eDc5ae82352F02bE94C62d119);
     ICompound constant internal compound = ICompound(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
     ICompoundEther constant internal cETH = ICompoundEther(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
-    IMooniswapRegistry constant internal mooniswapRegistry = IMooniswapRegistry(0xc12A7e093832E2d2267df225BAca60bD2B74C65F);
+    IMooniswapRegistry constant internal mooniswapRegistry = IMooniswapRegistry(0x71CD6666064C3A1354a3B4dca5fA1E2D3ee7D303);
     IUniswapV2Factory constant internal uniswapV2 = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
     IDForceSwap constant internal dforceSwap = IDForceSwap(0x03eF3f37856bD08eb47E2dE7ABc4Ddd2c19B60F2);
     IMStable constant internal musd = IMStable(0xe2f2a5C287993345a840Db3B0845fbC70f5935a5);
@@ -6778,7 +6778,7 @@ contract OneSplitMooniswapToken is OneSplitBaseWrap, OneSplitMooniswapTokenBase 
         uint256 ethValue = (tokens[0].isETH() ? amounts[0] : 0) + (tokens[1].isETH() ? amounts[1] : 0);
         IMooniswap(address(poolToken)).deposit.value(ethValue)(
             amounts,
-            0
+            new uint256[](2)
         );
 
         for (uint i = 0; i < 2; i++) {
