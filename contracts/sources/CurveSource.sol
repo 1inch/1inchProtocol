@@ -56,51 +56,35 @@ contract CurveSourceView is OneRouterConstants {
     ICurveRegistry constant private _CURVE_REGISTRY = ICurveRegistry(0x7002B727Ef8F5571Cb5F9D70D13DBEEb4dFAe9d1);
 
     function _calculateCurveCompound(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) internal view returns(uint256[] memory rets, address dex, uint256 gas) {
-        if (swap.flags.check(_FLAG_DISABLE_ALL_SOURCES) == swap.flags.check(_FLAG_DISABLE_CURVE_ALL)) {
-            return (_calculateCurveSelector(fromToken, swap.destToken, amounts, CurveHelper.CURVE_COMPOUND, true, CurveHelper.dynarr([_DAI, _USDC])), address(CurveHelper.CURVE_COMPOUND), 720_000);
-        }
+        return (_calculateCurveSelector(fromToken, swap.destToken, amounts, CurveHelper.CURVE_COMPOUND, true, CurveHelper.dynarr([_DAI, _USDC])), address(CurveHelper.CURVE_COMPOUND), 720_000);
     }
 
     function _calculateCurveUSDT(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) internal view returns(uint256[] memory rets, address dex, uint256 gas) {
-        if (swap.flags.check(_FLAG_DISABLE_ALL_SOURCES) == swap.flags.check(_FLAG_DISABLE_CURVE_ALL)) {
-            return (_calculateCurveSelector(fromToken, swap.destToken, amounts, CurveHelper.CURVE_USDT, true, CurveHelper.dynarr([_DAI, _USDC, _USDT])), address(CurveHelper.CURVE_USDT), 720_000);
-        }
+        return (_calculateCurveSelector(fromToken, swap.destToken, amounts, CurveHelper.CURVE_USDT, true, CurveHelper.dynarr([_DAI, _USDC, _USDT])), address(CurveHelper.CURVE_USDT), 720_000);
     }
 
     function _calculateCurveY(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) internal view returns(uint256[] memory rets, address dex, uint256 gas) {
-        if (swap.flags.check(_FLAG_DISABLE_ALL_SOURCES) == swap.flags.check(_FLAG_DISABLE_CURVE_ALL)) {
-            return (_calculateCurveSelector(fromToken, swap.destToken, amounts, CurveHelper.CURVE_Y, true, CurveHelper.dynarr([_DAI, _USDC, _USDT, _TUSD])), address(CurveHelper.CURVE_Y), 1_400_000);
-        }
+        return (_calculateCurveSelector(fromToken, swap.destToken, amounts, CurveHelper.CURVE_Y, true, CurveHelper.dynarr([_DAI, _USDC, _USDT, _TUSD])), address(CurveHelper.CURVE_Y), 1_400_000);
     }
 
     function _calculateCurveBinance(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) internal view returns(uint256[] memory rets, address dex, uint256 gas) {
-        if (swap.flags.check(_FLAG_DISABLE_ALL_SOURCES) == swap.flags.check(_FLAG_DISABLE_CURVE_ALL)) {
-            return (_calculateCurveSelector(fromToken, swap.destToken, amounts, CurveHelper.CURVE_BINANCE, true, CurveHelper.dynarr([_DAI, _USDC, _USDT, _BUSD])), address(CurveHelper.CURVE_BINANCE), 1_400_000);
-        }
+        return (_calculateCurveSelector(fromToken, swap.destToken, amounts, CurveHelper.CURVE_BINANCE, true, CurveHelper.dynarr([_DAI, _USDC, _USDT, _BUSD])), address(CurveHelper.CURVE_BINANCE), 1_400_000);
     }
 
     function _calculateCurveSynthetix(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) internal view returns(uint256[] memory rets, address dex, uint256 gas) {
-        if (swap.flags.check(_FLAG_DISABLE_ALL_SOURCES) == swap.flags.check(_FLAG_DISABLE_CURVE_ALL)) {
-            return (_calculateCurveSelector(fromToken, swap.destToken, amounts, CurveHelper.CURVE_SYNTHETIX, true, CurveHelper.dynarr([_DAI, _USDC, _USDT, _SUSD])), address(CurveHelper.CURVE_SYNTHETIX), 200_000);
-        }
+        return (_calculateCurveSelector(fromToken, swap.destToken, amounts, CurveHelper.CURVE_SYNTHETIX, true, CurveHelper.dynarr([_DAI, _USDC, _USDT, _SUSD])), address(CurveHelper.CURVE_SYNTHETIX), 200_000);
     }
 
     function _calculateCurvePAX(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) internal view returns(uint256[] memory rets, address dex, uint256 gas) {
-        if (swap.flags.check(_FLAG_DISABLE_ALL_SOURCES) == swap.flags.check(_FLAG_DISABLE_CURVE_ALL)) {
-            return (_calculateCurveSelector(fromToken, swap.destToken, amounts, CurveHelper.CURVE_PAX, true, CurveHelper.dynarr([_DAI, _USDC, _USDT, _PAX])), address(CurveHelper.CURVE_PAX), 1_000_000);
-        }
+        return (_calculateCurveSelector(fromToken, swap.destToken, amounts, CurveHelper.CURVE_PAX, true, CurveHelper.dynarr([_DAI, _USDC, _USDT, _PAX])), address(CurveHelper.CURVE_PAX), 1_000_000);
     }
 
     function _calculateCurveRENBTC(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) internal view returns(uint256[] memory rets, address dex, uint256 gas) {
-        if (swap.flags.check(_FLAG_DISABLE_ALL_SOURCES) == swap.flags.check(_FLAG_DISABLE_CURVE_ALL)) {
-            return (_calculateCurveSelector(fromToken, swap.destToken, amounts, CurveHelper.CURVE_RENBTC, false, CurveHelper.dynarr([_RENBTC, _WBTC])), address(CurveHelper.CURVE_RENBTC), 130_000);
-        }
+        return (_calculateCurveSelector(fromToken, swap.destToken, amounts, CurveHelper.CURVE_RENBTC, false, CurveHelper.dynarr([_RENBTC, _WBTC])), address(CurveHelper.CURVE_RENBTC), 130_000);
     }
 
     function _calculateCurveSBTC(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) internal view returns(uint256[] memory rets, address dex, uint256 gas) {
-        if (swap.flags.check(_FLAG_DISABLE_ALL_SOURCES) == swap.flags.check(_FLAG_DISABLE_CURVE_ALL)) {
-            return (_calculateCurveSelector(fromToken, swap.destToken, amounts, CurveHelper.CURVE_SBTC, false, CurveHelper.dynarr([_RENBTC, _WBTC, _SBTC])), address(CurveHelper.CURVE_SBTC), 150_000);
-        }
+        return (_calculateCurveSelector(fromToken, swap.destToken, amounts, CurveHelper.CURVE_SBTC, false, CurveHelper.dynarr([_RENBTC, _WBTC, _SBTC])), address(CurveHelper.CURVE_SBTC), 150_000);
     }
 
     function _calculateCurveSelector(
@@ -179,24 +163,24 @@ contract CurveSourceView is OneRouterConstants {
         uint256 amp,
         uint256 fee
     ) {
-        uint256[8] memory underlying_balances;
+        uint256[8] memory underlyingBalances;
         uint256[8] memory decimals;
-        uint256[8] memory underlying_decimals;
+        uint256[8] memory underlyingDecimals;
 
         (
             balances,
-            underlying_balances,
+            underlyingBalances,
             decimals,
-            underlying_decimals,
-            /*address lp_token*/,
+            underlyingDecimals,
+            /*address lpToken*/,
             amp,
             fee
         ) = _CURVE_REGISTRY.get_pool_info(address(curve));
 
         for (uint k = 0; k < 8 && balances[k] > 0; k++) {
-            precisions[k] = 10 ** (18 - (haveUnderlying ? underlying_decimals : decimals)[k]);
+            precisions[k] = 10 ** (18 - (haveUnderlying ? underlyingDecimals : decimals)[k]);
             if (haveUnderlying) {
-                rates[k] = underlying_balances[k].mul(1e18).div(balances[k]);
+                rates[k] = underlyingBalances[k].mul(1e18).div(balances[k]);
             } else {
                 rates[k] = 1e18;
             }

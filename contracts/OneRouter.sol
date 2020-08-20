@@ -28,20 +28,14 @@ import "./sources/CurveSource.sol";
 // import "./sources/BalancerSource.sol";
 
 
-contract PathsAdvisor {
+contract PathsAdvisor is OneRouterConstants {
     using UniERC20 for IERC20;
-
-    IWETH constant private _WETH = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-    IERC20 constant private DAI = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
-    IERC20 constant private USDC = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
-    IERC20 constant private USDT = IERC20(0xdAC17F958D2ee523a2206206994597C13D831ec7);
-    IERC20 constant private WBTC = IERC20(0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599);
 
     IAaveRegistry constant private _AAVE_REGISTRY = IAaveRegistry(0xEd8b133B7B88366E01Bb9E38305Ab11c26521494);
     ICompoundRegistry constant private _COMPOUND_REGISTRY = ICompoundRegistry(0xF451Dbd7Ba14BFa7B1B78A766D3Ed438F79EE1D1);
 
     function getPathsForTokens(IERC20 fromToken, IERC20 destToken) external view returns(IERC20[][] memory paths) {
-        IERC20[4] memory midTokens = [DAI, USDC, USDT, WBTC];
+        IERC20[4] memory midTokens = [_DAI, _USDC, _USDT, _WBTC];
         paths = new IERC20[][](2 + midTokens.length);
 
         IERC20 aFromToken = _AAVE_REGISTRY.aTokenByToken(fromToken);
@@ -270,7 +264,7 @@ contract OneRouterView is
         bool disableAll = swap.flags.check(_FLAG_DISABLE_ALL_SOURCES);
         for (uint i = 0; i < sourcesCount; i++) {
             uint256 gas;
-            if (disableAll || !swap.flags.check(1 << i)) {
+            if (disableAll == swap.flags.check(1 << i)) {
                 if (sources[i] != ISource(0)) {
                     (input[i], , gas) = sources[i].calculate(fromToken, amounts, swap);
                 }
@@ -510,15 +504,10 @@ contract OneRouter is
         returns(uint256 returnAmount)
     {
         require(msg.value == (input.fromToken.isETH() ? input.amount : 0), "Wrong msg.value");
+        require(paths.length == pathDistributions.length, "Wrong arrays length");
         require(paths.length == interPathsDistribution.weights.length, "Wrong arrays length");
 
         input.fromToken.uniTransferFromSender(address(this), input.amount);
-        uint256 confirmed = input.fromToken.uniBalanceOf(address(this));
-
-        uint256 interTotalWeight = 0;
-        for (uint i = 0; i < interPathsDistribution.weights.length; i++) {
-            interTotalWeight = interTotalWeight.add(interPathsDistribution.weights[i]);
-        }
 
         function(IERC20,IERC20,uint256,uint256)[15] memory reserves = [
             _swapOnUniswapV1,
@@ -547,46 +536,57 @@ contract OneRouter is
             // _swapOnBlackHoleSwap
         ];
 
-        Indexes memory _;
-        for (_.p = 0; _.p < pathDistributions.length; _.p++) {
-            for (_.s = 0; _.s < pathDistributions[_.p].swapDistributions.length; _.s++) {
-                uint256 totalWeight = 0;
-                for (_.i = 0; _.i < pathDistributions[_.p].swapDistributions[_.s].weights.length; _.i++) {
-                    totalWeight = totalWeight.add(pathDistributions[_.p].swapDistributions[_.s].weights[_.i]);
+        uint256 interTotalWeight = 0;
+        for (uint i = 0; i < interPathsDistribution.weights.length; i++) {
+            interTotalWeight = interTotalWeight.add(interPathsDistribution.weights[i]);
+        }
+
+        Indexes memory z;
+        for (z.p = 0; z.p < pathDistributions.length; z.p++) {
+            uint256 confirmed = input.fromToken.uniBalanceOf(address(this))
+                    .mul(interPathsDistribution.weights[z.p])
+                    .div(interTotalWeight);
+            interTotalWeight = interTotalWeight.sub(interPathsDistribution.weights[z.p]);
+
+            IERC20 token = input.fromToken;
+            for (z.s = 0; z.s < pathDistributions[z.p].swapDistributions.length; z.s++) {
+                uint256 totalSwapWeight = 0;
+                for (z.i = 0; z.i < pathDistributions[z.p].swapDistributions[z.s].weights.length; z.i++) {
+                    totalSwapWeight = totalSwapWeight.add(pathDistributions[z.p].swapDistributions[z.s].weights[z.i]);
                 }
 
-                for (_.i = 0; _.i < pathDistributions[_.p].swapDistributions[_.s].weights.length; _.i++) {
-                    uint256 amount = confirmed
-                        .mul(interPathsDistribution.weights[_.p])
-                        .div(interTotalWeight);
-                    amount = amount
-                        .mul(pathDistributions[_.p].swapDistributions[_.s].weights[_.i])
-                        .div(totalWeight);
-                    totalWeight = totalWeight.sub(pathDistributions[_.p].swapDistributions[_.s].weights[_.i]);
+                for (z.i = 0; z.i < pathDistributions[z.p].swapDistributions[z.s].weights.length; z.i++) {
+                    uint256 amount = ((z.s == 0) ? confirmed : token.uniBalanceOf(address(this)))
+                        .mul(pathDistributions[z.p].swapDistributions[z.s].weights[z.i])
+                        .div(totalSwapWeight);
+                    totalSwapWeight = totalSwapWeight.sub(pathDistributions[z.p].swapDistributions[z.s].weights[z.i]);
 
-                    if (sources[_.i] != ISource(0)) {
-                        address(sources[_.i]).functionDelegateCall(
+                    if (sources[z.i] != ISource(0)) {
+                        address(sources[z.i]).functionDelegateCall(
                             abi.encodeWithSelector(
-                                sources[_.i].swap.selector,
+                                sources[z.i].swap.selector,
                                 input.fromToken,
                                 input.destToken,
                                 amount,
-                                paths[_.p].swaps[_.s].flags
+                                paths[z.p].swaps[z.s].flags
                             ),
                             "Delegatecall failed"
                         );
                     }
-                    else if (_.i < reserves.length) {
-                        reserves[_.i](input.fromToken, input.destToken, amount, paths[_.p].swaps[_.s].flags);
+                    else if (z.i < reserves.length) {
+                        reserves[z.i](input.fromToken, input.destToken, amount, paths[z.p].swaps[z.s].flags);
                     }
                 }
+
+                token = paths[z.p].swaps[z.s].destToken;
             }
 
-            interTotalWeight = interTotalWeight.sub(interPathsDistribution.weights[_.p]);
+            interTotalWeight = interTotalWeight.sub(interPathsDistribution.weights[z.p]);
         }
 
         uint256 remaining = input.fromToken.uniBalanceOf(address(this));
         returnAmount = input.destToken.uniBalanceOf(address(this));
+        require(returnAmount >= input.minReturn, "Min returns is not enough");
         input.fromToken.uniTransfer(msg.sender, remaining);
         input.destToken.uniTransfer(msg.sender, returnAmount);
     }

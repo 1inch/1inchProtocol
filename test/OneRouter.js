@@ -55,8 +55,8 @@ const DISABLE_ALL = new BN('100000000000000000000000000000000', 16);
 const DISABLE_UNISWAP_V1 = new BN('1', 16);
 const DISABLE_UNISWAP_V2 = new BN('2', 16);
 const DISABLE_UNISWAP_ALL = DISABLE_UNISWAP_V1.add(DISABLE_UNISWAP_V2);
-const DISABLE_KYBER_ALL = new BN('200000000000000000000000000000000', 16);
-const DISABLE_CURVE_ALL = new BN('400000000000000000000000000000000', 16);
+const DISABLE_KYBER_ALL = new BN('78', 16);
+const DISABLE_CURVE_ALL = new BN('FF80', 16);
 
 contract('OneRouter', function ([_, wallet1, wallet2]) {
     before(async function () {
@@ -206,14 +206,14 @@ contract('OneRouter', function ([_, wallet1, wallet2]) {
                             flags: DISABLE_ALL.add(DISABLE_CURVE_ALL).toString(),
                             destTokenEthPriceTimesGasPrice: 0,
                             disabledDexes: [],
-                        }
-                    ]
-                }
+                        },
+                    ],
+                },
             );
 
             console.log('result', JSON.stringify(result));
-            //expect(result.returnAmounts[0]).to.be.bignumber.greaterThan(money.dai('100'));
-            //expect(result.estimateGasAmounts[0]).to.be.equal('100000');
+            // expect(result.returnAmounts[0]).to.be.bignumber.greaterThan(money.dai('100'));
+            // expect(result.estimateGasAmounts[0]).to.be.equal('100000');
         });
 
         it('should give DAI amount for 1000 ETH', async function () {
@@ -228,8 +228,8 @@ contract('OneRouter', function ([_, wallet1, wallet2]) {
                                 flags: DISABLE_ALL.add(DISABLE_UNISWAP_ALL).toString(),
                                 destTokenEthPriceTimesGasPrice: 0,
                                 disabledDexes: [],
-                            }
-                        ]
+                            },
+                        ],
                     },
                     {
                         swaps: [
@@ -244,8 +244,8 @@ contract('OneRouter', function ([_, wallet1, wallet2]) {
                                 flags: DISABLE_ALL.add(DISABLE_CURVE_ALL).toString(),
                                 destTokenEthPriceTimesGasPrice: 0,
                                 disabledDexes: [],
-                            }
-                        ]
+                            },
+                        ],
                     },
                     {
                         swaps: [
@@ -260,15 +260,15 @@ contract('OneRouter', function ([_, wallet1, wallet2]) {
                                 flags: DISABLE_ALL.add(DISABLE_CURVE_ALL).toString(),
                                 destTokenEthPriceTimesGasPrice: 0,
                                 disabledDexes: [],
-                            }
-                        ]
-                    }
-                ]
+                            },
+                        ],
+                    },
+                ],
             );
 
             console.log('result', JSON.stringify(result));
-            //expect(result.returnAmounts[0]).to.be.bignumber.greaterThan(money.dai('100'));
-            //expect(result.estimateGasAmounts[0]).to.be.equal('100000');
+            // expect(result.returnAmounts[0]).to.be.bignumber.greaterThan(money.dai('100'));
+            // expect(result.estimateGasAmounts[0]).to.be.equal('100000');
         });
     });
 });

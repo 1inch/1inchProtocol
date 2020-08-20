@@ -79,9 +79,6 @@ contract KyberSourceView is OneRouterConstants {
 
     function _calculateKyber(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap, bytes32 reserveId) private view returns(uint256[] memory rets, address dex, uint256 gas) {
         rets = new uint256[](amounts.length);
-        if (swap.flags.check(_FLAG_DISABLE_ALL_SOURCES) != swap.flags.check(_FLAG_DISABLE_KYBER_ALL)) {
-            return (rets, address(0), 0);
-        }
 
         IKyberReserve reserve = KyberHelper.STORAGE.getReserveAddressesByReserveId(reserveId)[0];
 

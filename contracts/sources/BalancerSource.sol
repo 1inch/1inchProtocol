@@ -51,13 +51,10 @@ contract BalancerSourceView is OneRouterConstants {
         IERC20 fromToken,
         IERC20 destToken,
         uint256[] memory amounts,
-        uint256 flags,
+        uint256 /*flags*/,
         uint256 poolIndex
     ) private view returns(uint256[] memory rets, address dex, uint256 gas) {
         rets = new uint256[](amounts.length);
-        if (flags.check(_FLAG_DISABLE_ALL_SOURCES) != flags.check(_FLAG_DISABLE_BALANCER_ALL)) {
-            return (rets, address(0), 0);
-        }
 
         IERC20 fromTokenWrapped = fromToken.isETH() ? BalancerHelper.WETH : fromToken;
         IERC20 destTokenWrapped = destToken.isETH() ? BalancerHelper.WETH : destToken;
