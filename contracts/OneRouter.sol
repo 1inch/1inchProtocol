@@ -267,10 +267,10 @@ contract OneRouterView is
         uint256[][] memory input = new uint256[][](sourcesCount);
         uint256[][] memory gases = new uint256[][](sourcesCount);
         uint256[][] memory costs = new uint256[][](sourcesCount);
-        bool invert = swap.flags.check(_FLAG_DISABLE_ALL_SOURCES);
+        bool disableAll = swap.flags.check(_FLAG_DISABLE_ALL_SOURCES);
         for (uint i = 0; i < sourcesCount; i++) {
             uint256 gas;
-            if (invert == swap.flags.check(1 << i)) {
+            if (disableAll || !swap.flags.check(1 << i)) {
                 if (sources[i] != ISource(0)) {
                     (input[i], , gas) = sources[i].calculate(fromToken, amounts, swap);
                 }

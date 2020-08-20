@@ -67,12 +67,7 @@ contract KyberSourceView is OneRouterConstants {
     function _calculateKyber4(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) internal view returns(uint256[] memory rets, address dex, uint256 gas) {
         bytes32 reserveId = KyberHelper.getReserveId(fromToken, swap.destToken);
         if (reserveId != 0) {
-            return _calculateKyber(
-                fromToken,
-                amounts,
-                swap,
-                reserveId
-            );
+            return _calculateKyber(fromToken, amounts, swap, reserveId);
         }
     }
 
@@ -109,7 +104,8 @@ contract KyberSourceView is OneRouterConstants {
             returns(uint256 rate) {
                 uint256 preResult = amounts[i].mul(rate).mul(decimals.destTokenDecimals);
                 rets[i] = preResult.div(decimals.fromTokenDecimals).div(1e18);
-            } catch {}
+            } catch {
+            }
         }
 
         return (rets, address(reserve), 100_000);
