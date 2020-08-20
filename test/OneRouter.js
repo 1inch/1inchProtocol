@@ -150,7 +150,7 @@ contract('OneRouter', function ([_, wallet1, wallet2]) {
             );
 
             expect(result.returnAmounts[0]).to.be.bignumber.greaterThan(money.dai('100'));
-            expect(result.estimateGasAmounts[0]).to.be.equal('60000');
+            expect(result.estimateGasAmounts[0]).to.be.equal('100000');
         });
 
         it('should give ETH amount for 1 DAI', async function () {
@@ -166,7 +166,7 @@ contract('OneRouter', function ([_, wallet1, wallet2]) {
             );
 
             expect(result.returnAmounts[0]).to.be.bignumber.lessThan(money.dai('0.0025'));
-            expect(result.estimateGasAmounts[0]).to.be.equal('60000');
+            expect(result.estimateGasAmounts[0]).to.be.equal('100000');
         });
     });
 
