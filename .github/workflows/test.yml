@@ -35,10 +35,9 @@ jobs:
 
       - run: yarn
       - run: yarn lint
-      - run: yarn ganache-cli -f "$ETH_NODE" -l 8000000000 -p 9545 &
+      - run: (yarn ganache-cli -f "$ETH_NODE" -l 8000000000 -p 9545 &>/dev/null &) && while ! nc -z localhost 9545; do sleep 1; done && yarn test
         env:
           ETH_NODE: ${{ secrets.ETH_NODE }}
-      - run: yarn test
       #- run: yarn coveralls
       #- run: yarn codechecks
       #  env:
