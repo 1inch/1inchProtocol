@@ -13,21 +13,23 @@ import "./OneSplitWeth.sol";
 import "./OneSplitMStable.sol";
 import "./OneSplitDMM.sol";
 import "./OneSplitMooniswapPoolToken.sol";
+import "./OneSplitMooniswapMigration.sol";
 
 
 contract OneSplitViewWrap is
     OneSplitViewWrapBase,
-    OneSplitMStableView,
-    OneSplitChaiView,
-    OneSplitBdaiView,
-    OneSplitAaveView,
-    OneSplitFulcrumView,
-    OneSplitCompoundView,
-    OneSplitIearnView,
-    OneSplitIdleView,
-    OneSplitWethView,
-    OneSplitDMMView,
-    OneSplitMooniswapTokenView
+    OneSplitMooniswapMigrationView
+//    OneSplitMStableView,
+//    OneSplitChaiView,
+//    OneSplitBdaiView,
+//    OneSplitAaveView,
+//    OneSplitFulcrumView,
+//    OneSplitCompoundView,
+//    OneSplitIearnView,
+//    OneSplitIdleView,
+//    OneSplitWethView,
+//    OneSplitDMMView,
+//    OneSplitMooniswapTokenView
 {
     IOneSplitView public oneSplitView;
 
@@ -119,17 +121,18 @@ contract OneSplitViewWrap is
 
 contract OneSplitWrap is
     OneSplitBaseWrap,
-    OneSplitMStable,
-    OneSplitChai,
-    OneSplitBdai,
-    OneSplitAave,
-    OneSplitFulcrum,
-    OneSplitCompound,
-    OneSplitIearn,
-    OneSplitIdle,
-    OneSplitWeth,
-    OneSplitDMM,
-    OneSplitMooniswapToken
+    OneSplitMooniswapMigration
+//    OneSplitMStable,
+//    OneSplitChai,
+//    OneSplitBdai,
+//    OneSplitAave,
+//    OneSplitFulcrum,
+//    OneSplitCompound,
+//    OneSplitIearn,
+//    OneSplitIdle,
+//    OneSplitWeth,
+//    OneSplitDMM,
+//    OneSplitMooniswapToken
 {
     IOneSplitView public oneSplitView;
     IOneSplit public oneSplit;

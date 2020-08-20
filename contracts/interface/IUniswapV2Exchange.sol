@@ -11,6 +11,14 @@ interface IUniswapV2Exchange {
     function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external;
     function skim(address to) external;
     function sync() external;
+
+    function factory() external view returns (address);
+
+    function token0() external view returns (IERC20);
+    function token1() external view returns (IERC20);
+
+    function mint(address to) external returns (uint liquidity);
+    function burn(address to) external returns (uint256[2] memory amounts);
 }
 
 
