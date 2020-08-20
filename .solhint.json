@@ -1,0 +1,9 @@
+{
+  "extends": "solhint:recommended",
+  "rules": {
+    "no-empty-blocks": "off",
+    "not-rely-on-time": "off",
+    "compiler-version": ["error", "^0.6.0"],
+    "private-vars-leading-underscore": "error"
+  }
+}
