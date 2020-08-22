@@ -928,6 +928,7 @@ pragma solidity ^0.5.0;
 interface IMooniswapRegistry {
     function pools(IERC20 token1, IERC20 token2) external view returns(IMooniswap);
     function isPool(address addr) external view returns(bool);
+    function deploy(IERC20 tokenA, IERC20 tokenB) external view returns(IERC20);
 }
 
 
@@ -6887,7 +6888,6 @@ contract OneSplitMooniswapMigrationView is OneSplitViewWrapBase, OneSplitMoonisw
 
         if (
             flags.check(FLAG_DISABLE_MOONISWAP_MIGRATION) ||
-            !mooniswapRegistry.isPool(address(toToken)) ||
             !isUniswapV2LiquidityPool(fromToken)
         ) {
             return super.getExpectedReturnWithGas(
@@ -6909,12 +6909,20 @@ contract OneSplitMooniswapMigrationView is OneSplitViewWrapBase, OneSplitMoonisw
         amounts[0] = amount.mul(uniswapV2Details.tokens[0].reserve).div(uniswapV2Details.totalSupply);
         amounts[1] = amount.mul(uniswapV2Details.tokens[1].reserve).div(uniswapV2Details.totalSupply);
 
-        PoolDetails memory mooniswapDetails = _getMooniswapPoolDetails(IMooniswap(address(toToken)));
+        if (!mooniswapRegistry.isPool(address(toToken))) {
+            returnAmount = uint256(1000).mul(99);
+            for (uint i = 0; i < 2; i++) {
+                returnAmount = Math.max(returnAmount, amounts[i]);
+            }
+            return (returnAmount, 0, distribution);
+        }
+
         uint256 indexOfWeth = (
             (address(uniswapV2Details.tokens[0].token) == address(weth) ? 1 : 0) |
             (address(uniswapV2Details.tokens[1].token) == address(weth) ? 2 : 0)
         );
 
+        PoolDetails memory mooniswapDetails = _getMooniswapPoolDetails(IMooniswap(address(toToken)));
         if (indexOfWeth == 0 || indexOfWeth == 1 || address(mooniswapDetails.tokens[0].token) != address(0)) {
             for (uint i = 0; i < 2; i++) {
                 returnAmount = Math.min(
@@ -6950,7 +6958,6 @@ contract OneSplitMooniswapMigration is OneSplitBaseWrap, OneSplitMooniswapMigrat
 
         if (
             flags.check(FLAG_DISABLE_MOONISWAP_MIGRATION) ||
-            !mooniswapRegistry.isPool(address(toToken)) ||
             !isUniswapV2LiquidityPool(fromToken)
         ) {
             return super._swap(
@@ -6973,6 +6980,13 @@ contract OneSplitMooniswapMigration is OneSplitBaseWrap, OneSplitMooniswapMigrat
             (address(tokens[0]) == address(weth) ? 1 : 0) |
             (address(tokens[1]) == address(weth) ? 2 : 0)
         );
+
+        if (!mooniswapRegistry.isPool(address(toToken))) {
+            toToken = mooniswapRegistry.deploy(
+                indexOfWeth != 0 ? IERC20(address(0)) : tokens[0],
+                indexOfWeth == 2 ? tokens[0] : tokens[1]
+            );
+        }
 
         uint256 ethValue;
         if (indexOfWeth > 0 && address(IMooniswap(address(toToken)).tokens(0)) == address(0)) {

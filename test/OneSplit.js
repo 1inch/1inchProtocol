@@ -56,25 +56,66 @@ contract("OneSplit", function([addr0, addr1]) {
         //     // console.log('raw:', res.returnAmount.toString());
         // });
 
-        it("should work with UniswapV2 -> Mooniswap", async function() {
-            let token = await erc20.at('0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11');
-            await token.approve(this.split.address, '1503044196935');
+        it("should work with UniswapV2 -> Mooniswap empty pool", async function() {
+            let token = await erc20.at('0x34a0216c5057bc18e5d34d4405284564efd759b2');
+            await token.approve(this.split.address, new BN('99999999999999'));
             const res = await this.split.swap(
-                "0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11", // DAI WETH Uni
-                "0x75116bd1ab4b0065b44e1a4ea9b4180a171406ed", // ETH DAI Mooni
-                "1503044196935", // 1.0
+                "0x34a0216c5057bc18e5d34d4405284564efd759b2",
+                "0x94dca5f61f1cef894876d94029a355291d2052c2",
+                new BN('619346193'),
                 1,
                 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                 0
             );
 
-            console.log("Migrate: 1503044196935 Uni");
+            // const balance = await token.balance
+            // console.log('balance')
+
+            console.log("Migrate: 719346193 Uni");
             console.log(res);
-            // console.log('returnAmount:', res.returnAmount.toString() / 1e18 + ' MOON');
-            // console.log('distribution:', res.distribution.map(a => a.toString()));
-            // console.log('raw:', res.returnAmount.toString());
-            // expect(res.returnAmount).to.be.bignumber.above('390000000');
         });
+
+        // it("should work getExpectedReturn with UniswapV2 -> Mooniswap", async function() {
+        //     const res = await this.split.getExpectedReturn(
+        //         "0x34a0216c5057bc18e5d34d4405284564efd759b2", // DAI WETH Uni
+        //         "0x94dca5f61f1cef894876d94029a355291d2052c2", // ETH DAI Mooni
+        //         "719346193", // 1.0
+        //         1,
+        //         0
+        //     );
+        //
+        //     console.log("Migrate: 1503044196935 Uni");
+        //     console.log(res.returnAmount.toString() / 1e18);
+        // });
+
+        // it("should work getExpectedReturn with UniswapV2 -> Mooniswap", async function() {
+        //     const res = await this.split.getExpectedReturn(
+        //         "0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11", // DAI WETH Uni
+        //         "0x75116bd1ab4b0065b44e1a4ea9b4180a171406ed", // ETH DAI Mooni
+        //         "1503044196935", // 1.0
+        //         1,
+        //         0
+        //     );
+        //
+        //     console.log("Migrate: 1503044196935 Uni");
+        //     console.log(res.returnAmount.toString() / 1e18);
+        // });
+
+        // it("should work with UniswapV2 -> Mooniswap", async function() {
+        //     let token = await erc20.at('0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11');
+        //     await token.approve(this.split.address, '1503044196935');
+        //     const res = await this.split.swap(
+        //         "0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11", // DAI WETH Uni
+        //         "0x75116bd1ab4b0065b44e1a4ea9b4180a171406ed", // ETH DAI Mooni
+        //         "1503044196935", // 1.0
+        //         1,
+        //         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        //         0
+        //     );
+        //
+        //     console.log("Migrate: 1503044196935 Uni");
+        //     console.log(res);
+        // });
 
         // it('should work with Mooniswap ETH => DAI', async function () {
         //     const res = await this.split.getExpectedReturn(
