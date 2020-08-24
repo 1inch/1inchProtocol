@@ -74,11 +74,17 @@ interface IOneRouterView {
 
 
 abstract contract IOneRouter is IOneRouterView {
+    struct Referral {
+        address payable ref;
+        uint256 fee;
+    }
+
     struct SwapInput {
         IERC20 fromToken;
         IERC20 destToken;
         uint256 amount;
         uint256 minReturn;
+        Referral referral;
     }
 
     struct SwapDistribution {

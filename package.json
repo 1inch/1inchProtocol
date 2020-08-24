@@ -40,6 +40,6 @@
         "lint": "yarn run lint:js && yarn run lint:sol",
         "lint:fix": "yarn run lint:js:fix && yarn run lint:sol:fix",
         "dist": "truffle-flattener ./contracts/OneRouter.sol | awk '/SPDX-License-Identifier/&&c++>0 {next} 1' | awk '/pragma experimental ABIEncoderV2;/&&c++>0 {next} 1' > ./OneRouter.full.sol && solcjs --bin --abi --optimize ./OneRouter.full.sol && mv ./__OneRouter_full_sol_OneRouter.bin ./OneRouter.full.bin && mv ./__OneRouter_full_sol_OneRouter.abi ./OneRouter.full.abi && rm ./*_sol_*",
-        "dist:factory": "truffle-flattener ./contracts/MooniFactory.sol | awk '/SPDX-License-Identifier/&&c++>0 {next} 1' | awk '/pragma experimental ABIEncoderV2;/&&c++>0 {next} 1' > ./MooniFactory.full.sol && solcjs --bin --abi --optimize ./MooniFactory.full.sol && mv ./__MooniFactory_full_sol_MooniFactory.bin ./MooniFactory.full.bin && mv ./__MooniFactory_full_sol_MooniFactory.abi ./MooniFactory.full.abi && rm ./*_sol_*"
+        "dist:audit": "truffle-flattener ./contracts/OneRouterAudit.sol | awk '/SPDX-License-Identifier/&&c++>0 {next} 1' | awk '/pragma experimental ABIEncoderV2;/&&c++>0 {next} 1' > ./OneRouterAudit.full.sol && solcjs --bin --abi --optimize ./OneRouterAudit.full.sol && mv ./__OneRouterAudit_full_sol_OneRouterAudit.bin ./OneRouterAudit.full.bin && mv ./__OneRouterAudit_full_sol_OneRouterAudit.abi ./OneRouterAudit.full.abi && rm ./*_sol_*"
     }
 }

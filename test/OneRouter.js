@@ -128,7 +128,11 @@ contract('OneRouter', function ([_, wallet1, wallet2]) {
                         fromToken: tokens.ETH.address,
                         destToken: tokens.DAI.address,
                         amount: money.eth('1').toString(),
-                        minReturn: 0
+                        minReturn: 0,
+                        referral: {
+                            ref: constants.ZERO_ADDRESS,
+                            fee: 0
+                        }
                     },
                     { // Swap
                         destToken: tokens.DAI.address,
@@ -155,7 +159,11 @@ contract('OneRouter', function ([_, wallet1, wallet2]) {
                         fromToken: tokens.DAI.address,
                         destToken: tokens.ETH.address,
                         amount: money.dai('1').toString(),
-                        minReturn: 0
+                        minReturn: 0,
+                        referral: {
+                            ref: constants.ZERO_ADDRESS,
+                            fee: 0
+                        }
                     },
                     { // Swap
                         destToken: tokens.ETH.address,
@@ -192,7 +200,11 @@ contract('OneRouter', function ([_, wallet1, wallet2]) {
                         fromToken: tokens.ETH.address,
                         destToken: tokens.DAI.address,
                         amount: money.eth('1').toString(),
-                        minReturn: 0
+                        minReturn: 0,
+                        referral: {
+                            ref: constants.ZERO_ADDRESS,
+                            fee: 0
+                        }
                     },
                     { // Swap
                         destToken: tokens.DAI.address,
