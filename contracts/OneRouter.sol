@@ -160,7 +160,9 @@ contract OneRouterView is
             for (uint j = 0; j < pathResults[i].swaps.length; j++) {
                 for (uint k = 0; k < pathResults[i].swaps[j].dexes.length; k++) {
                     for (uint t = 0; t < pathResults[i].swaps[j].dexes[k].length; t++) {
-                        disabledDexes.push(pathResults[i].swaps[j].dexes[k][t]);
+                        if (pathResults[i].swaps[j].dexes[k][t] != address(0)) {
+                            disabledDexes.push(pathResults[i].swaps[j].dexes[k][t]);
+                        }
                     }
                 }
             }

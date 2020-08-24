@@ -33,8 +33,8 @@ contract OneRouterAudit is IOneRouter, OneRouterConstants, Ownable {
     IOneRouter public oneRouterImpl;
 
     modifier validateInput(SwapInput memory input) {
-        require(input.referral.fee <= 0.03e18, "OneSplit: feePercent out of range");
-        require(input.fromToken == input.destToken, "OneSplit: invalid input");
+        require(input.referral.fee <= 0.03e18, "OneRouter: fee out of range");
+        require(input.fromToken == input.destToken, "OneRouter: invalid input");
         _;
     }
 
@@ -48,7 +48,7 @@ contract OneRouterAudit is IOneRouter, OneRouterConstants, Ownable {
 
     receive() external payable {
         // solhint-disable-next-line avoid-tx-origin
-        require(msg.sender != tx.origin, "ETH deposit rejected");
+        require(msg.sender != tx.origin, "OneRouter: ETH deposit rejected");
     }
 
     // View methods
@@ -163,7 +163,7 @@ contract OneRouterAudit is IOneRouter, OneRouterConstants, Ownable {
     function _checkMinReturn(uint256 gasStart, SwapInput memory input, uint256 flags) internal returns(uint256 returnAmount) {
         uint256 remaining = input.fromToken.uniBalanceOf(address(this));
         returnAmount = input.destToken.uniBalanceOf(address(this));
-        require(returnAmount >= input.minReturn, "Min returns is not enough");
+        require(returnAmount >= input.minReturn, "OneRouter: less than minReturn");
         input.fromToken.uniTransfer(msg.sender, remaining);
         input.destToken.uniTransfer(input.referral.ref, returnAmount.mul(input.referral.fee).div(1e18));
         input.destToken.uniTransfer(msg.sender, returnAmount.sub(returnAmount.mul(input.referral.fee).div(1e18)));
@@ -171,7 +171,7 @@ contract OneRouterAudit is IOneRouter, OneRouterConstants, Ownable {
         if ((flags & (_FLAG_ENABLE_CHI_BURN | _FLAG_ENABLE_CHI_BURN_ORIGIN)) > 0) {
             uint256 gasSpent = 21000 + gasStart - gasleft() + 16 * msg.data.length;
             _chiBurnOrSell(
-                ((flags & _FLAG_ENABLE_CHI_BURN_ORIGIN) > 0) ? tx.origin : msg.sender,
+                ((flags & _FLAG_ENABLE_CHI_BURN_ORIGIN) > 0) ? tx.origin : msg.sender, // solhint-disable-line avoid-tx-origin
                 (gasSpent + 14154) / 41947
             );
         }

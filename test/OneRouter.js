@@ -9,7 +9,7 @@ const tokens = {
     ETH: {
         address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
     },
-}
+};
 
 const money = {
     ether,
@@ -131,8 +131,8 @@ contract('OneRouter', function ([_, wallet1, wallet2]) {
                         minReturn: 0,
                         referral: {
                             ref: constants.ZERO_ADDRESS,
-                            fee: 0
-                        }
+                            fee: 0,
+                        },
                     },
                     { // Swap
                         destToken: tokens.DAI.address,
@@ -143,8 +143,8 @@ contract('OneRouter', function ([_, wallet1, wallet2]) {
                     { // SwapDistribution
                         weights: result.distributions[0],
                     },
-                    { value: money.eth('1').toString() }
-                )
+                    { value: money.eth('1').toString() },
+                ),
             );
 
             expect(returnAmount).to.be.bignumber.greaterThan(money.dai('100'));
@@ -162,8 +162,8 @@ contract('OneRouter', function ([_, wallet1, wallet2]) {
                         minReturn: 0,
                         referral: {
                             ref: constants.ZERO_ADDRESS,
-                            fee: 0
-                        }
+                            fee: 0,
+                        },
                     },
                     { // Swap
                         destToken: tokens.ETH.address,
@@ -174,7 +174,7 @@ contract('OneRouter', function ([_, wallet1, wallet2]) {
                     { // SwapDistribution
                         weights: result.distributions[0],
                     },
-                )
+                ),
             );
 
             expect(returnAmount2).to.be.bignumber.greaterThan(money.dai('0.002'));
@@ -203,8 +203,8 @@ contract('OneRouter', function ([_, wallet1, wallet2]) {
                         minReturn: 0,
                         referral: {
                             ref: constants.ZERO_ADDRESS,
-                            fee: 0
-                        }
+                            fee: 0,
+                        },
                     },
                     { // Swap
                         destToken: tokens.DAI.address,
@@ -215,8 +215,8 @@ contract('OneRouter', function ([_, wallet1, wallet2]) {
                     { // SwapDistribution
                         weights: result.distributions[0],
                     },
-                    { value: money.eth('1').toString() }
-                )
+                    { value: money.eth('1').toString() },
+                ),
             );
 
             expect(returnAmount).to.be.bignumber.greaterThan(money.dai('100'));
