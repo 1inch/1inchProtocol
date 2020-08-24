@@ -542,7 +542,7 @@ contract OneRouter is
         }
 
         Indexes memory z;
-        for (z.p = 0; z.p < pathDistributions.length; z.p++) {
+        for (z.p = 0; z.p < pathDistributions.length && interTotalWeight > 0; z.p++) {
             uint256 confirmed = input.fromToken.uniBalanceOf(address(this))
                     .mul(interPathsDistribution.weights[z.p])
                     .div(interTotalWeight);
@@ -555,7 +555,7 @@ contract OneRouter is
                     totalSwapWeight = totalSwapWeight.add(pathDistributions[z.p].swapDistributions[z.s].weights[z.i]);
                 }
 
-                for (z.i = 0; z.i < pathDistributions[z.p].swapDistributions[z.s].weights.length; z.i++) {
+                for (z.i = 0; z.i < pathDistributions[z.p].swapDistributions[z.s].weights.length && totalSwapWeight > 0; z.i++) {
                     uint256 amount = ((z.s == 0) ? confirmed : token.uniBalanceOf(address(this)))
                         .mul(pathDistributions[z.p].swapDistributions[z.s].weights[z.i])
                         .div(totalSwapWeight);
@@ -580,8 +580,6 @@ contract OneRouter is
 
                 token = paths[z.p].swaps[z.s].destToken;
             }
-
-            interTotalWeight = interTotalWeight.sub(interPathsDistribution.weights[z.p]);
         }
 
         uint256 remaining = input.fromToken.uniBalanceOf(address(this));

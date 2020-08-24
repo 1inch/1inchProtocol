@@ -32,6 +32,12 @@ contract MooniswapSourceView {
             return (rets, address(0), 0);
         }
 
+        for (uint t = 0; t < swap.disabledDexes.length; t++) {
+            if (swap.disabledDexes[t] == address(mooniswap)) {
+                return (rets, address(0), 0);
+            }
+        }
+
         uint256 fee = mooniswap.fee();
         uint256 fromBalance = mooniswap.getBalanceForAddition(fromToken.isETH() ? UniERC20.ZERO_ADDRESS : fromToken);
         uint256 destBalance = mooniswap.getBalanceForRemoval(swap.destToken.isETH() ? UniERC20.ZERO_ADDRESS : swap.destToken);
@@ -73,6 +79,11 @@ contract MooniswapSourceSwap {
 
 
 contract MooniswapSourcePublic is ISource, MooniswapSourceView, MooniswapSourceSwap {
+    receive() external payable {
+        // solhint-disable-next-line avoid-tx-origin
+        require(msg.sender != tx.origin, "ETH deposit rejected");
+    }
+
     function calculate(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) public view override returns(uint256[] memory rets, address dex, uint256 gas) {
         return _calculateMooniswap(fromToken, amounts, swap);
     }

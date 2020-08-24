@@ -82,6 +82,12 @@ contract KyberSourceView is OneRouterConstants {
 
         IKyberReserve reserve = KyberHelper.STORAGE.getReserveAddressesByReserveId(reserveId)[0];
 
+        for (uint t = 0; t < swap.disabledDexes.length; t++) {
+            if (swap.disabledDexes[t] == address(reserve)) {
+                return (rets, address(0), 0);
+            }
+        }
+
         Decimals memory decimals = Decimals({
             fromTokenDecimals: 10 ** IERC20(fromToken).uniDecimals(),
             destTokenDecimals: 10 ** IERC20(swap.destToken).uniDecimals()
@@ -177,6 +183,11 @@ contract KyberSourceSwap {
 
 
 contract KyberSourcePublic1 is ISource, KyberSourceView, KyberSourceSwap {
+    receive() external payable {
+        // solhint-disable-next-line avoid-tx-origin
+        require(msg.sender != tx.origin, "ETH deposit rejected");
+    }
+
     function calculate(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) public view override returns(uint256[] memory rets, address dex, uint256 gas) {
         return _calculateKyber1(fromToken, amounts, swap);
     }
@@ -188,6 +199,11 @@ contract KyberSourcePublic1 is ISource, KyberSourceView, KyberSourceSwap {
 
 
 contract KyberSourcePublic2 is ISource, KyberSourceView, KyberSourceSwap {
+    receive() external payable {
+        // solhint-disable-next-line avoid-tx-origin
+        require(msg.sender != tx.origin, "ETH deposit rejected");
+    }
+
     function calculate(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) public view override returns(uint256[] memory rets, address dex, uint256 gas) {
         return _calculateKyber2(fromToken, amounts, swap);
     }
@@ -199,6 +215,11 @@ contract KyberSourcePublic2 is ISource, KyberSourceView, KyberSourceSwap {
 
 
 contract KyberSourcePublic3 is ISource, KyberSourceView, KyberSourceSwap {
+    receive() external payable {
+        // solhint-disable-next-line avoid-tx-origin
+        require(msg.sender != tx.origin, "ETH deposit rejected");
+    }
+
     function calculate(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) public view override returns(uint256[] memory rets, address dex, uint256 gas) {
         return _calculateKyber3(fromToken, amounts, swap);
     }
@@ -210,6 +231,11 @@ contract KyberSourcePublic3 is ISource, KyberSourceView, KyberSourceSwap {
 
 
 contract KyberSourcePublic4 is ISource, KyberSourceView, KyberSourceSwap {
+    receive() external payable {
+        // solhint-disable-next-line avoid-tx-origin
+        require(msg.sender != tx.origin, "ETH deposit rejected");
+    }
+
     function calculate(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) public view override returns(uint256[] memory rets, address dex, uint256 gas) {
         return _calculateKyber4(fromToken, amounts, swap);
     }

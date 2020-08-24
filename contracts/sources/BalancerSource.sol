@@ -36,50 +36,57 @@ contract BalancerSourceView is OneRouterConstants {
     }
 
     function _calculateBalancer1(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) internal view returns(uint256[] memory rets, address dex, uint256 gas) {
-        return _calculateBalancer(fromToken, swap.destToken, amounts, swap.flags, 0);
+        return _calculateBalancer(fromToken, amounts, swap, 0);
     }
 
     function _calculateBalancer2(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) internal view returns(uint256[] memory rets, address dex, uint256 gas) {
-        return _calculateBalancer(fromToken, swap.destToken, amounts, swap.flags, 1);
+        return _calculateBalancer(fromToken, amounts, swap, 1);
     }
 
     function _calculateBalancer3(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) internal view returns(uint256[] memory rets, address dex, uint256 gas) {
-        return _calculateBalancer(fromToken, swap.destToken, amounts, swap.flags, 2);
+        return _calculateBalancer(fromToken, amounts, swap, 2);
     }
 
     function _calculateBalancer(
         IERC20 fromToken,
-        IERC20 destToken,
         uint256[] memory amounts,
-        uint256 /*flags*/,
+        IOneRouterView.Swap memory swap,
         uint256 poolIndex
     ) private view returns(uint256[] memory rets, address dex, uint256 gas) {
         rets = new uint256[](amounts.length);
 
         IERC20 fromTokenWrapped = fromToken.isETH() ? BalancerHelper.WETH : fromToken;
-        IERC20 destTokenWrapped = destToken.isETH() ? BalancerHelper.WETH : destToken;
+        IERC20 destTokenWrapped = swap.destToken.isETH() ? BalancerHelper.WETH : swap.destToken;
         IBalancerPool[] memory pools = BalancerHelper.REGISTRY.getBestPoolsWithLimit(fromTokenWrapped, destTokenWrapped, poolIndex + 1);
-        if (poolIndex < pools.length) {
-            BalancerPoolInfo memory info = BalancerPoolInfo({
-                swapFee: pools[poolIndex].getSwapFee(),
-                fromBalance: pools[poolIndex].getBalance(fromTokenWrapped),
-                destBalance: pools[poolIndex].getBalance(destTokenWrapped),
-                fromWeight: pools[poolIndex].getDenormalizedWeight(fromTokenWrapped),
-                destWeight: pools[poolIndex].getDenormalizedWeight(destTokenWrapped)
-            });
-
-            for (uint i = 0; i < amounts.length && amounts[i].mul(2) <= info.fromBalance; i++) {
-                rets[i] = BalancerLib.calcOutGivenIn(
-                    info.fromBalance,
-                    info.fromWeight,
-                    info.destBalance,
-                    info.destWeight,
-                    amounts[i],
-                    info.swapFee
-                );
-            }
-            return (rets, address(pools[poolIndex]), 75_000 + (fromToken.isETH() || destToken.isETH() ? 0 : 30_000));
+        if (poolIndex >= pools.length) {
+            return (rets, address(0), 0);
         }
+
+        for (uint t = 0; t < swap.disabledDexes.length; t++) {
+            if (swap.disabledDexes[t] == address(pools[poolIndex])) {
+                return (rets, address(0), 0);
+            }
+        }
+
+        BalancerPoolInfo memory info = BalancerPoolInfo({
+            swapFee: pools[poolIndex].getSwapFee(),
+            fromBalance: pools[poolIndex].getBalance(fromTokenWrapped),
+            destBalance: pools[poolIndex].getBalance(destTokenWrapped),
+            fromWeight: pools[poolIndex].getDenormalizedWeight(fromTokenWrapped),
+            destWeight: pools[poolIndex].getDenormalizedWeight(destTokenWrapped)
+        });
+
+        for (uint i = 0; i < amounts.length && amounts[i].mul(2) <= info.fromBalance; i++) {
+            rets[i] = BalancerLib.calcOutGivenIn(
+                info.fromBalance,
+                info.fromWeight,
+                info.destBalance,
+                info.destWeight,
+                amounts[i],
+                info.swapFee
+            );
+        }
+        return (rets, address(pools[poolIndex]), 75_000 + (fromToken.isETH() || swap.destToken.isETH() ? 0 : 30_000));
     }
 }
 

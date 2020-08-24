@@ -28,7 +28,13 @@ library UniswapV2Helper {
         IERC20 fromToken,
         IERC20 destToken,
         uint256[] memory amounts
-    ) internal view returns (uint256[] memory results, bool needSync, bool needSkim) {
+    ) internal view returns (
+        uint256[] memory results,
+        uint256 reserveIn,
+        uint256 reverseOut,
+        bool needSync,
+        bool needSkim
+    ) {
         return _getReturns(
             exchange,
             fromToken.isETH() ? UniswapV2Helper.WETH : fromToken,
@@ -42,9 +48,15 @@ library UniswapV2Helper {
         IERC20 fromToken,
         IERC20 destToken,
         uint256[] memory amounts
-    ) private view returns (uint256[] memory results, bool needSync, bool needSkim) {
-        uint256 reserveIn = fromToken.uniBalanceOf(address(exchange));
-        uint256 reserveOut = destToken.uniBalanceOf(address(exchange));
+    ) private view returns (
+        uint256[] memory results,
+        uint256 reserveIn,
+        uint256 reserveOut,
+        bool needSync,
+        bool needSkim
+    ) {
+        reserveIn = fromToken.uniBalanceOf(address(exchange));
+        reserveOut = destToken.uniBalanceOf(address(exchange));
         (uint112 reserve0, uint112 reserve1,) = exchange.getReserves();
         if (fromToken > destToken) {
             (reserve0, reserve1) = (reserve1, reserve0);
@@ -52,15 +64,20 @@ library UniswapV2Helper {
         needSync = (reserveIn < reserve0 || reserveOut < reserve1);
         needSkim = !needSync && (reserveIn > reserve0 || reserveOut > reserve1);
 
-        reserveOut = Math.min(reserveOut, reserve1);
         reserveIn = Math.min(reserveIn, reserve0);
+        reserveOut = Math.min(reserveOut, reserve1);
 
         results = new uint256[](amounts.length);
         for (uint i = 0; i < amounts.length; i++) {
-            uint256 amountInWithFee = amounts[i].mul(997);
-            uint256 numerator = amountInWithFee.mul(reserveOut);
-            uint256 denominator = reserveIn.mul(1000).add(amountInWithFee);
-            results[i] = (denominator == 0) ? 0 : numerator.div(denominator);
+            results[i] = calculateUniswapV2Formula(reserveIn, reserveOut, amounts[i]);
+        }
+    }
+
+    function calculateUniswapV2Formula(uint256 reserveIn, uint256 reserveOut, uint256 amount) internal pure returns(uint256) {
+        if (amount > 0) {
+            return amount.mul(reserveOut).mul(997).div(
+                reserveIn.mul(1000).add(amount.mul(997))
+            );
         }
     }
 }
@@ -77,16 +94,25 @@ contract UniswapV2SourceView {
         IERC20 fromTokenWrapped = fromToken.isETH() ? UniswapV2Helper.WETH : fromToken;
         IERC20 destTokenWrapped = swap.destToken.isETH() ? UniswapV2Helper.WETH : swap.destToken;
         IUniswapV2Exchange exchange = UniswapV2Helper.FACTORY.getPair(fromTokenWrapped, destTokenWrapped);
-        if (exchange != IUniswapV2Exchange(0)) {
-            (rets,,) = exchange.getReturns(fromToken, swap.destToken, amounts);
-            return (rets, address(exchange), 50_000 + (fromToken.isETH() || swap.destToken.isETH() ? 0 : 30_000));
+        if (exchange == IUniswapV2Exchange(0)) {
+            return (rets, address(0), 0);
         }
+
+        for (uint t = 0; t < swap.disabledDexes.length; t++) {
+            if (swap.disabledDexes[t] == address(exchange)) {
+                return (rets, address(0), 0);
+            }
+        }
+
+        (rets,,,,) = exchange.getReturns(fromToken, swap.destToken, amounts);
+        return (rets, address(exchange), 50_000 + (fromToken.isETH() || swap.destToken.isETH() ? 0 : 30_000));
     }
 }
 
 
 contract UniswapV2SourceSwap {
     using UniERC20 for IERC20;
+    using SafeMath for uint256;
     using UniswapV2Helper for IUniswapV2Exchange;
 
     function _swapOnUniswapV2(IERC20 fromToken, IERC20 destToken, uint256 amount, uint256 flags) internal {
@@ -111,7 +137,14 @@ contract UniswapV2SourceSwap {
         amounts[0] = amount;
 
         IUniswapV2Exchange exchange = UniswapV2Helper.FACTORY.getPair(fromToken, destToken);
-        (uint256[] memory returnAmounts, bool needSync, bool needSkim) = exchange.getReturns(fromToken, destToken, amounts);
+        (
+            /*uint256[] memory returnAmounts*/,
+            uint256 reserveIn,
+            uint256 reserveOut,
+            bool needSync,
+            bool needSkim
+        ) = exchange.getReturns(fromToken, destToken, amounts);
+
         if (needSync) {
             exchange.sync();
         }
@@ -120,10 +153,13 @@ contract UniswapV2SourceSwap {
         }
 
         fromToken.uniTransfer(payable(address(exchange)), amount);
+        uint256 confirmed = fromToken.uniBalanceOf(address(exchange)).sub(reserveIn);
+        uint256 returnAmount = UniswapV2Helper.calculateUniswapV2Formula(reserveIn, reserveOut, confirmed);
+
         if (fromToken < destToken) {
-            exchange.swap(0, returnAmounts[0], address(this), "");
+            exchange.swap(0, returnAmount, address(this), "");
         } else {
-            exchange.swap(returnAmounts[0], 0, address(this), "");
+            exchange.swap(returnAmount, 0, address(this), "");
         }
     }
 }
