@@ -265,7 +265,7 @@ contract CurveSourceSwap is OneRouterConstants {
 }
 
 
-contract CurveourcePublicCompound is ISource, CurveSourceView, CurveSourceSwap {
+contract CurveSourcePublicCompound is ISource, CurveSourceView, CurveSourceSwap {
     function calculate(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) public view override returns(uint256[] memory rets, address dex, uint256 gas) {
         return _calculateCurveCompound(fromToken, amounts, swap);
     }
@@ -276,7 +276,7 @@ contract CurveourcePublicCompound is ISource, CurveSourceView, CurveSourceSwap {
 }
 
 
-contract CurveourcePublicUSDT is ISource, CurveSourceView, CurveSourceSwap {
+contract CurveSourcePublicUSDT is ISource, CurveSourceView, CurveSourceSwap {
     function calculate(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) public view override returns(uint256[] memory rets, address dex, uint256 gas) {
         return _calculateCurveUSDT(fromToken, amounts, swap);
     }
@@ -287,7 +287,7 @@ contract CurveourcePublicUSDT is ISource, CurveSourceView, CurveSourceSwap {
 }
 
 
-contract CurveourcePublicY is ISource, CurveSourceView, CurveSourceSwap {
+contract CurveSourcePublicY is ISource, CurveSourceView, CurveSourceSwap {
     function calculate(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) public view override returns(uint256[] memory rets, address dex, uint256 gas) {
         return _calculateCurveY(fromToken, amounts, swap);
     }
@@ -298,7 +298,7 @@ contract CurveourcePublicY is ISource, CurveSourceView, CurveSourceSwap {
 }
 
 
-contract CurveourcePublicBinance is ISource, CurveSourceView, CurveSourceSwap {
+contract CurveSourcePublicBinance is ISource, CurveSourceView, CurveSourceSwap {
     function calculate(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) public view override returns(uint256[] memory rets, address dex, uint256 gas) {
         return _calculateCurveBinance(fromToken, amounts, swap);
     }
@@ -309,7 +309,7 @@ contract CurveourcePublicBinance is ISource, CurveSourceView, CurveSourceSwap {
 }
 
 
-contract CurveourcePublicSynthetix is ISource, CurveSourceView, CurveSourceSwap {
+contract CurveSourcePublicSynthetix is ISource, CurveSourceView, CurveSourceSwap {
     function calculate(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) public view override returns(uint256[] memory rets, address dex, uint256 gas) {
         return _calculateCurveSynthetix(fromToken, amounts, swap);
     }
@@ -320,7 +320,7 @@ contract CurveourcePublicSynthetix is ISource, CurveSourceView, CurveSourceSwap 
 }
 
 
-contract CurveourcePublicPAX is ISource, CurveSourceView, CurveSourceSwap {
+contract CurveSourcePublicPAX is ISource, CurveSourceView, CurveSourceSwap {
     function calculate(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) public view override returns(uint256[] memory rets, address dex, uint256 gas) {
         return _calculateCurvePAX(fromToken, amounts, swap);
     }
@@ -331,7 +331,7 @@ contract CurveourcePublicPAX is ISource, CurveSourceView, CurveSourceSwap {
 }
 
 
-contract CurveourcePublicRENBTC is ISource, CurveSourceView, CurveSourceSwap {
+contract CurveSourcePublicRENBTC is ISource, CurveSourceView, CurveSourceSwap {
     function calculate(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) public view override returns(uint256[] memory rets, address dex, uint256 gas) {
         return _calculateCurveRENBTC(fromToken, amounts, swap);
     }
@@ -342,7 +342,7 @@ contract CurveourcePublicRENBTC is ISource, CurveSourceView, CurveSourceSwap {
 }
 
 
-contract CurveourcePublicSBTC is ISource, CurveSourceView, CurveSourceSwap {
+contract CurveSourcePublicSBTC is ISource, CurveSourceView, CurveSourceSwap {
     function calculate(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) public view override returns(uint256[] memory rets, address dex, uint256 gas) {
         return _calculateCurveSBTC(fromToken, amounts, swap);
     }
