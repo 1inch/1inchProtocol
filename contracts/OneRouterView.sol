@@ -3,9 +3,6 @@
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
-// import "./interfaces/IUniswapV1.sol";
-// import "./interfaces/IUniswapV2.sol";
-// import "./interfaces/IBalancer.sol";
 import "./IOneRouterView.sol";
 import "./ISource.sol";
 import "./OneRouterConstants.sol";
