@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 
 import "../interfaces/IBalancer.sol";
 import "../interfaces/IWETH.sol";
-import "../IOneRouter.sol";
+import "../IOneRouterView.sol";
 import "../ISource.sol";
 import "../OneRouterConstants.sol";
 

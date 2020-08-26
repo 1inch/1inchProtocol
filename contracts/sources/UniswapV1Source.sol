@@ -6,7 +6,7 @@ pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
 import "../interfaces/IUniswapV1.sol";
-import "../IOneRouter.sol";
+import "../IOneRouterView.sol";
 import "../ISource.sol";
 
 import "../libraries/UniERC20.sol";

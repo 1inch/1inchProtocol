@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 
 import "../interfaces/IUniswapV2.sol";
 import "../interfaces/IWETH.sol";
-import "../IOneRouter.sol";
+import "../IOneRouterView.sol";
 import "../ISource.sol";
 
 import "../libraries/UniERC20.sol";

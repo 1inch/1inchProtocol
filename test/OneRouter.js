@@ -2,8 +2,9 @@ const { constants, ether, BN } = require('@openzeppelin/test-helpers');
 const { expect } = require('chai');
 
 const IERC20 = artifacts.require('IERC20');
-const OneRouter = artifacts.require('OneRouter');
+const OneRouterSwap = artifacts.require('OneRouterSwap');
 const OneRouterView = artifacts.require('OneRouterView');
+const OneRouter = artifacts.require('OneRouterAudit');
 
 const tokens = {
     ETH: {
@@ -70,7 +71,8 @@ contract('OneRouter', function ([_, wallet1, wallet2]) {
         tokens.USDC = await IERC20.at('0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48');
 
         this.routerView = await OneRouterView.new();
-        this.router = await OneRouter.new(this.routerView.address);
+        this.routerSwap = await OneRouterSwap.new();
+        this.router = await OneRouter.new(this.routerView.address, this.routerSwap.address);
     });
 
     describe('Uniswap V1', async function () {

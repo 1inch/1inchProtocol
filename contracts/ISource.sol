@@ -3,7 +3,7 @@
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
-import "./IOneRouter.sol";
+import "./IOneRouterView.sol";
 
 
 interface ISource {
