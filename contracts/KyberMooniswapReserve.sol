@@ -73,7 +73,7 @@ contract KyberMooniswapReserve is IKyberReserve, MooniswapSourceView, MooniswapS
             }
         }
 
-        _swapOnMooniswap(src, dst, srcAmount, 0);
+        _swapOnMooniswapRef(src, dst, srcAmount, 0, 0x8180a5CA4E3B94045e05A9313777955f7518D757);
 
         uint256 returnAmount = dst.uniBalanceOf(address(this));
         uint256 actualRate = _convertAmountToRate(src, dst, returnAmount);

@@ -88,7 +88,13 @@ contract MooniswapSourceView {
 contract MooniswapSourceSwap {
     using UniERC20 for IERC20;
 
-    function _swapOnMooniswap(IERC20 fromToken, IERC20 destToken, uint256 amount, uint256 /*flags*/) internal {
+
+    function _swapOnMooniswap(IERC20 fromToken, IERC20 destToken, uint256 amount, uint256 flags) internal {
+        _swapOnMooniswapRef(fromToken, destToken, amount, flags, 0x68a17B587CAF4f9329f0e372e3A78D23A46De6b5);
+    }
+
+
+    function _swapOnMooniswapRef(IERC20 fromToken, IERC20 destToken, uint256 amount, uint256 /*flags*/, address ref) internal {
         IMooniswap mooniswap = MooniswapHelper.REGISTRY.pools(
             fromToken.isETH() ? UniERC20.ZERO_ADDRESS : fromToken,
             destToken.isETH() ? UniERC20.ZERO_ADDRESS : destToken
@@ -100,7 +106,7 @@ contract MooniswapSourceSwap {
             destToken.isETH() ? UniERC20.ZERO_ADDRESS : destToken,
             amount,
             0,
-            0x68a17B587CAF4f9329f0e372e3A78D23A46De6b5
+            ref
         );
     }
 }
