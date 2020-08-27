@@ -17,6 +17,8 @@ interface IMooniswap {
     function getBalanceForAddition(IERC20 token) external view returns(uint256);
     function getBalanceForRemoval(IERC20 token) external view returns(uint256);
     function getReturn(IERC20 fromToken, IERC20 destToken, uint256 amount) external view returns(uint256 returnAmount);
+    function virtualBalancesForAddition(IERC20 token) external view returns(uint216 balance, uint40 time);
+    function virtualBalancesForRemoval(IERC20 token) external view returns(uint216 balance, uint40 time);
 
     function deposit(uint256[] calldata amounts, uint256[] calldata minAmounts) external payable returns(uint256 fairSupply);
     function withdraw(uint256 amount, uint256[] calldata minReturns) external;

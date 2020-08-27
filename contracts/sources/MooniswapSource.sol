@@ -80,7 +80,7 @@ contract MooniswapSourceView {
             return (new uint256[](0), address(0), 0);
         }
 
-        return (rets, address(mooniswap), (fromToken.isETH() || swap.destToken.isETH()) ? 80_000 : 110_000);
+        return (rets, address(mooniswap), (fromToken.isETH() || swap.destToken.isETH()) ? 90_000 : 120_000);
     }
 }
 

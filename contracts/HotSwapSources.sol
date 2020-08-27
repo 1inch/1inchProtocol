@@ -24,7 +24,7 @@ contract HotSwapSources is Ownable {
         sourcesCount = Math.max(sourcesCount, index + 1);
     }
 
-    function setPathsForTokens(PathsAdvisor newPathsAdvisor) external onlyOwner {
+    function setPathsAdvisor(PathsAdvisor newPathsAdvisor) external onlyOwner {
         pathsAdvisor = newPathsAdvisor;
     }
 

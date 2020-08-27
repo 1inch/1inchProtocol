@@ -117,7 +117,7 @@ contract OneRouterAudit is IOneRouterView, IOneRouterSwap, OneRouterConstants, O
         _claimInput(input);
         input.fromToken.uniApprove(address(oneRouterSwap), input.amount);
         oneRouterSwap.makeSwap{ value: input.fromToken.isETH() ? input.amount : 0 }(input, swap, swapDistribution);
-        return _checkMinReturn(gasStart, input, swap.flags);
+        return _processOutput(gasStart, input, swap.flags);
     }
 
     function makePathSwap(
@@ -135,7 +135,7 @@ contract OneRouterAudit is IOneRouterView, IOneRouterSwap, OneRouterConstants, O
         _claimInput(input);
         input.fromToken.uniApprove(address(oneRouterSwap), input.amount);
         oneRouterSwap.makePathSwap{ value: input.fromToken.isETH() ? input.amount : 0 }(input, path, pathDistribution);
-        return _checkMinReturn(gasStart, input, path.swaps[0].flags);
+        return _processOutput(gasStart, input, path.swaps[0].flags);
     }
 
     function makeMultiPathSwap(
@@ -154,7 +154,7 @@ contract OneRouterAudit is IOneRouterView, IOneRouterSwap, OneRouterConstants, O
         _claimInput(input);
         input.fromToken.uniApprove(address(oneRouterSwap), input.amount);
         oneRouterSwap.makeMultiPathSwap{ value: input.fromToken.isETH() ? input.amount : 0 }(input, paths, pathDistributions, interPathsDistribution);
-        return _checkMinReturn(gasStart, input, paths[0].swaps[0].flags);
+        return _processOutput(gasStart, input, paths[0].swaps[0].flags);
     }
 
     // Internal methods
@@ -164,7 +164,7 @@ contract OneRouterAudit is IOneRouterView, IOneRouterSwap, OneRouterConstants, O
         input.amount = input.fromToken.uniBalanceOf(address(this));
     }
 
-    function _checkMinReturn(uint256 gasStart, SwapInput memory input, uint256 flags) internal returns(uint256 returnAmount) {
+    function _processOutput(uint256 gasStart, SwapInput memory input, uint256 flags) private returns(uint256 returnAmount) {
         uint256 remaining = input.fromToken.uniBalanceOf(address(this));
         returnAmount = input.destToken.uniBalanceOf(address(this));
         require(returnAmount >= input.minReturn, "OneRouter: less than minReturn");
@@ -185,7 +185,7 @@ contract OneRouterAudit is IOneRouterView, IOneRouterSwap, OneRouterConstants, O
         }
     }
 
-    function _chiBurnOrSell(address payable sponsor, uint256 amount) internal {
+    function _chiBurnOrSell(address payable sponsor, uint256 amount) private {
         amount = Math.min(amount, _CHI.balanceOf(sponsor));
         if (amount == 0) {
             return;
@@ -194,11 +194,12 @@ contract OneRouterAudit is IOneRouterView, IOneRouterSwap, OneRouterConstants, O
         uint256 sellRefund = MooniswapHelper.getReturn(exchange, _CHI, UniERC20.ZERO_ADDRESS, amount);
         uint256 burnRefund = amount.mul(18_000).mul(tx.gasprice);
 
-        if (sellRefund < burnRefund.add(tx.gasprice.mul(36_000))) {
+        if (sellRefund.add(tx.gasprice.mul(36_000)) < burnRefund.add(tx.gasprice.mul(150_000))) {
             IFreeFromUpTo(address(_CHI)).freeFromUpTo(sponsor, amount);
         }
         else {
-            _CHI.transferFrom(sponsor, address(exchange), amount);
+            _CHI.transferFrom(sponsor, address(this), amount);
+            _CHI.approve(address(exchange), amount);
             exchange.swap(_CHI, UniERC20.ZERO_ADDRESS, amount, 0, 0x68a17B587CAF4f9329f0e372e3A78D23A46De6b5);
             sponsor.transfer(address(this).balance);
         }

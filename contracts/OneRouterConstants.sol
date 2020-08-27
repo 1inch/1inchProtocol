@@ -12,31 +12,6 @@ contract OneRouterConstants {
     uint256 constant internal _FLAG_ENABLE_CHI_BURN_ORIGIN       = 0x800000000000000000000000000000000;
     uint256 constant internal _FLAG_ENABLE_REFERRAL_GAS_DISCOUNT = 0x1000000000000000000000000000000000;
 
-
-    uint256 constant internal _FLAG_DISABLE_KYBER_ALL =
-        _FLAG_DISABLE_KYBER_1 +
-        _FLAG_DISABLE_KYBER_2 +
-        _FLAG_DISABLE_KYBER_3 +
-        _FLAG_DISABLE_KYBER_4;
-    uint256 constant internal _FLAG_DISABLE_CURVE_ALL =
-        _FLAG_DISABLE_CURVE_COMPOUND +
-        _FLAG_DISABLE_CURVE_USDT +
-        _FLAG_DISABLE_CURVE_Y +
-        _FLAG_DISABLE_CURVE_BINANCE +
-        _FLAG_DISABLE_CURVE_SYNTHETIX +
-        _FLAG_DISABLE_CURVE_PAX +
-        _FLAG_DISABLE_CURVE_RENBTC +
-        _FLAG_DISABLE_CURVE_TBTC +
-        _FLAG_DISABLE_CURVE_SBTC;
-    uint256 constant internal _FLAG_DISABLE_BALANCER_ALL =
-        _FLAG_DISABLE_BALANCER_1 +
-        _FLAG_DISABLE_BALANCER_2 +
-        _FLAG_DISABLE_BALANCER_3;
-    uint256 constant internal _FLAG_DISABLE_BANCOR_ALL =
-        _FLAG_DISABLE_BANCOR_1 +
-        _FLAG_DISABLE_BANCOR_2 +
-        _FLAG_DISABLE_BANCOR_3;
-
     uint256 constant internal _FLAG_DISABLE_UNISWAP_V1      = 0x1;
     uint256 constant internal _FLAG_DISABLE_UNISWAP_V2      = 0x2;
     uint256 constant internal _FLAG_DISABLE_MOONISWAP       = 0x4;

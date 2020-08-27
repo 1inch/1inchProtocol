@@ -16,17 +16,17 @@ contract PathsAdvisor is OneRouterConstants {
     IAaveRegistry constant private _AAVE_REGISTRY = IAaveRegistry(0xEd8b133B7B88366E01Bb9E38305Ab11c26521494);
     ICompoundRegistry constant private _COMPOUND_REGISTRY = ICompoundRegistry(0xF451Dbd7Ba14BFa7B1B78A766D3Ed438F79EE1D1);
 
-    function getPathsForTokens(IERC20 fromToken, IERC20 destToken) external view returns(IERC20[][] memory paths) {
+    function getPathsForTokens(IERC20 fromToken, IERC20 destToken) external view returns(IERC20[][] memory) {
         IERC20[4] memory midTokens = [_DAI, _USDC, _USDT, _WBTC];
-        paths = new IERC20[][](2 + midTokens.length);
+        IERC20[][] memory paths = new IERC20[][](2 + midTokens.length);
 
-        IERC20 aFromToken = _AAVE_REGISTRY.aTokenByToken(fromToken);
-        IERC20 aDestToken = _AAVE_REGISTRY.aTokenByToken(destToken);
+        IERC20 aFromToken = _AAVE_REGISTRY.tokenByAToken(fromToken);
+        IERC20 aDestToken = _AAVE_REGISTRY.tokenByAToken(destToken);
         if (aFromToken != IERC20(0)) {
-            aFromToken = _COMPOUND_REGISTRY.cTokenByToken(fromToken);
+            aFromToken = _COMPOUND_REGISTRY.tokenByCToken(fromToken);
         }
         if (aDestToken != IERC20(0)) {
-            aDestToken = _COMPOUND_REGISTRY.cTokenByToken(destToken);
+            aDestToken = _COMPOUND_REGISTRY.tokenByCToken(destToken);
         }
 
         uint index = 0;
@@ -47,11 +47,15 @@ contract PathsAdvisor is OneRouterConstants {
                     ((aDestToken != IERC20(0)) ? 1 : 0)
                 );
 
-                paths[index][0] = aFromToken;
-                paths[index][paths[index].length / 2] = midTokens[i];
-                if (aDestToken != IERC20(0)) {
-                    paths[index][paths[index].length - 1] = aDestToken;
+                uint pos = 0;
+                if (aFromToken != IERC20(0)) {
+                    paths[index][pos++] = aFromToken;
                 }
+                paths[index][pos++] = midTokens[i];
+                if (aDestToken != IERC20(0)) {
+                    paths[index][pos] = aDestToken;
+                }
+
                 index++;
             }
         }
@@ -60,6 +64,6 @@ contract PathsAdvisor is OneRouterConstants {
         for (uint i = 0; i < paths2.length; i++) {
             paths2[i] = paths[i];
         }
-        paths = paths2;
+        return paths2;
     }
 }

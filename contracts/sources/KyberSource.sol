@@ -135,7 +135,7 @@ contract KyberSourceSwap {
         _swapOnKyber(fromToken, destToken, amount, flags, KyberHelper.getReserveId(fromToken, destToken));
     }
 
-    function _swapOnKyber(IERC20 fromToken, IERC20 destToken, uint256 amount, uint256 flags, bytes32 reserveId) internal {
+    function _swapOnKyber(IERC20 fromToken, IERC20 destToken, uint256 amount, uint256 flags, bytes32 reserveId) private {
         bytes32[] memory reserveIds = new bytes32[](1);
         reserveIds[0] = reserveId;
 
