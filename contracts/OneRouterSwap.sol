@@ -151,12 +151,4 @@ contract OneRouterSwap is
             _makePathSwap(pathInput, paths[p], pathDistributions[p]);
         }
     }
-
-    function _approveInput(SwapInput memory input) internal override {
-        // No need to approve + transferFrom
-    }
-
-    function _fee(SwapInput memory input, uint256 flags) internal pure override returns(uint256) {
-        return (flags & _FLAG_DISABLE_REFERRAL_FEE != 0) ? 0 : input.referral.fee;
-    }
 }

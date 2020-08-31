@@ -181,14 +181,6 @@ contract OneRouterAudit is IOneRouterView, IOneRouterSwap, OneRouterConstants, O
 
     // Internal methods
 
-    function _approveInput(SwapInput memory input) internal virtual {
-        input.fromToken.uniApprove(address(oneRouterSwap), input.amount);
-    }
-
-    function _fee(SwapInput memory input, uint256 /*flags*/) internal pure virtual returns(uint256) {
-        return input.referral.fee;
-    }
-
      function _makeSwap(
         SwapInput memory input,
         Swap memory swap,
@@ -197,6 +189,7 @@ contract OneRouterAudit is IOneRouterView, IOneRouterSwap, OneRouterConstants, O
         internal
         virtual
     {
+        input.fromToken.uniApprove(address(oneRouterSwap), input.amount);
         oneRouterSwap.makeSwap{ value: input.fromToken.isETH() ? input.amount : 0 }(input, swap, swapDistribution);
     }
 
@@ -208,6 +201,7 @@ contract OneRouterAudit is IOneRouterView, IOneRouterSwap, OneRouterConstants, O
         internal
         virtual
     {
+        input.fromToken.uniApprove(address(oneRouterSwap), input.amount);
         oneRouterSwap.makePathSwap{ value: input.fromToken.isETH() ? input.amount : 0 }(input, path, pathDistribution);
     }
 
@@ -220,10 +214,15 @@ contract OneRouterAudit is IOneRouterView, IOneRouterSwap, OneRouterConstants, O
         internal
         virtual
     {
+        input.fromToken.uniApprove(address(oneRouterSwap), input.amount);
         oneRouterSwap.makeMultiPathSwap{ value: input.fromToken.isETH() ? input.amount : 0 }(input, paths, pathDistributions, interPathsDistribution);
     }
 
     // Private methods
+
+    function _fee(SwapInput memory input, uint256 flags) private pure returns(uint256) {
+        return (flags & _FLAG_DISABLE_REFERRAL_FEE != 0) ? 0 : input.referral.fee;
+    }
 
     function _disableFeeAndGasHandlingInImpl(uint256 flags) private pure returns(uint256) {
         return flags
@@ -236,7 +235,6 @@ contract OneRouterAudit is IOneRouterView, IOneRouterSwap, OneRouterConstants, O
     function _claimInput(SwapInput memory input) private {
         input.fromToken.uniTransferFromSender(address(this), input.amount);
         input.amount = input.fromToken.uniBalanceOf(address(this));
-        _approveInput(input);
     }
 
     function _processOutput(SwapInput memory input, uint256 flags, uint256 gasStart) private returns(uint256 returnAmount) {
