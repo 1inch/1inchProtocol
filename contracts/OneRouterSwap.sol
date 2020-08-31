@@ -13,12 +13,13 @@ import "./sources/CurveSource.sol";
 // import "./sources/BalancerSource.sol";
 
 import "./IOneRouterSwap.sol";
+import "./OneRouterAudit.sol";
 import "./HotSwapSources.sol";
 
 
 contract OneRouterSwap is
     OneRouterConstants,
-    IOneRouterSwap,
+    OneRouterAudit,
     HotSwapSources,
     UniswapV1SourceSwap,
     UniswapV2SourceSwap,
@@ -32,77 +33,21 @@ contract OneRouterSwap is
     using Address2 for address;
     using FlagsChecker for uint256;
 
-    modifier validateInput(SwapInput memory input) {
-        require(input.fromToken != input.destToken, "OneRouter: invalid input");
-        require(msg.value == (input.fromToken.isETH() ? input.amount : 0), "OneRouter: Wrong msg.value");
-        _;
-    }
-
-    receive() external payable {
-        // solhint-disable-next-line avoid-tx-origin
-        require(msg.sender != tx.origin, "ETH deposit rejected");
-    }
-
-    function makeSwap(
-        SwapInput memory input,
-        IOneRouterView.Swap memory swap,
-        SwapDistribution memory swapDistribution
-    )
+    constructor(IOneRouterView _oneRouterView)
         public
-        payable
-        override
-        validateInput(input)
-        returns(uint256 returnAmount)
+        OneRouterAudit(_oneRouterView, IOneRouterSwap(0))
     {
-        _claimInput(input);
-        _makeSwap(input, swap, swapDistribution);
-        return _processOutput(input);
     }
 
-    function makePathSwap(
-        SwapInput memory input,
-        IOneRouterView.Path memory path,
-        PathDistribution memory pathDistribution
-    )
-        public
-        payable
-        override
-        validateInput(input)
-        returns(uint256 returnAmount)
-    {
-        require(path.swaps.length == pathDistribution.swapDistributions.length, "Wrong arrays length");
-
-        _claimInput(input);
-        _makePathSwap(input, path, pathDistribution);
-        return _processOutput(input);
-    }
-
-    function makeMultiPathSwap(
-        SwapInput memory input,
-        IOneRouterView.Path[] memory paths,
-        PathDistribution[] memory pathDistributions,
-        SwapDistribution memory interPathsDistribution
-    )
-        public
-        payable
-        override
-        validateInput(input)
-        returns(uint256 returnAmount)
-    {
-        require(paths.length == pathDistributions.length, "Wrong arrays length");
-        require(paths.length == interPathsDistribution.weights.length, "Wrong arrays length");
-
-        _claimInput(input);
-        _makeMultiPathSwap(input, paths, pathDistributions, interPathsDistribution);
-        return _processOutput(input);
-    }
+    // Internal methods
 
     function _makeSwap(
         SwapInput memory input,
         IOneRouterView.Swap memory swap,
         SwapDistribution memory swapDistribution
     )
-        private
+        internal
+        override
     {
         function(IERC20,IERC20,uint256,uint256)[15] memory reserves = [
             _swapOnUniswapV1,
@@ -163,7 +108,8 @@ contract OneRouterSwap is
         IOneRouterView.Path memory path,
         PathDistribution memory pathDistribution
     )
-        private
+        internal
+        override
     {
         for (uint s = 0; s < pathDistribution.swapDistributions.length; s++) {
             IERC20 fromToken = (s == 0) ? input.fromToken : path.swaps[s - 1].destToken;
@@ -184,7 +130,8 @@ contract OneRouterSwap is
         PathDistribution[] memory pathDistributions,
         SwapDistribution memory interPathsDistribution
     )
-        private
+        internal
+        override
     {
         uint256 interTotalWeight = 0;
         for (uint i = 0; i < interPathsDistribution.weights.length; i++) {
@@ -205,16 +152,11 @@ contract OneRouterSwap is
         }
     }
 
-    function _claimInput(SwapInput memory input) private {
-        input.fromToken.uniTransferFromSender(address(this), input.amount);
-        input.amount = input.fromToken.uniBalanceOf(address(this));
+    function _approveInput(SwapInput memory input) internal override {
+        // No need to approve + transferFrom
     }
 
-    function _processOutput(SwapInput memory input) private returns(uint256 returnAmount) {
-        uint256 remaining = input.fromToken.uniBalanceOf(address(this));
-        returnAmount = input.destToken.uniBalanceOf(address(this));
-        require(returnAmount >= input.minReturn, "OneRouter: less than minReturn");
-        input.fromToken.uniTransfer(msg.sender, remaining);
-        input.destToken.uniTransfer(msg.sender, returnAmount);
+    function _fee(SwapInput memory input, uint256 flags) internal pure override returns(uint256) {
+        return (flags & _FLAG_DISABLE_REFERRAL_FEE != 0) ? 0 : input.referral.fee;
     }
 }

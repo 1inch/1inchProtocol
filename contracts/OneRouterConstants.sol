@@ -11,6 +11,7 @@ contract OneRouterConstants {
     uint256 constant internal _FLAG_ENABLE_CHI_BURN              = 0x400000000000000000000000000000000;
     uint256 constant internal _FLAG_ENABLE_CHI_BURN_ORIGIN       = 0x800000000000000000000000000000000;
     uint256 constant internal _FLAG_ENABLE_REFERRAL_GAS_DISCOUNT = 0x1000000000000000000000000000000000;
+    uint256 constant internal _FLAG_DISABLE_REFERRAL_FEE         = 0x2000000000000000000000000000000000;
 
     uint256 constant internal _FLAG_DISABLE_UNISWAP_V1      = 0x1;
     uint256 constant internal _FLAG_DISABLE_UNISWAP_V2      = 0x2;

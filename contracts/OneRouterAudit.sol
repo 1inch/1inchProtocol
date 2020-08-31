@@ -42,8 +42,7 @@ contract OneRouterAudit is IOneRouterView, IOneRouterSwap, OneRouterConstants, O
     }
 
     constructor(IOneRouterView _oneRouterView, IOneRouterSwap _oneRouterSwap) public {
-        oneRouterView = _oneRouterView;
-        oneRouterSwap = _oneRouterSwap;
+        setOneRouter(_oneRouterView, _oneRouterSwap);
     }
 
     function setOneRouter(IOneRouterView _oneRouterView, IOneRouterSwap _oneRouterSwap) public onlyOwner {
@@ -128,9 +127,10 @@ contract OneRouterAudit is IOneRouterView, IOneRouterSwap, OneRouterConstants, O
     {
         uint256 gasStart = gasleft();
         _claimInput(input);
-        input.fromToken.uniApprove(address(oneRouterSwap), input.amount);
-        oneRouterSwap.makeSwap{ value: input.fromToken.isETH() ? input.amount : 0 }(input, swap, swapDistribution);
-        return _processOutput(gasStart, input, swap.flags);
+
+        swap.flags = _disableFeeAndGasHandlingInImpl(swap.flags);
+        _makeSwap(input, swap, swapDistribution);
+        return _processOutput(input, swap.flags, gasStart);
     }
 
     function makePathSwap(
@@ -144,11 +144,15 @@ contract OneRouterAudit is IOneRouterView, IOneRouterSwap, OneRouterConstants, O
         validateInput(input)
         returns(uint256 returnAmount)
     {
+        require(path.swaps.length == pathDistribution.swapDistributions.length, "Wrong arrays length");
+
         uint256 gasStart = gasleft();
         _claimInput(input);
         input.fromToken.uniApprove(address(oneRouterSwap), input.amount);
-        oneRouterSwap.makePathSwap{ value: input.fromToken.isETH() ? input.amount : 0 }(input, path, pathDistribution);
-        return _processOutput(gasStart, input, path.swaps[0].flags);
+
+        path.swaps[0].flags = _disableFeeAndGasHandlingInImpl(path.swaps[0].flags);
+        _makePathSwap(input, path, pathDistribution);
+        return _processOutput(input, path.swaps[0].flags, gasStart);
     }
 
     function makeMultiPathSwap(
@@ -163,27 +167,85 @@ contract OneRouterAudit is IOneRouterView, IOneRouterSwap, OneRouterConstants, O
         validateInput(input)
         returns(uint256 returnAmount)
     {
+        require(paths.length == pathDistributions.length, "Wrong arrays length");
+        require(paths.length == interPathsDistribution.weights.length, "Wrong arrays length");
+
         uint256 gasStart = gasleft();
         _claimInput(input);
         input.fromToken.uniApprove(address(oneRouterSwap), input.amount);
-        oneRouterSwap.makeMultiPathSwap{ value: input.fromToken.isETH() ? input.amount : 0 }(input, paths, pathDistributions, interPathsDistribution);
-        return _processOutput(gasStart, input, paths[0].swaps[0].flags);
+
+        paths[0].swaps[0].flags = _disableFeeAndGasHandlingInImpl(paths[0].swaps[0].flags);
+        _makeMultiPathSwap(input, paths, pathDistributions, interPathsDistribution);
+        return _processOutput(input, paths[0].swaps[0].flags, gasStart);
     }
 
     // Internal methods
 
-    function _claimInput(SwapInput memory input) internal {
-        input.fromToken.uniTransferFromSender(address(this), input.amount);
-        input.amount = input.fromToken.uniBalanceOf(address(this));
+    function _approveInput(SwapInput memory input) internal virtual {
+        input.fromToken.uniApprove(address(oneRouterSwap), input.amount);
     }
 
-    function _processOutput(uint256 gasStart, SwapInput memory input, uint256 flags) private returns(uint256 returnAmount) {
+    function _fee(SwapInput memory input, uint256 /*flags*/) internal pure virtual returns(uint256) {
+        return input.referral.fee;
+    }
+
+     function _makeSwap(
+        SwapInput memory input,
+        Swap memory swap,
+        SwapDistribution memory swapDistribution
+    )
+        internal
+        virtual
+    {
+        oneRouterSwap.makeSwap{ value: input.fromToken.isETH() ? input.amount : 0 }(input, swap, swapDistribution);
+    }
+
+    function _makePathSwap(
+        SwapInput memory input,
+        Path memory path,
+        PathDistribution memory pathDistribution
+    )
+        internal
+        virtual
+    {
+        oneRouterSwap.makePathSwap{ value: input.fromToken.isETH() ? input.amount : 0 }(input, path, pathDistribution);
+    }
+
+    function _makeMultiPathSwap(
+        SwapInput memory input,
+        Path[] memory paths,
+        PathDistribution[] memory pathDistributions,
+        SwapDistribution memory interPathsDistribution
+    )
+        internal
+        virtual
+    {
+        oneRouterSwap.makeMultiPathSwap{ value: input.fromToken.isETH() ? input.amount : 0 }(input, paths, pathDistributions, interPathsDistribution);
+    }
+
+    // Private methods
+
+    function _disableFeeAndGasHandlingInImpl(uint256 flags) private pure returns(uint256) {
+        return flags
+            | _FLAG_DISABLE_REFERRAL_FEE
+            & (~_FLAG_ENABLE_CHI_BURN)
+            & (~_FLAG_ENABLE_CHI_BURN_ORIGIN)
+            & (~_FLAG_ENABLE_REFERRAL_GAS_DISCOUNT);
+    }
+
+    function _claimInput(SwapInput memory input) private {
+        input.fromToken.uniTransferFromSender(address(this), input.amount);
+        input.amount = input.fromToken.uniBalanceOf(address(this));
+        _approveInput(input);
+    }
+
+    function _processOutput(SwapInput memory input, uint256 flags, uint256 gasStart) private returns(uint256 returnAmount) {
         uint256 remaining = input.fromToken.uniBalanceOf(address(this));
         returnAmount = input.destToken.uniBalanceOf(address(this));
         require(returnAmount >= input.minReturn, "OneRouter: less than minReturn");
         input.fromToken.uniTransfer(msg.sender, remaining);
-        input.destToken.uniTransfer(input.referral.ref, returnAmount.mul(input.referral.fee).div(1e18));
-        input.destToken.uniTransfer(msg.sender, returnAmount.sub(returnAmount.mul(input.referral.fee).div(1e18)));
+        input.destToken.uniTransfer(input.referral.ref, returnAmount.mul(_fee(input, flags)).div(1e18));
+        input.destToken.uniTransfer(msg.sender, returnAmount.sub(returnAmount.mul(_fee(input, flags)).div(1e18)));
 
         if ((flags & (_FLAG_ENABLE_CHI_BURN | _FLAG_ENABLE_CHI_BURN_ORIGIN)) > 0) {
             uint256 gasSpent = 21000 + gasStart - gasleft() + 16 * msg.data.length;

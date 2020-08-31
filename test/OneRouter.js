@@ -71,7 +71,7 @@ contract('OneRouter', function ([_, wallet1, wallet2]) {
         tokens.USDC = await IERC20.at('0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48');
 
         this.routerView = await OneRouterView.new();
-        this.routerSwap = await OneRouterSwap.new();
+        this.routerSwap = await OneRouterSwap.new(this.routerView.address);
         this.router = await OneRouter.new(this.routerView.address, this.routerSwap.address);
     });
 
