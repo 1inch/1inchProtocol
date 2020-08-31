@@ -32,6 +32,12 @@ contract OneRouterSwap is
     using Address2 for address;
     using FlagsChecker for uint256;
 
+    modifier validateInput(SwapInput memory input) {
+        require(input.fromToken != input.destToken, "OneRouter: invalid input");
+        require(msg.value == (input.fromToken.isETH() ? input.amount : 0), "OneRouter: Wrong msg.value");
+        _;
+    }
+
     receive() external payable {
         // solhint-disable-next-line avoid-tx-origin
         require(msg.sender != tx.origin, "ETH deposit rejected");
@@ -45,19 +51,12 @@ contract OneRouterSwap is
         public
         payable
         override
+        validateInput(input)
         returns(uint256 returnAmount)
     {
-        IOneRouterView.Path memory path = IOneRouterView.Path({
-            swaps: new IOneRouterView.Swap[](1)
-        });
-        path.swaps[0] = swap;
-
-        PathDistribution memory pathDistribution = PathDistribution({
-            swapDistributions: new SwapDistribution[](1)
-        });
-        pathDistribution.swapDistributions[0] = swapDistribution;
-
-        return makePathSwap(input, path, pathDistribution);
+        _claimInput(input);
+        _makeSwap(input, swap, swapDistribution);
+        return _processOutput(input);
     }
 
     function makePathSwap(
@@ -68,26 +67,14 @@ contract OneRouterSwap is
         public
         payable
         override
+        validateInput(input)
         returns(uint256 returnAmount)
     {
-        IOneRouterView.Path[] memory paths = new IOneRouterView.Path[](1);
-        paths[0] = path;
+        require(path.swaps.length == pathDistribution.swapDistributions.length, "Wrong arrays length");
 
-        PathDistribution[] memory pathDistributions = new PathDistribution[](1);
-        pathDistributions[0] = pathDistribution;
-
-        SwapDistribution memory swapDistribution = SwapDistribution({
-            weights: new uint256[](1)
-        });
-        swapDistribution.weights[0] = 1;
-
-        return makeMultiPathSwap(input, paths, pathDistributions, swapDistribution);
-    }
-
-    struct Indexes {
-        uint p; // path
-        uint s; // swap
-        uint i; // index
+        _claimInput(input);
+        _makePathSwap(input, path, pathDistribution);
+        return _processOutput(input);
     }
 
     function makeMultiPathSwap(
@@ -99,14 +86,24 @@ contract OneRouterSwap is
         public
         payable
         override
+        validateInput(input)
         returns(uint256 returnAmount)
     {
-        require(msg.value == (input.fromToken.isETH() ? input.amount : 0), "Wrong msg.value");
         require(paths.length == pathDistributions.length, "Wrong arrays length");
         require(paths.length == interPathsDistribution.weights.length, "Wrong arrays length");
 
-        input.fromToken.uniTransferFromSender(address(this), input.amount);
+        _claimInput(input);
+        _makeMultiPathSwap(input, paths, pathDistributions, interPathsDistribution);
+        return _processOutput(input);
+    }
 
+    function _makeSwap(
+        SwapInput memory input,
+        IOneRouterView.Swap memory swap,
+        SwapDistribution memory swapDistribution
+    )
+        private
+    {
         function(IERC20,IERC20,uint256,uint256)[15] memory reserves = [
             _swapOnUniswapV1,
             _swapOnUniswapV2,
@@ -134,55 +131,89 @@ contract OneRouterSwap is
             // _swapOnBlackHoleSwap
         ];
 
+        uint256 totalWeight = 0;
+        for (uint i = 0; i < swapDistribution.weights.length; i++) {
+            totalWeight = totalWeight.add(swapDistribution.weights[i]);
+        }
+
+        for (uint i = 0; i < swapDistribution.weights.length && totalWeight > 0; i++) {
+            uint256 amount = input.amount.mul(swapDistribution.weights[i]).div(totalWeight);
+            totalWeight = totalWeight.sub(swapDistribution.weights[i]);
+
+            if (sources[i] != ISource(0)) {
+                address(sources[i]).functionDelegateCall(
+                    abi.encodeWithSelector(
+                        sources[i].swap.selector,
+                        input.fromToken,
+                        input.destToken,
+                        amount,
+                        swap.flags
+                    ),
+                    "Delegatecall failed"
+                );
+            }
+            else if (i < reserves.length) {
+                reserves[i](input.fromToken, input.destToken, amount, swap.flags);
+            }
+        }
+    }
+
+    function _makePathSwap(
+        SwapInput memory input,
+        IOneRouterView.Path memory path,
+        PathDistribution memory pathDistribution
+    )
+        private
+    {
+        for (uint s = 0; s < pathDistribution.swapDistributions.length; s++) {
+            IERC20 fromToken = (s == 0) ? input.fromToken : path.swaps[s - 1].destToken;
+            SwapInput memory swapInput = SwapInput({
+                fromToken: fromToken,
+                destToken: path.swaps[s].destToken,
+                amount: fromToken.uniBalanceOf(address(this)),
+                minReturn: 0,
+                referral: input.referral
+            });
+            _makeSwap(swapInput, path.swaps[s], pathDistribution.swapDistributions[s]);
+        }
+    }
+
+    function _makeMultiPathSwap(
+        SwapInput memory input,
+        IOneRouterView.Path[] memory paths,
+        PathDistribution[] memory pathDistributions,
+        SwapDistribution memory interPathsDistribution
+    )
+        private
+    {
         uint256 interTotalWeight = 0;
         for (uint i = 0; i < interPathsDistribution.weights.length; i++) {
             interTotalWeight = interTotalWeight.add(interPathsDistribution.weights[i]);
         }
 
-        Indexes memory z;
-        for (z.p = 0; z.p < pathDistributions.length && interTotalWeight > 0; z.p++) {
-            uint256 confirmed = input.fromToken.uniBalanceOf(address(this))
-                    .mul(interPathsDistribution.weights[z.p])
-                    .div(interTotalWeight);
-            interTotalWeight = interTotalWeight.sub(interPathsDistribution.weights[z.p]);
-
-            IERC20 token = input.fromToken;
-            for (z.s = 0; z.s < pathDistributions[z.p].swapDistributions.length; z.s++) {
-                uint256 totalSwapWeight = 0;
-                for (z.i = 0; z.i < pathDistributions[z.p].swapDistributions[z.s].weights.length; z.i++) {
-                    totalSwapWeight = totalSwapWeight.add(pathDistributions[z.p].swapDistributions[z.s].weights[z.i]);
-                }
-
-                for (z.i = 0; z.i < pathDistributions[z.p].swapDistributions[z.s].weights.length && totalSwapWeight > 0; z.i++) {
-                    uint256 amount = ((z.s == 0) ? confirmed : token.uniBalanceOf(address(this)))
-                        .mul(pathDistributions[z.p].swapDistributions[z.s].weights[z.i])
-                        .div(totalSwapWeight);
-                    totalSwapWeight = totalSwapWeight.sub(pathDistributions[z.p].swapDistributions[z.s].weights[z.i]);
-
-                    if (sources[z.i] != ISource(0)) {
-                        address(sources[z.i]).functionDelegateCall(
-                            abi.encodeWithSelector(
-                                sources[z.i].swap.selector,
-                                input.fromToken,
-                                input.destToken,
-                                amount,
-                                paths[z.p].swaps[z.s].flags
-                            ),
-                            "Delegatecall failed"
-                        );
-                    }
-                    else if (z.i < reserves.length) {
-                        reserves[z.i](input.fromToken, input.destToken, amount, paths[z.p].swaps[z.s].flags);
-                    }
-                }
-
-                token = paths[z.p].swaps[z.s].destToken;
-            }
+        uint256 confirmed = input.fromToken.uniBalanceOf(address(this));
+        for (uint p = 0; p < pathDistributions.length && interTotalWeight > 0; p++) {
+            SwapInput memory pathInput = SwapInput({
+                fromToken: input.fromToken,
+                destToken: input.destToken,
+                amount: confirmed.mul(interPathsDistribution.weights[p]).div(interTotalWeight),
+                minReturn: 0,
+                referral: input.referral
+            });
+            interTotalWeight = interTotalWeight.sub(interPathsDistribution.weights[p]);
+            _makePathSwap(pathInput, paths[p], pathDistributions[p]);
         }
+    }
 
+    function _claimInput(SwapInput memory input) private {
+        input.fromToken.uniTransferFromSender(address(this), input.amount);
+        input.amount = input.fromToken.uniBalanceOf(address(this));
+    }
+
+    function _processOutput(SwapInput memory input) private returns(uint256 returnAmount) {
         uint256 remaining = input.fromToken.uniBalanceOf(address(this));
         returnAmount = input.destToken.uniBalanceOf(address(this));
-        require(returnAmount >= input.minReturn, "Min returns is not enough");
+        require(returnAmount >= input.minReturn, "OneRouter: less than minReturn");
         input.fromToken.uniTransfer(msg.sender, remaining);
         input.destToken.uniTransfer(msg.sender, returnAmount);
     }

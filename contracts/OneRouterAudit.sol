@@ -37,6 +37,7 @@ contract OneRouterAudit is IOneRouterView, IOneRouterSwap, OneRouterConstants, O
     modifier validateInput(SwapInput memory input) {
         require(input.referral.fee <= 0.03e18, "OneRouter: fee out of range");
         require(input.fromToken != input.destToken, "OneRouter: invalid input");
+        require(msg.value == (input.fromToken.isETH() ? input.amount : 0), "OneRouter: Wrong msg.value");
         _;
     }
 

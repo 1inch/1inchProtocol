@@ -149,10 +149,6 @@ contract OneRouterView is
         for (uint i = 0; i < paths.length; i++) {
             for (uint j = 0; j < paths[i].swaps.length; j++) {
                 paths[i].swaps[j].disabledDexes = disabledDexes.items;
-                // if (paths[i].swaps[j].destTokenEthPriceTimesGasPrice == 0) {
-                //     Swap memory lastSwap = paths[i].swaps[paths[i].swaps.length - 1];
-                //     paths[i].swaps[j].destTokenEthPriceTimesGasPrice = _scaleDestTokenEthPriceTimesGasPrice(fromToken, paths[i].swaps[j].destToken, lastSwap.destTokenEthPriceTimesGasPrice);
-                // }
             }
 
             pathResults[i] = getPathReturn(fromToken, amounts, paths[i]);
