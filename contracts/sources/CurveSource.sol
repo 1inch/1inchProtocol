@@ -97,7 +97,7 @@ contract CurveSourceView is OneRouterConstants {
     ) private view returns(uint256[] memory rets) {
         rets = new uint256[](amounts.length);
 
-        for (uint t = 0; t < swap.disabledDexes.length; t++) {
+        for (uint t = 0; t < swap.disabledDexes.length && swap.disabledDexes[t] != address(0); t++) {
             if (swap.disabledDexes[t] == address(curve)) {
                 return rets;
             }

@@ -29,19 +29,6 @@ interface IOneRouterView {
         SwapResult[] swaps;
     }
 
-    function getReturn(
-        IERC20 fromToken,
-        uint256[] calldata amounts,
-        Swap calldata swap
-    )
-        external
-        view
-        returns(
-            Path[] memory paths,
-            PathResult[] memory pathResults,
-            SwapResult memory splitResult
-        );
-
     function getSwapReturn(
         IERC20 fromToken,
         uint256[] calldata amounts,
@@ -68,6 +55,31 @@ interface IOneRouterView {
         external
         view
         returns(
+            PathResult[] memory pathResults,
+            SwapResult memory splitResult
+        );
+
+    function getDisjointMultiPathReturn(
+        IERC20 fromToken,
+        uint256[] calldata amounts,
+        Path[] calldata paths
+    )
+        external
+        view
+        returns(
+            PathResult[] memory pathResults,
+            SwapResult memory splitResult
+        );
+
+    function getSuggestedReturn(
+        IERC20 fromToken,
+        uint256[] calldata amounts,
+        Swap calldata swap
+    )
+        external
+        view
+        returns(
+            Path[] memory paths,
             PathResult[] memory pathResults,
             SwapResult memory splitResult
         );

@@ -57,19 +57,6 @@ contract OneRouterAudit is IOneRouterView, IOneRouterSwap, OneRouterConstants, O
 
     // View methods
 
-    function getReturn(IERC20 fromToken, uint256[] memory amounts, Swap memory swap)
-        public
-        view
-        override
-        returns(
-            Path[] memory paths,
-            PathResult[] memory pathResults,
-            SwapResult memory splitResult
-        )
-    {
-        return oneRouterView.getReturn(fromToken, amounts, swap);
-    }
-
     function getSwapReturn(IERC20 fromToken, uint256[] memory amounts, Swap memory swap)
         public
         view
@@ -98,6 +85,31 @@ contract OneRouterAudit is IOneRouterView, IOneRouterSwap, OneRouterConstants, O
         )
     {
         return oneRouterView.getMultiPathReturn(fromToken, amounts, paths);
+    }
+
+    function getDisjointMultiPathReturn(IERC20 fromToken, uint256[] memory amounts, Path[] memory paths)
+        public
+        view
+        override
+        returns(
+            PathResult[] memory pathResults,
+            SwapResult memory splitResult
+        )
+    {
+        return oneRouterView.getDisjointMultiPathReturn(fromToken, amounts, paths);
+    }
+
+    function getSuggestedReturn(IERC20 fromToken, uint256[] memory amounts, Swap memory swap)
+        public
+        view
+        override
+        returns(
+            Path[] memory paths,
+            PathResult[] memory pathResults,
+            SwapResult memory splitResult
+        )
+    {
+        return oneRouterView.getSuggestedReturn(fromToken, amounts, swap);
     }
 
     // Swap methods

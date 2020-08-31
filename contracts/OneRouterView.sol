@@ -38,104 +38,6 @@ contract OneRouterView is
     using FlagsChecker for uint256;
     using DynamicMemoryArray for DynamicMemoryArray.Addresses;
 
-    function getReturn(IERC20 fromToken, uint256[] memory amounts, Swap memory swap)
-        public
-        view
-        override
-        returns(
-            Path[] memory paths,
-            PathResult[] memory pathResults,
-            SwapResult memory splitResult
-        )
-    {
-        IERC20[][] memory midTokens = _getPathsForTokens(fromToken, swap.destToken);
-
-        paths = new Path[](midTokens.length);
-        pathResults = new PathResult[](paths.length);
-        DynamicMemoryArray.Addresses memory disabledDexes;
-        for (uint i = 0; i < paths.length; i++) {
-            paths[i] = Path({swaps: new Swap[](1 + midTokens[i - 1].length)});
-            for (uint j = 0; j < midTokens[i - 1].length; j++) {
-                if (fromToken == midTokens[i - 1][j] || swap.destToken == midTokens[i - 1][j]) {
-                    paths[i] = Path({swaps: new Swap[](1)});
-                    break;
-                }
-
-                paths[i].swaps[j] = Swap({
-                    destToken: midTokens[i - 1][j],
-                    flags: swap.flags,
-                    destTokenEthPriceTimesGasPrice: _scaleDestTokenEthPriceTimesGasPrice(fromToken, midTokens[i - 1][j], swap.destTokenEthPriceTimesGasPrice),
-                    disabledDexes: disabledDexes.copy()
-                });
-            }
-            paths[i].swaps[paths[i].swaps.length - 1] = swap;
-
-            pathResults[i] = getPathReturn(fromToken, amounts, paths[i]);
-            for (uint j = 0; j < pathResults[i].swaps.length; j++) {
-                for (uint k = 0; k < pathResults[i].swaps[j].dexes.length; k++) {
-                    for (uint t = 0; t < pathResults[i].swaps[j].dexes[k].length; t++) {
-                        if (pathResults[i].swaps[j].dexes[k][t] != address(0)) {
-                            disabledDexes.push(pathResults[i].swaps[j].dexes[k][t]);
-                        }
-                    }
-                }
-            }
-        }
-
-        splitResult = bestDistributionAmongPaths(paths, pathResults);
-    }
-
-    function getMultiPathReturn(IERC20 fromToken, uint256[] memory amounts, Path[] memory paths)
-        public
-        view
-        override
-        returns(
-            PathResult[] memory pathResults,
-            SwapResult memory splitResult
-        )
-    {
-        pathResults = new PathResult[](paths.length);
-        for (uint i = 0; i < paths.length; i++) {
-            pathResults[i] = getPathReturn(fromToken, amounts, paths[i]);
-        }
-        splitResult = bestDistributionAmongPaths(paths, pathResults);
-    }
-
-    function bestDistributionAmongPaths(Path[] memory paths, PathResult[] memory pathResults) public pure returns(SwapResult memory) {
-        uint256[][] memory input = new uint256[][](paths.length);
-        uint256[][] memory gases = new uint256[][](paths.length);
-        uint256[][] memory costs = new uint256[][](paths.length);
-        for (uint i = 0; i < pathResults.length; i++) {
-            Swap memory subSwap = paths[i].swaps[paths[i].swaps.length - 1];
-            SwapResult memory swapResult = pathResults[i].swaps[pathResults[i].swaps.length - 1];
-
-            input[i] = new uint256[](swapResult.returnAmounts.length);
-            gases[i] = new uint256[](swapResult.returnAmounts.length);
-            costs[i] = new uint256[](swapResult.returnAmounts.length);
-            for (uint j = 0; j < swapResult.returnAmounts.length; j++) {
-                input[i][j] = swapResult.returnAmounts[j];
-                gases[i][j] = swapResult.estimateGasAmounts[j];
-                costs[i][j] = swapResult.estimateGasAmounts[j].mul(subSwap.destTokenEthPriceTimesGasPrice).div(1e18);
-            }
-        }
-        return _findBestDistribution(input, costs, gases, input[0].length);
-    }
-
-    function getPathReturn(IERC20 fromToken, uint256[] memory amounts, Path memory path)
-        public
-        view
-        override
-        returns(PathResult memory result)
-    {
-        result.swaps = new SwapResult[](path.swaps.length);
-
-        for (uint i = 0; i < path.swaps.length; i++) {
-            result.swaps[i] = getSwapReturn(fromToken, amounts, path.swaps[i]);
-            fromToken = path.swaps[i].destToken;
-            amounts = result.swaps[i].returnAmounts;
-        }
-    }
-
     function getSwapReturn(IERC20 fromToken, uint256[] memory amounts, Swap memory swap)
         public
         view
@@ -201,14 +103,113 @@ contract OneRouterView is
         result = _findBestDistribution(input, costs, gases, amounts.length);
     }
 
-    function _calculateNoReturn(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap)
-        private view returns(uint256[] memory rets, uint256 gas)
+    function getPathReturn(IERC20 fromToken, uint256[] memory amounts, Path memory path)
+        public
+        view
+        override
+        returns(PathResult memory result)
     {
+        result.swaps = new SwapResult[](path.swaps.length);
+
+        for (uint i = 0; i < path.swaps.length; i++) {
+            result.swaps[i] = getSwapReturn(fromToken, amounts, path.swaps[i]);
+            fromToken = path.swaps[i].destToken;
+            amounts = result.swaps[i].returnAmounts;
+        }
+    }
+
+    function getMultiPathReturn(IERC20 fromToken, uint256[] memory amounts, Path[] memory paths)
+        public
+        view
+        override
+        returns(
+            PathResult[] memory pathResults,
+            SwapResult memory splitResult
+        )
+    {
+        pathResults = new PathResult[](paths.length);
+        for (uint i = 0; i < paths.length; i++) {
+            pathResults[i] = getPathReturn(fromToken, amounts, paths[i]);
+        }
+        splitResult = _findBestDistributionAmongPaths(paths, pathResults);
+    }
+
+    function getDisjointMultiPathReturn(IERC20 fromToken, uint256[] memory amounts, Path[] memory paths)
+        public
+        view
+        override
+        returns(
+            PathResult[] memory pathResults,
+            SwapResult memory splitResult
+        )
+    {
+        pathResults = new PathResult[](paths.length);
+        DynamicMemoryArray.Addresses memory disabledDexes;
+        disabledDexes.init();
+        for (uint i = 0; i < paths.length; i++) {
+            for (uint j = 0; j < paths[i].swaps.length; j++) {
+                paths[i].swaps[j].disabledDexes = disabledDexes.items;
+                // if (paths[i].swaps[j].destTokenEthPriceTimesGasPrice == 0) {
+                //     Swap memory lastSwap = paths[i].swaps[paths[i].swaps.length - 1];
+                //     paths[i].swaps[j].destTokenEthPriceTimesGasPrice = _scaleDestTokenEthPriceTimesGasPrice(fromToken, paths[i].swaps[j].destToken, lastSwap.destTokenEthPriceTimesGasPrice);
+                // }
+            }
+
+            pathResults[i] = getPathReturn(fromToken, amounts, paths[i]);
+            for (uint j = 0; j < pathResults[i].swaps.length; j++) {
+                for (uint k = 0; k < pathResults[i].swaps[j].dexes.length; k++) {
+                    for (uint t = 0; t < pathResults[i].swaps[j].dexes[k].length; t++) {
+                        if (pathResults[i].swaps[j].dexes[k][t] != address(0)) {
+                            disabledDexes.push(pathResults[i].swaps[j].dexes[k][t]);
+                        }
+                    }
+                }
+            }
+        }
+
+        splitResult = _findBestDistributionAmongPaths(paths, pathResults);
+    }
+
+    function getSuggestedReturn(IERC20 fromToken, uint256[] memory amounts, Swap memory swap)
+        public
+        view
+        override
+        returns(
+            Path[] memory paths,
+            PathResult[] memory pathResults,
+            SwapResult memory splitResult
+        )
+    {
+        IERC20[][] memory midTokens = _getPathsForTokens(fromToken, swap.destToken);
+
+        paths = new Path[](midTokens.length);
+        for (uint i = 0; i < paths.length; i++) {
+            paths[i] = Path({swaps: new Swap[](1 + midTokens[i - 1].length)});
+            for (uint j = 0; j < midTokens[i - 1].length; j++) {
+                if (fromToken == midTokens[i - 1][j] || swap.destToken == midTokens[i - 1][j]) {
+                    paths[i] = Path({swaps: new Swap[](1)});
+                    break;
+                }
+
+                paths[i].swaps[j] = Swap({
+                    destToken: midTokens[i - 1][j],
+                    flags: swap.flags,
+                    destTokenEthPriceTimesGasPrice: _scaleDestTokenEthPriceTimesGasPrice(fromToken, midTokens[i - 1][j], swap.destTokenEthPriceTimesGasPrice),
+                    disabledDexes: new address[](0)
+                });
+            }
+            paths[i].swaps[paths[i].swaps.length - 1] = swap;
+        }
+
+        (pathResults, splitResult) = getDisjointMultiPathReturn(fromToken, amounts, paths);
     }
 
     function _scaleDestTokenEthPriceTimesGasPrice(IERC20 fromToken, IERC20 destToken, uint256 destTokenEthPriceTimesGasPrice) private view returns(uint256) {
         if (fromToken == destToken) {
             return destTokenEthPriceTimesGasPrice;
+        }
+        if (destTokenEthPriceTimesGasPrice == 0) {
+            return 0;
         }
 
         uint256 mul = _cheapGetPrice(UniERC20.ETH_ADDRESS, destToken, 0.001 ether);
@@ -265,5 +266,25 @@ contract OneRouterView is
                 }
             }
         }
+    }
+
+    function _findBestDistributionAmongPaths(Path[] memory paths, PathResult[] memory pathResults) private pure returns(SwapResult memory) {
+        uint256[][] memory input = new uint256[][](paths.length);
+        uint256[][] memory gases = new uint256[][](paths.length);
+        uint256[][] memory costs = new uint256[][](paths.length);
+        for (uint i = 0; i < pathResults.length; i++) {
+            Swap memory subSwap = paths[i].swaps[paths[i].swaps.length - 1];
+            SwapResult memory swapResult = pathResults[i].swaps[pathResults[i].swaps.length - 1];
+
+            input[i] = new uint256[](swapResult.returnAmounts.length);
+            gases[i] = new uint256[](swapResult.returnAmounts.length);
+            costs[i] = new uint256[](swapResult.returnAmounts.length);
+            for (uint j = 0; j < swapResult.returnAmounts.length; j++) {
+                input[i][j] = swapResult.returnAmounts[j];
+                gases[i][j] = swapResult.estimateGasAmounts[j];
+                costs[i][j] = swapResult.estimateGasAmounts[j].mul(subSwap.destTokenEthPriceTimesGasPrice).div(1e18);
+            }
+        }
+        return _findBestDistribution(input, costs, gases, input[0].length);
     }
 }

@@ -35,7 +35,7 @@ contract UniswapV1SourceView {
                 return (rets, address(0), 0);
             }
 
-            for (uint t = 0; t < swap.disabledDexes.length; t++) {
+            for (uint t = 0; t < swap.disabledDexes.length && swap.disabledDexes[t] != address(0); t++) {
                 if (swap.disabledDexes[t] == address(exchange)) {
                     return (rets, address(0), 0);
                 }

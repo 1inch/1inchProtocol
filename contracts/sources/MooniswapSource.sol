@@ -69,7 +69,7 @@ contract MooniswapSourceView {
             return (new uint256[](0), address(0), 0);
         }
 
-        for (uint t = 0; t < swap.disabledDexes.length; t++) {
+        for (uint t = 0; t < swap.disabledDexes.length && swap.disabledDexes[t] != address(0); t++) {
             if (swap.disabledDexes[t] == address(mooniswap)) {
                 return (new uint256[](0), address(0), 0);
             }

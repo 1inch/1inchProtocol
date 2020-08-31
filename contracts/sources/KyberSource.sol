@@ -82,7 +82,7 @@ contract KyberSourceView is OneRouterConstants {
 
         IKyberReserve reserve = KyberHelper.STORAGE.getReserveAddressesByReserveId(reserveId)[0];
 
-        for (uint t = 0; t < swap.disabledDexes.length; t++) {
+        for (uint t = 0; t < swap.disabledDexes.length && swap.disabledDexes[t] != address(0); t++) {
             if (swap.disabledDexes[t] == address(reserve)) {
                 return (rets, address(0), 0);
             }
