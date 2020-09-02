@@ -50,7 +50,7 @@ contract KyberMooniswapReserve is IKyberReserve, MooniswapSourceView, MooniswapS
             return 0;
         }
 
-        return _convertAmountToRate(src, dst, results[0]);
+        return _calcRateFromQty(srcQty, results[0], src.uniDecimals(), dst.uniDecimals());
     }
 
     function trade(
@@ -76,16 +76,23 @@ contract KyberMooniswapReserve is IKyberReserve, MooniswapSourceView, MooniswapS
         _swapOnMooniswapRef(src, dst, srcAmount, 0, 0x8180a5CA4E3B94045e05A9313777955f7518D757);
 
         uint256 returnAmount = dst.uniBalanceOf(address(this));
-        uint256 actualRate = _convertAmountToRate(src, dst, returnAmount);
+        uint256 actualRate = _calcRateFromQty(srcAmount, returnAmount, src.uniDecimals(), dst.uniDecimals());
         require(actualRate <= conversionRate, "Rate exceeded conversionRate");
 
         dst.uniTransfer(destAddress, returnAmount);
         return true;
     }
 
-    function _convertAmountToRate(IERC20 src, IERC20 dst, uint256 amount) private view returns(uint256) {
-        return amount.mul(1e18)
-            .mul(10 ** src.uniDecimals())
-            .div(10 ** dst.uniDecimals());
+    function _calcRateFromQty(
+        uint256 srcAmount,
+        uint256 destAmount,
+        uint256 srcDecimals,
+        uint256 dstDecimals
+    ) private pure returns (uint256) {
+        if (dstDecimals >= srcDecimals) {
+            return ((destAmount * 1e18) / ((10**(dstDecimals - srcDecimals)) * srcAmount));
+        } else {
+            return ((destAmount * 1e18 * (10**(srcDecimals - dstDecimals))) / srcAmount);
+        }
     }
 }
