@@ -18,6 +18,10 @@ library UniERC20 {
         return (token == ZERO_ADDRESS || token == ETH_ADDRESS);
     }
 
+    function eq(IERC20 tokenA, IERC20 tokenB) internal pure returns(bool) {
+        return (isETH(tokenA) && isETH(tokenB)) || (tokenA == tokenB);
+    }
+
     function uniBalanceOf(IERC20 token, address account) internal view returns (uint256) {
         if (isETH(token)) {
             return account.balance;

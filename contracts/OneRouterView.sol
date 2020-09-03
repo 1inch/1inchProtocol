@@ -201,7 +201,7 @@ contract OneRouterView is
     }
 
     function _scaleDestTokenEthPriceTimesGasPrice(IERC20 fromToken, IERC20 destToken, uint256 destTokenEthPriceTimesGasPrice) private view returns(uint256) {
-        if (fromToken == destToken) {
+        if (fromToken.eq(destToken)) {
             return destTokenEthPriceTimesGasPrice;
         }
         if (destTokenEthPriceTimesGasPrice == 0) {

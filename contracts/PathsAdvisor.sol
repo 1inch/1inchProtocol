@@ -5,7 +5,7 @@ pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IAaveRegistry.sol";
-import "./interfaces/ICompoundRegistry.sol";
+import "./interfaces/ICompound.sol";
 import "./libraries/UniERC20.sol";
 import "./OneRouterConstants.sol";
 
