@@ -81,7 +81,7 @@ contract KyberMooniswapReserve is IKyberReserve, MooniswapSourceView, MooniswapS
 
         uint256 returnAmount = dst.uniBalanceOf(address(this));
         uint256 actualRate = _calcRateFromQty(srcAmount, returnAmount, src.uniDecimals(), dst.uniDecimals());
-        require(actualRate >= conversionRate, "Rate exceeded conversionRate");
+        require(actualRate >= conversionRate, "actualRate below network rate");
 
         dst.uniTransfer(destAddress, returnAmount);
         return true;
