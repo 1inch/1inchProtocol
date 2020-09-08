@@ -30,7 +30,11 @@ interface IKyberReserve {
 contract KyberMooniswapReserve is IKyberReserve, MooniswapSourceView, MooniswapSourceSwap {
     using UniERC20 for IERC20;
 
-    address public constant KYBER_NETWORK = 0x7C66550C9c730B6fdd4C03bc2e73c5462c5F7ACC;
+    address public immutable kyberNetwork;
+
+    constructor(address _kyberNetwork) public {
+        kyberNetwork = _kyberNetwork;
+    }
 
     function getConversionRate(
         IERC20 src,
@@ -61,7 +65,7 @@ contract KyberMooniswapReserve is IKyberReserve, MooniswapSourceView, MooniswapS
         uint256 conversionRate,
         bool validate
     ) external payable override returns(bool) {
-        require(msg.sender == KYBER_NETWORK, "Access denied");
+        require(msg.sender == kyberNetwork, "Access denied");
 
         src.uniTransferFromSender(payable(address(this)), srcAmount);
         if (validate) {
@@ -77,11 +81,13 @@ contract KyberMooniswapReserve is IKyberReserve, MooniswapSourceView, MooniswapS
 
         uint256 returnAmount = dst.uniBalanceOf(address(this));
         uint256 actualRate = _calcRateFromQty(srcAmount, returnAmount, src.uniDecimals(), dst.uniDecimals());
-        require(actualRate <= conversionRate, "Rate exceeded conversionRate");
+        require(actualRate >= conversionRate, "actualRate below network rate");
 
         dst.uniTransfer(destAddress, returnAmount);
         return true;
     }
+
+    receive() external payable {}
 
     function _calcRateFromQty(
         uint256 srcAmount,
