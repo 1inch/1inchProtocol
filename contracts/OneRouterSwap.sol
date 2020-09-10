@@ -49,7 +49,7 @@ contract OneRouterSwap is
         internal
         override
     {
-        function(IERC20,IERC20,uint256,uint256)[15] memory reserves = [
+        function(IERC20,IERC20,uint256,uint256)[16] memory reserves = [
             _swapOnUniswapV1,
             _swapOnUniswapV2,
             _swapOnMooniswap,
@@ -64,7 +64,8 @@ contract OneRouterSwap is
             _swapOnCurveSynthetix,
             _swapOnCurvePAX,
             _swapOnCurveRENBTC,
-            _swapOnCurveSBTC
+            _swapOnCurveSBTC,
+            _swapOnCurveHBTC
             // _swapOnBalancer1,
             // _swapOnBalancer2,
             // _swapOnBalancer3,
