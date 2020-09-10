@@ -279,6 +279,7 @@ flags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_KYBER + ...
   | FLAG_DISABLE_CURVE_TBTC | `0x200000000` | Exclude `CurveTBtc` exchange from swap |
   | FLAG_DISABLE_DFORCE_SWAP | `0x4000000000` | Exclude `DforceSwap` exchange from swap |
   | FLAG_DISABLE_SHELL | `0x8000000000` | Exclude `Shellexchangers` exchange from swap |
+  | FLAG_DISABLE_CURVE_HBTC | `0x8000000000000000` | Exclude `CurveHBTC` exchange from swap |
   
   **Example:**
   ```
