@@ -1,4 +1,36 @@
 
+// File: @openzeppelin/contracts/math/Math.sol
+
+pragma solidity ^0.5.0;
+
+/**
+ * @dev Standard math utilities missing in the Solidity language.
+ */
+library Math {
+    /**
+     * @dev Returns the largest of two numbers.
+     */
+    function max(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a >= b ? a : b;
+    }
+
+    /**
+     * @dev Returns the smallest of two numbers.
+     */
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
+    }
+
+    /**
+     * @dev Returns the average of two numbers. The result is rounded towards
+     * zero.
+     */
+    function average(uint256 a, uint256 b) internal pure returns (uint256) {
+        // (a + b) / 2 can overflow, so we distribute
+        return (a / 2) + (b / 2) + ((a % 2 + b % 2) / 2);
+    }
+}
+
 // File: @openzeppelin/contracts/GSN/Context.sol
 
 pragma solidity ^0.5.0;
@@ -753,7 +785,12 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_DISABLE_KYBER_3 = 0x1000000000000000;
     uint256 internal constant FLAG_DISABLE_KYBER_4 = 0x2000000000000000;
     uint256 internal constant FLAG_ENABLE_CHI_BURN_BY_ORIGIN = 0x4000000000000000;
-    uint256 internal constant FLAG_DISABLE_CURVE_HBTC = 0x8000000000000000;
+    uint256 internal constant FLAG_DISABLE_MOONISWAP_ALL = 0x8000000000000000;
+    uint256 internal constant FLAG_DISABLE_MOONISWAP_ETH = 0x10000000000000000;
+    uint256 internal constant FLAG_DISABLE_MOONISWAP_DAI = 0x20000000000000000;
+    uint256 internal constant FLAG_DISABLE_MOONISWAP_USDC = 0x40000000000000000;
+    uint256 internal constant FLAG_DISABLE_MOONISWAP_POOL_TOKEN = 0x80000000000000000;
+    uint256 internal constant FLAG_DISABLE_CURVE_HBTC = 0x100000000000000000;
 }
 
 
@@ -833,6 +870,7 @@ contract IOneSplitMulti is IOneSplit {
 // File: contracts/OneSplitAudit.sol
 
 pragma solidity ^0.5.0;
+
 
 
 
@@ -1081,6 +1119,30 @@ contract OneSplitAudit is IOneSplit, Ownable {
     /// @param minReturn (uint256) Minimum expected return, else revert
     /// @param distribution (uint256[]) Array of weights for volume distribution returned by `getExpectedReturn`
     /// @param flags (uint256[]) Flags for enabling and disabling some features, default 0
+    function swapMulti(
+        IERC20[] memory tokens,
+        uint256 amount,
+        uint256 minReturn,
+        uint256[] memory distribution,
+        uint256[] memory flags
+    ) public payable returns(uint256) {
+        swapWithReferralMulti(
+            tokens,
+            amount,
+            minReturn,
+            distribution,
+            flags,
+            address(0),
+            0
+        );
+    }
+
+    /// @notice Swap `amount` of first element of `tokens` to the latest element of `destToken`
+    /// @param tokens (IERC20[]) Addresses of token or `address(0)` for Ether
+    /// @param amount (uint256) Amount for `fromToken`
+    /// @param minReturn (uint256) Minimum expected return, else revert
+    /// @param distribution (uint256[]) Array of weights for volume distribution returned by `getExpectedReturn`
+    /// @param flags (uint256[]) Flags for enabling and disabling some features, default 0
     /// @param referral (address) Address of referral
     /// @param feePercent (uint256) Fees percents normalized to 1e18, limited to 0.03e18 (3%)
     function swapWithReferralMulti(
@@ -1099,10 +1161,17 @@ contract OneSplitAudit is IOneSplit, Ownable {
 
         uint256 gasStart = gasleft();
 
-        Balances memory beforeBalances = _getFirstAndLastBalances(tokens);
+        Balances memory beforeBalances = _getFirstAndLastBalances(tokens, true);
 
         // Transfer From
-        tokens.first().universalTransferFromSenderToThis(amount);
+        tokens.first().universalTransferFromSenderToThis(
+            amount != uint256(-1)
+            ? amount
+            : Math.min(
+                tokens.first().balanceOf(msg.sender),
+                tokens.first().allowance(msg.sender, address(this))
+            )
+        );
         uint256 confirmed = tokens.first().universalBalanceOf(address(this)).sub(beforeBalances.ofFromToken);
 
         // Swap
@@ -1115,10 +1184,10 @@ contract OneSplitAudit is IOneSplit, Ownable {
             flags
         );
 
-        Balances memory afterBalances = _getFirstAndLastBalances(tokens);
+        Balances memory afterBalances = _getFirstAndLastBalances(tokens, false);
 
         // Return
-        returnAmount = uint256(afterBalances.ofDestToken).sub(beforeBalances.ofDestToken);
+        returnAmount = afterBalances.ofDestToken.sub(beforeBalances.ofDestToken);
         require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
         tokens.last().universalTransfer(referral, returnAmount.mul(feePercent).div(1e18));
         tokens.last().universalTransfer(msg.sender, returnAmount.sub(returnAmount.mul(feePercent).div(1e18)));
@@ -1137,7 +1206,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
 
         // Return remainder
         if (afterBalances.ofFromToken > beforeBalances.ofFromToken) {
-            tokens.first().universalTransfer(msg.sender, uint256(afterBalances.ofFromToken).sub(beforeBalances.ofFromToken));
+            tokens.first().universalTransfer(msg.sender, afterBalances.ofFromToken.sub(beforeBalances.ofFromToken));
         }
 
         if ((flags[0] & (FLAG_ENABLE_CHI_BURN | FLAG_ENABLE_CHI_BURN_BY_ORIGIN)) > 0) {
@@ -1174,14 +1243,14 @@ contract OneSplitAudit is IOneSplit, Ownable {
     }
 
     struct Balances {
-        uint128 ofFromToken;
-        uint128 ofDestToken;
+        uint256 ofFromToken;
+        uint256 ofDestToken;
     }
 
-    function _getFirstAndLastBalances(IERC20[] memory tokens) internal view returns(Balances memory) {
+    function _getFirstAndLastBalances(IERC20[] memory tokens, bool subValue) internal view returns(Balances memory) {
         return Balances({
-            ofFromToken: uint128(tokens.first().universalBalanceOf(address(this)).sub(msg.value)),
-            ofDestToken: uint128(tokens.last().universalBalanceOf(address(this)))
+            ofFromToken: tokens.first().universalBalanceOf(address(this)).sub(subValue ? msg.value : 0),
+            ofDestToken: tokens.last().universalBalanceOf(address(this))
         });
     }
 }

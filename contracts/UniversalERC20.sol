@@ -106,6 +106,10 @@ library UniversalERC20 {
         return (address(token) == address(ZERO_ADDRESS) || address(token) == address(ETH_ADDRESS));
     }
 
+    function eq(IERC20 a, IERC20 b) internal pure returns(bool) {
+        return a == b || (isETH(a) && isETH(b));
+    }
+
     function notExist(IERC20 token) internal pure returns(bool) {
         return (address(token) == address(-1));
     }

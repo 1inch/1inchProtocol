@@ -1,5 +1,6 @@
 pragma solidity ^0.5.0;
 
+import "@openzeppelin/contracts/math/Math.sol";
 import "@openzeppelin/contracts/ownership/Ownable.sol";
 import "./interface/IWETH.sol";
 import "./interface/IUniswapV2Exchange.sol";
@@ -254,7 +255,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
         uint256 minReturn,
         uint256[] memory distribution,
         uint256[] memory flags
-    ) public payable returns(uint256 returnAmount) {
+    ) public payable returns(uint256) {
         swapWithReferralMulti(
             tokens,
             amount,
@@ -290,9 +291,15 @@ contract OneSplitAudit is IOneSplit, Ownable {
 
         uint256 gasStart = gasleft();
 
-        Balances memory beforeBalances = _getFirstAndLastBalances(tokens);
+        Balances memory beforeBalances = _getFirstAndLastBalances(tokens, true);
 
         // Transfer From
+        if (amount == uint256(-1)) {
+            amount = Math.min(
+                tokens.first().balanceOf(msg.sender),
+                tokens.first().allowance(msg.sender, address(this))
+            );
+        }
         tokens.first().universalTransferFromSenderToThis(amount);
         uint256 confirmed = tokens.first().universalBalanceOf(address(this)).sub(beforeBalances.ofFromToken);
 
@@ -306,10 +313,10 @@ contract OneSplitAudit is IOneSplit, Ownable {
             flags
         );
 
-        Balances memory afterBalances = _getFirstAndLastBalances(tokens);
+        Balances memory afterBalances = _getFirstAndLastBalances(tokens, false);
 
         // Return
-        returnAmount = uint256(afterBalances.ofDestToken).sub(beforeBalances.ofDestToken);
+        returnAmount = afterBalances.ofDestToken.sub(beforeBalances.ofDestToken);
         require(returnAmount >= minReturn, "OneSplit: actual return amount is less than minReturn");
         tokens.last().universalTransfer(referral, returnAmount.mul(feePercent).div(1e18));
         tokens.last().universalTransfer(msg.sender, returnAmount.sub(returnAmount.mul(feePercent).div(1e18)));
@@ -328,7 +335,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
 
         // Return remainder
         if (afterBalances.ofFromToken > beforeBalances.ofFromToken) {
-            tokens.first().universalTransfer(msg.sender, uint256(afterBalances.ofFromToken).sub(beforeBalances.ofFromToken));
+            tokens.first().universalTransfer(msg.sender, afterBalances.ofFromToken.sub(beforeBalances.ofFromToken));
         }
 
         if ((flags[0] & (FLAG_ENABLE_CHI_BURN | FLAG_ENABLE_CHI_BURN_BY_ORIGIN)) > 0) {
@@ -350,7 +357,7 @@ contract OneSplitAudit is IOneSplit, Ownable {
 
     function _chiBurnOrSell(address payable sponsor, uint256 amount) internal {
         IUniswapV2Exchange exchange = IUniswapV2Exchange(0xa6f3ef841d371a82ca757FaD08efc0DeE2F1f5e2);
-        uint256 sellRefund = UniswapV2ExchangeLib.getReturn(exchange, chi, weth, amount);
+        (uint256 sellRefund,,) = UniswapV2ExchangeLib.getReturn(exchange, chi, weth, amount);
         uint256 burnRefund = amount.mul(18_000).mul(tx.gasprice);
 
         if (sellRefund < burnRefund.add(tx.gasprice.mul(36_000))) {
@@ -365,14 +372,14 @@ contract OneSplitAudit is IOneSplit, Ownable {
     }
 
     struct Balances {
-        uint128 ofFromToken;
-        uint128 ofDestToken;
+        uint256 ofFromToken;
+        uint256 ofDestToken;
     }
 
-    function _getFirstAndLastBalances(IERC20[] memory tokens) internal view returns(Balances memory) {
+    function _getFirstAndLastBalances(IERC20[] memory tokens, bool subValue) internal view returns(Balances memory) {
         return Balances({
-            ofFromToken: uint128(tokens.first().universalBalanceOf(address(this)).sub(msg.value)),
-            ofDestToken: uint128(tokens.last().universalBalanceOf(address(this)))
+            ofFromToken: tokens.first().universalBalanceOf(address(this)).sub(subValue ? msg.value : 0),
+            ofDestToken: tokens.last().universalBalanceOf(address(this))
         });
     }
 }
