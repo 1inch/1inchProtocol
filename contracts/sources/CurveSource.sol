@@ -363,7 +363,7 @@ contract CurveSourcePublicSBTC is ISource, CurveSourceView, CurveSourceSwap {
 
 contract CurveSourcePublicHBTC is ISource, CurveSourceView, CurveSourceSwap {
     function calculate(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) public view override returns(uint256[] memory rets, address dex, uint256 gas) {
-        return _calculateCurveSBTC(fromToken, amounts, swap);
+        return _calculateCurveHBTC(fromToken, amounts, swap);
     }
 
     function swap(IERC20 fromToken, IERC20 destToken, uint256 amount, uint256 flags) public override {
