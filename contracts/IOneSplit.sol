@@ -100,6 +100,7 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_DISABLE_MOONISWAP_DAI = 0x20000000000000000;
     uint256 internal constant FLAG_DISABLE_MOONISWAP_USDC = 0x40000000000000000;
     uint256 internal constant FLAG_DISABLE_MOONISWAP_POOL_TOKEN = 0x80000000000000000;
+    uint256 internal constant FLAG_DISABLE_CURVE_3pool= 0x100000000000000000;
 }
 
 

@@ -80,7 +80,7 @@ contract OneSplitRoot is IOneSplitView {
     using UniswapV2ExchangeLib for IUniswapV2Exchange;
     using ChaiHelper for IChai;
 
-    uint256 constant internal DEXES_COUNT = 34;
+    uint256 constant internal DEXES_COUNT = 35;
     IERC20 constant internal ETH_ADDRESS = IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     IERC20 constant internal ZERO_ADDRESS = IERC20(0);
 
@@ -118,6 +118,7 @@ contract OneSplitRoot is IOneSplitView {
     ICurve constant internal curveRenBTC = ICurve(0x93054188d876f558f4a66B2EF1d97d16eDf0895B);
     ICurve constant internal curveTBTC = ICurve(0x9726e9314eF1b96E45f40056bEd61A088897313E);
     ICurve constant internal curveSBTC = ICurve(0x7fC77b5c7614E1533320Ea6DDc2Eb61fa00A9714);
+    ICurve constant internal curve3pool = ICurve(0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7);
     IShell constant internal shell = IShell(0xA8253a440Be331dC4a7395B73948cCa6F19Dc97D);
     IAaveLendingPool constant internal aave = IAaveLendingPool(0x398eC7346DcD622eDc5ae82352F02bE94C62d119);
     ICompound constant internal compound = ICompound(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
@@ -479,7 +480,8 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             true,  // "Kyber 4"
             true,  // "Mooniswap 2"
             true,  // "Mooniswap 3"
-            true   // "Mooniswap 4"
+            true,  // "Mooniswap 4"
+            true   // "Curve 3pool"
         ];
 
         for (uint i = 0; i < DEXES_COUNT; i++) {
@@ -541,7 +543,8 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             invert != flags.check(FLAG_DISABLE_KYBER_ALL | FLAG_DISABLE_KYBER_4)              ? _calculateNoReturn : calculateKyber4,
             invert != flags.check(FLAG_DISABLE_MOONISWAP_ALL | FLAG_DISABLE_MOONISWAP_ETH)    ? _calculateNoReturn : calculateMooniswapOverETH,
             invert != flags.check(FLAG_DISABLE_MOONISWAP_ALL | FLAG_DISABLE_MOONISWAP_DAI)    ? _calculateNoReturn : calculateMooniswapOverDAI,
-            invert != flags.check(FLAG_DISABLE_MOONISWAP_ALL | FLAG_DISABLE_MOONISWAP_USDC)   ? _calculateNoReturn : calculateMooniswapOverUSDC
+            invert != flags.check(FLAG_DISABLE_MOONISWAP_ALL | FLAG_DISABLE_MOONISWAP_USDC)   ? _calculateNoReturn : calculateMooniswapOverUSDC,
+            invert != flags.check(FLAG_DISABLE_CURVE_ALL | FLAG_DISABLE_CURVE_3pool)          ? _calculateNoReturn : calculateCurve3pool
         ];
     }
 
@@ -985,6 +988,28 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             false,
             tokens
         ), 150_000);
+    }
+
+    function calculateCurve3pool(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 /*flags*/
+    ) internal view returns(uint256[] memory rets, uint256 gas) {
+        IERC20[] memory tokens = new IERC20[](3);
+        tokens[0] = dai;
+        tokens[1] = usdc;
+        tokens[2] = usdt;
+        return (_calculateCurveSelector(
+            fromToken,
+            destToken,
+            amount,
+            parts,
+            curve3pool,
+            false,
+            tokens
+        ), 130_000);
     }
 
     function calculateShell(
@@ -1838,7 +1863,8 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             _swapOnKyber4,
             _swapOnMooniswapETH,
             _swapOnMooniswapDAI,
-            _swapOnMooniswapUSDC
+            _swapOnMooniswapUSDC,
+            _swapOnCurve3pool
         ];
 
         require(distribution.length <= reserves.length, "OneSplit: Distribution array should not exceed reserves array size");
@@ -2095,6 +2121,26 @@ contract OneSplit is IOneSplit, OneSplitRoot {
 
         fromToken.universalApprove(address(curveSBTC), amount);
         curveSBTC.exchange(i - 1, j - 1, amount, 0);
+    }
+
+    function _swapOnCurve3pool(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 /*flags*/
+    ) internal {
+        int128 i = (fromToken == dai ? 1 : 0) +
+            (fromToken == usdc ? 2 : 0) +
+            (fromToken == usdt ? 3 : 0);
+        int128 j = (destToken == dai ? 1 : 0) +
+            (destToken == usdc ? 2 : 0) +
+            (destToken == usdt ? 3 : 0);
+        if (i == 0 || j == 0) {
+            return;
+        }
+
+        fromToken.universalApprove(address(curveSBTC), amount);
+        curve3pool.exchange(i - 1, j - 1, amount, 0);
     }
 
     function _swapOnDforceSwap(
