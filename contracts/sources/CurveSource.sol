@@ -23,6 +23,7 @@ library CurveHelper {
     ICurve constant public CURVE_PAX = ICurve(0x06364f10B501e868329afBc005b3492902d6C763);
     ICurve constant public CURVE_RENBTC = ICurve(0x93054188d876f558f4a66B2EF1d97d16eDf0895B);
     ICurve constant public CURVE_SBTC = ICurve(0x7fC77b5c7614E1533320Ea6DDc2Eb61fa00A9714);
+    ICurve constant public CURVE_3pool = ICurve(0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7);
 
     function dynarr(IERC20[2] memory tokens) internal pure returns(IERC20[] memory result) {
         result = new IERC20[](tokens.length);
@@ -85,6 +86,10 @@ contract CurveSourceView is OneRouterConstants {
 
     function _calculateCurveSBTC(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) internal view returns(uint256[] memory rets, address dex, uint256 gas) {
         return (_calculateCurveSelector(fromToken, swap, amounts, CurveHelper.CURVE_SBTC, false, CurveHelper.dynarr([_RENBTC, _WBTC, _SBTC])), address(CurveHelper.CURVE_SBTC), 150_000);
+    }
+
+    function _calculateCurve3pool(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) internal view returns(uint256[] memory rets, address dex, uint256 gas) {
+        return (_calculateCurveSelector(fromToken, swap, amounts, CurveHelper.CURVE_3pool, false, CurveHelper.dynarr([_DAI, _USDC, _USDT])), address(CurveHelper.CURVE_3pool), 130_000);
     }
 
     function _calculateCurveSelector(
@@ -236,6 +241,10 @@ contract CurveSourceSwap is OneRouterConstants {
         _swapOnCurve(CurveHelper.CURVE_SBTC, false, CurveHelper.dynarr([_RENBTC, _WBTC, _SBTC]), fromToken, destToken, amount);
     }
 
+    function _swapOnCurve3pool(IERC20 fromToken, IERC20 destToken, uint256 amount, uint256 /*flags*/) internal {
+        _swapOnCurve(CurveHelper.CURVE_3pool, false, CurveHelper.dynarr([_DAI, _USDC, _USDT]), fromToken, destToken, amount);
+    }
+
     function _swapOnCurve(
         ICurve curve,
         bool underlying,
@@ -349,5 +358,15 @@ contract CurveSourcePublicSBTC is ISource, CurveSourceView, CurveSourceSwap {
 
     function swap(IERC20 fromToken, IERC20 destToken, uint256 amount, uint256 flags) public override {
         return _swapOnCurveSBTC(fromToken, destToken, amount, flags);
+    }
+}
+
+contract CurveSourcePublic3pool is ISource, CurveSourceView, CurveSourceSwap {
+    function calculate(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) public view override returns(uint256[] memory rets, address dex, uint256 gas) {
+        return _calculateCurve3pool(fromToken, amounts, swap);
+    }
+
+    function swap(IERC20 fromToken, IERC20 destToken, uint256 amount, uint256 flags) public override {
+        return _swapOnCurve3pool(fromToken, destToken, amount, flags);
     }
 }
