@@ -18,7 +18,7 @@ import "../libraries/FlagsChecker.sol";
 
 library BalancerHelper {
     IWETH constant public WETH = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-    IBalancerRegistry constant public REGISTRY = IBalancerRegistry(0x65e67cbc342712DF67494ACEfc06fe951EE93982);
+    IBalancerRegistry constant public REGISTRY = IBalancerRegistry(0x7226DaaF09B3972320Db05f5aB81FF38417Dd687);
 }
 
 
