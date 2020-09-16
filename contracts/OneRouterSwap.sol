@@ -82,6 +82,10 @@ contract OneRouterSwap is
         }
 
         for (uint i = 0; i < swapDistribution.weights.length && totalWeight > 0; i++) {
+            if (swapDistribution.weights[i] == 0) {
+                continue;
+            }
+
             uint256 amount = input.amount.mul(swapDistribution.weights[i]).div(totalWeight);
             totalWeight = totalWeight.sub(swapDistribution.weights[i]);
 
@@ -140,6 +144,10 @@ contract OneRouterSwap is
 
         uint256 confirmed = input.fromToken.uniBalanceOf(address(this));
         for (uint p = 0; p < pathDistributions.length && interTotalWeight > 0; p++) {
+            if (interPathsDistribution.weights[p] == 0) {
+                continue;
+            }
+
             SwapInput memory pathInput = SwapInput({
                 fromToken: input.fromToken,
                 destToken: input.destToken,
