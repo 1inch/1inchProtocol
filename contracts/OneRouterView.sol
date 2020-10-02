@@ -49,7 +49,7 @@ contract OneRouterView is
             return result;
         }
 
-        function(IERC20,uint256[] memory,Swap memory) view returns(uint256[] memory, address, uint256)[15] memory reserves = [
+        function(IERC20,uint256[] memory,Swap memory) view returns(uint256[] memory, address, uint256)[16] memory reserves = [
             _calculateUniswapV1,
             _calculateUniswapV2,
             _calculateMooniswap,
@@ -64,7 +64,8 @@ contract OneRouterView is
             _calculateCurveSynthetix,
             _calculateCurvePAX,
             _calculateCurveRENBTC,
-            _calculateCurveSBTC
+            _calculateCurveSBTC,
+            _calculateCurveHBTC
             // _calculateBalancer1,
             // _calculateBalancer2,
             // _calculateBalancer3,
