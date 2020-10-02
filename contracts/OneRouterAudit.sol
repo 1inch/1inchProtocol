@@ -148,7 +148,6 @@ contract OneRouterAudit is IOneRouterView, IOneRouterSwap, OneRouterConstants, O
 
         uint256 gasStart = gasleft();
         _claimInput(input);
-        input.fromToken.uniApprove(address(oneRouterSwap), input.amount);
 
         path.swaps[0].flags = _disableFeeAndGasHandlingInImpl(path.swaps[0].flags);
         _makePathSwap(input, path, pathDistribution);
@@ -172,7 +171,6 @@ contract OneRouterAudit is IOneRouterView, IOneRouterSwap, OneRouterConstants, O
 
         uint256 gasStart = gasleft();
         _claimInput(input);
-        input.fromToken.uniApprove(address(oneRouterSwap), input.amount);
 
         paths[0].swaps[0].flags = _disableFeeAndGasHandlingInImpl(paths[0].swaps[0].flags);
         _makeMultiPathSwap(input, paths, pathDistributions, interPathsDistribution);

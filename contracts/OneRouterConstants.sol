@@ -29,17 +29,18 @@ contract OneRouterConstants {
     uint256 constant internal _FLAG_DISABLE_CURVE_RENBTC    = 0x2000;
     uint256 constant internal _FLAG_DISABLE_CURVE_TBTC      = 0x4000;
     uint256 constant internal _FLAG_DISABLE_CURVE_SBTC      = 0x8000;
-    uint256 constant internal _FLAG_DISABLE_BALANCER_1      = 0x10000;
-    uint256 constant internal _FLAG_DISABLE_BALANCER_2      = 0x20000;
-    uint256 constant internal _FLAG_DISABLE_BALANCER_3      = 0x40000;
-    uint256 constant internal _FLAG_DISABLE_BANCOR_1        = 0x80000;
-    uint256 constant internal _FLAG_DISABLE_BANCOR_2        = 0x100000;
-    uint256 constant internal _FLAG_DISABLE_BANCOR_3        = 0x200000;
-    uint256 constant internal _FLAG_DISABLE_OASIS           = 0x400000;
-    uint256 constant internal _FLAG_DISABLE_DFORCE_SWAP     = 0x800000;
-    uint256 constant internal _FLAG_DISABLE_SHELL           = 0x1000000;
-    uint256 constant internal _FLAG_DISABLE_MSTABLE_MUSD    = 0x2000000;
-    uint256 constant internal _FLAG_DISABLE_BLACK_HOLE_SWAP = 0x4000000;
+    uint256 constant internal _FLAG_DISABLE_CURVE_HBTC      = 0x10000;
+    uint256 constant internal _FLAG_DISABLE_BALANCER_1      = 0x20000;
+    uint256 constant internal _FLAG_DISABLE_BALANCER_2      = 0x40000;
+    uint256 constant internal _FLAG_DISABLE_BALANCER_3      = 0x80000;
+    uint256 constant internal _FLAG_DISABLE_BANCOR_1        = 0x100000;
+    uint256 constant internal _FLAG_DISABLE_BANCOR_2        = 0x200000;
+    uint256 constant internal _FLAG_DISABLE_BANCOR_3        = 0x400000;
+    uint256 constant internal _FLAG_DISABLE_OASIS           = 0x800000;
+    uint256 constant internal _FLAG_DISABLE_DFORCE_SWAP     = 0x1000000;
+    uint256 constant internal _FLAG_DISABLE_SHELL           = 0x2000000;
+    uint256 constant internal _FLAG_DISABLE_MSTABLE_MUSD    = 0x4000000;
+    uint256 constant internal _FLAG_DISABLE_BLACK_HOLE_SWAP = 0x8000000;
 
     IERC20 constant internal _DAI = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
     IERC20 constant internal _USDC = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
@@ -51,5 +52,6 @@ contract OneRouterConstants {
     IERC20 constant internal _RENBTC = IERC20(0xEB4C2781e4ebA804CE9a9803C67d0893436bB27D);
     IERC20 constant internal _WBTC = IERC20(0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599);
     IERC20 constant internal _SBTC = IERC20(0xfE18be6b3Bd88A2D2A7f928d00292E7a9963CfC6);
+    IERC20 constant internal _HBTC = IERC20(0x0316EB71485b0Ab14103307bf65a021042c6d380);
     IERC20 constant internal _CHI = IERC20(0x0000000000004946c0e9F43F4Dee607b0eF1fA1c);
 }
