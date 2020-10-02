@@ -65,7 +65,8 @@ contract OneRouterView is
             _calculateCurvePAX,
             _calculateCurveRENBTC,
             _calculateCurveSBTC,
-            _calculateCurveHBTC
+            _calculateCurveHBTC,
+            _calculateCurve3pool
             // _calculateBalancer1,
             // _calculateBalancer2,
             // _calculateBalancer3,

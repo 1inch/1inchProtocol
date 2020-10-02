@@ -65,7 +65,8 @@ contract OneRouterSwap is
             _swapOnCurvePAX,
             _swapOnCurveRENBTC,
             _swapOnCurveSBTC,
-            _swapOnCurveHBTC
+            _swapOnCurveHBTC,
+            _swapOnCurve3pool
             // _swapOnBalancer1,
             // _swapOnBalancer2,
             // _swapOnBalancer3,
