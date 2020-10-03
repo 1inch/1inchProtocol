@@ -31,9 +31,6 @@ library Algo {
 
         for (uint j = 0; j <= parts; j++) {
             answer[0][j] = amounts[0][j];
-            for (uint i = 1; i < n; i++) {
-                answer[i][j] = VERY_NEGATIVE_VALUE;
-            }
             parent[0][j] = 0;
         }
 
