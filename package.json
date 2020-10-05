@@ -1,19 +1,20 @@
 {
-    "name": "OneSplit",
+    "name": "@1inch/1inchProtocol",
     "version": "0.0.1",
     "description": "",
     "repository": {
         "type": "git",
-        "url": "git@github.com:CryptoManiacsZone/1split.git"
+        "url": "git@github.com:CryptoManiacsZone/1inchProtocol.git"
     },
     "license": "MIT",
     "dependencies": {
-        "@openzeppelin/contracts": "^2.5.0"
+        "@openzeppelin/contracts": "^3.0.2"
     },
     "devDependencies": {
+        "@codechecks/client": "^0.1.10",
         "chai": "^4.2.0",
         "coveralls": "^3.1.0",
-        "eslint": "^7.3.1",
+        "eslint": "^7.5.0",
         "eslint-config-standard": "^14.1.1",
         "eslint-plugin-import": "^2.22.0",
         "eslint-plugin-node": "^11.1.0",
@@ -22,27 +23,31 @@
         "eth-gas-reporter": "^0.2.17",
         "ganache-cli": "^6.9.1",
         "@openzeppelin/test-helpers": "^0.5.6",
-        "solc": "^0.5.17",
+        "solc": "^0.6.12",
         "solidity-coverage": "^0.7.9",
-        "ethlint": "^1.2.5",
-        "truffle": "^5.1.32",
+        "solhint": "^3.0.0",
+        "truffle": "^5.1.35",
         "truffle-flattener": "^1.4.4"
     },
     "scripts": {
-        "test": "scripts/test.sh",
-        "coverage": "scripts/coverage.sh && cat coverage/lcov.info | coveralls",
+        "test": "truffle test --stacktrace",
+        "coverage": "truffle run coverage",
+        "coveralls": "truffle run coverage && cat coverage/lcov.info | coveralls",
         "lint:js": "eslint .",
         "lint:js:fix": "eslint . --fix",
-        "lint:sol": "solium -d .",
-        "lint:sol:fix": "solium -d . --fix",
-        "lint": "npm run lint:js && npm run lint:sol",
-        "lint:fix": "npm run lint:js:fix && npm run lint:sol:fix",
-        "dist": "truffle-flattener ./contracts/OneSplit.sol > OneSplit.full.sol && solcjs --bin --abi --optimize OneSplit.full.sol && mv OneSplit_full_sol_OneSplit.bin OneSplit.full.bin && mv OneSplit_full_sol_OneSplit.abi OneSplit.full.abi && rm *_sol_*",
-        "dist:view": "truffle-flattener ./contracts/OneSplit.sol > OneSplitView.full.sol && solcjs --bin --abi OneSplitView.full.sol && mv OneSplitView_full_sol_OneSplitView.bin OneSplitView.full.bin && mv OneSplitView_full_sol_OneSplitView.abi OneSplitView.full.abi && rm *_sol_*",
-        "dist:audit": "truffle-flattener ./contracts/OneSplitAudit.sol > OneSplitAudit.full.sol && solcjs --bin --abi --optimize OneSplitAudit.full.sol && mv OneSplitAudit_full_sol_OneSplitAudit.bin OneSplitAudit.full.bin && mv OneSplitAudit_full_sol_OneSplitAudit.abi OneSplitAudit.full.abi && rm *_sol_*",
-        "dist:bnt": "truffle-flattener ./contracts/BancorFinder.sol > BancorFinder.full.sol && solcjs --bin --abi --optimize BancorFinder.full.sol && mv BancorFinder_full_sol_BancorFinder.bin BancorFinder.full.bin && mv BancorFinder_full_sol_BancorFinder.abi BancorFinder.full.abi && rm *_sol_*",
-        "dist:comp": "truffle-flattener ./contracts/CompoundRegistry.sol > CompoundRegistry.full.sol && solcjs --bin --abi --optimize CompoundRegistry.full.sol && mv CompoundRegistry_full_sol_CompoundRegistry.bin CompoundRegistry.full.bin && mv CompoundRegistry_full_sol_CompoundRegistry.abi CompoundRegistry.full.abi && rm *_sol_*",
-        "dist:bal": "truffle-flattener ./contracts/BalancerHelper.sol > BalancerHelper.full.sol && solcjs --bin --abi --optimize BalancerHelper.full.sol && mv BalancerHelper_full_sol_BalancerHelper.bin BalancerHelper.full.bin && mv BalancerHelper_full_sol_BalancerHelper.abi BalancerHelper.full.abi && rm *_sol_*",
-        "dist:aave": "truffle-flattener ./contracts/AaveRegistry.sol > AaveRegistry.full.sol && solcjs --bin --abi --optimize AaveRegistry.full.sol && mv AaveRegistry_full_sol_AaveRegistry.bin AaveRegistry.full.bin && mv AaveRegistry_full_sol_AaveRegistry.abi AaveRegistry.full.abi && rm *_sol_*"
+        "lint:sol": "solhint --max-warnings 0 \"contracts/**/*.sol\"",
+        "lint:sol:fix": "solhint --max-warnings 0 \"contracts/**/*.sol\" --fix",
+        "lint": "yarn run lint:js && yarn run lint:sol",
+        "lint:fix": "yarn run lint:js:fix && yarn run lint:sol:fix",
+        "flat": "truffle-flattener $FLAT_FILE | awk '/SPDX-License-Identifier/&&c++>0 {next} 1' | awk '/pragma experimental ABIEncoderV2;/&&c++>0 {next} 1'",
+        "dist:router-view": "FLAT_FILE=./contracts/OneRouterView.sol yarn --silent flat > ./dist/OneRouterView.full.sol && solcjs --bin --abi ./dist/OneRouterView.full.sol && mv ./__dist_OneRouterView_full_sol_OneRouterView.bin ./dist/OneRouterView.full.bin && mv ./__dist_OneRouterView_full_sol_OneRouterView.abi ./dist/OneRouterView.full.abi && rm ./*_sol_*",
+        "dist:router-swap": "FLAT_FILE=./contracts/OneRouterSwap.sol yarn --silent flat > ./dist/OneRouterSwap.full.sol && solcjs --bin --abi --optimize ./dist/OneRouterSwap.full.sol && mv ./__dist_OneRouterSwap_full_sol_OneRouterSwap.bin ./dist/OneRouterSwap.full.bin && mv ./__dist_OneRouterSwap_full_sol_OneRouterSwap.abi ./dist/OneRouterSwap.full.abi && rm ./*_sol_*",
+        "dist:audit": "FLAT_FILE=./contracts/OneRouterAudit.sol yarn --silent flat > ./dist/OneRouterAudit.full.sol && solcjs --bin --abi --optimize ./dist/OneRouterAudit.full.sol && mv ./__dist_OneRouterAudit_full_sol_OneRouterAudit.bin ./dist/OneRouterAudit.full.bin && mv ./__dist_OneRouterAudit_full_sol_OneRouterAudit.abi ./dist/OneRouterAudit.full.abi && rm ./*_sol_*",
+        "dist:balancer1": "FLAT_FILE=./contracts/sources/BalancerSource.sol yarn --silent flat > ./dist/BalancerSourcePublic1.full.sol && solcjs --bin --abi --optimize ./dist/BalancerSourcePublic1.full.sol && mv ./__dist_BalancerSourcePublic1_full_sol_BalancerSourcePublic1.bin ./dist/BalancerSourcePublic1.full.bin && mv ./__dist_BalancerSourcePublic1_full_sol_BalancerSourcePublic1.abi ./dist/BalancerSourcePublic1.full.abi && rm ./*_sol_*",
+        "dist:balancer2": "FLAT_FILE=./contracts/sources/BalancerSource.sol yarn --silent flat > ./dist/BalancerSourcePublic2.full.sol && solcjs --bin --abi --optimize ./dist/BalancerSourcePublic2.full.sol && mv ./__dist_BalancerSourcePublic2_full_sol_BalancerSourcePublic2.bin ./dist/BalancerSourcePublic2.full.bin && mv ./__dist_BalancerSourcePublic2_full_sol_BalancerSourcePublic2.abi ./dist/BalancerSourcePublic2.full.abi && rm ./*_sol_*",
+        "dist:balancer3": "FLAT_FILE=./contracts/sources/BalancerSource.sol yarn --silent flat > ./dist/BalancerSourcePublic3.full.sol && solcjs --bin --abi --optimize ./dist/BalancerSourcePublic3.full.sol && mv ./__dist_BalancerSourcePublic3_full_sol_BalancerSourcePublic3.bin ./dist/BalancerSourcePublic3.full.bin && mv ./__dist_BalancerSourcePublic3_full_sol_BalancerSourcePublic3.abi ./dist/BalancerSourcePublic3.full.abi && rm ./*_sol_*",
+        "dist:compound": "FLAT_FILE=./contracts/sources/CompoundSource.sol yarn --silent flat > ./dist/CompoundSourcePublic.full.sol && solcjs --bin --abi --optimize ./dist/CompoundSourcePublic.full.sol && mv ./__dist_CompoundSourcePublic_full_sol_CompoundSourcePublic.bin ./dist/CompoundSourcePublic.full.bin && mv ./__dist_CompoundSourcePublic_full_sol_CompoundSourcePublic.abi ./dist/CompoundSourcePublic.full.abi && rm ./*_sol_*",
+        "dist:kyber-reserve": "FLAT_FILE=./contracts/KyberMooniswapReserve.sol yarn --silent flat > ./dist/KyberMooniswapReserve.full.sol && solcjs --bin --abi --optimize ./dist/KyberMooniswapReserve.full.sol && mv ./__dist_KyberMooniswapReserve_full_sol_KyberMooniswapReserve.bin ./dist/KyberMooniswapReserve.full.bin && mv ./__dist_KyberMooniswapReserve_full_sol_KyberMooniswapReserve.abi ./dist/KyberMooniswapReserve.full.abi && rm ./*_sol_*",
+        "dist": "yarn dist:router-view && yarn dist:router-swap && yarn dist:audit && yarn dist:balancer1 && yarn dist:balancer2 && yarn dist:balancer3"
     }
 }
