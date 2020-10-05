@@ -35,6 +35,7 @@ contract OneRouterSwap is
 
     constructor(IOneRouterView _oneRouterView)
         public
+        HotSwapSources(_INTERNAL_SOURCES_COUNT)
         OneRouterAudit(_oneRouterView, IOneRouterSwap(0))
     {
     }
@@ -49,7 +50,7 @@ contract OneRouterSwap is
         internal
         override
     {
-        function(IERC20,IERC20,uint256,uint256)[16] memory reserves = [
+        function(IERC20,IERC20,uint256,uint256)[_INTERNAL_SOURCES_COUNT] memory reserves = [
             _swapOnUniswapV1,
             _swapOnUniswapV2,
             _swapOnMooniswap,

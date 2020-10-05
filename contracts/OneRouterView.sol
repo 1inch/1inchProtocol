@@ -38,6 +38,9 @@ contract OneRouterView is
     using FlagsChecker for uint256;
     using DynamicMemoryArray for DynamicMemoryArray.Addresses;
 
+    constructor() public HotSwapSources(_INTERNAL_SOURCES_COUNT) {
+    }
+
     function getSwapReturn(IERC20 fromToken, uint256[] memory amounts, Swap memory swap)
         public
         view
@@ -49,7 +52,7 @@ contract OneRouterView is
             return result;
         }
 
-        function(IERC20,uint256[] memory,Swap memory) view returns(uint256[] memory, address, uint256)[16] memory reserves = [
+        function(IERC20,uint256[] memory,Swap memory) view returns(uint256[] memory, address, uint256)[_INTERNAL_SOURCES_COUNT] memory reserves = [
             _calculateUniswapV1,
             _calculateUniswapV2,
             _calculateMooniswap,

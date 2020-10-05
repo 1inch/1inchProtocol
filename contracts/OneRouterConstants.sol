@@ -6,6 +6,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 
 contract OneRouterConstants {
+    uint256 constant internal _INTERNAL_SOURCES_COUNT = 17;
+
     uint256 constant internal _FLAG_DISABLE_ALL_SOURCES          = 0x100000000000000000000000000000000;
     uint256 constant internal _FLAG_DISABLE_RECALCULATION        = 0x200000000000000000000000000000000;
     uint256 constant internal _FLAG_ENABLE_CHI_BURN              = 0x400000000000000000000000000000000;

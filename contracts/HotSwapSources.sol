@@ -10,11 +10,12 @@ import "./PathsAdvisor.sol";
 
 
 contract HotSwapSources is Ownable {
-    uint256 public sourcesCount = 16;
+    uint256 public sourcesCount;
     mapping(uint256 => ISource) public sources;
     PathsAdvisor public pathsAdvisor;
 
-    constructor() public {
+    constructor(uint256 _sourcesCount) public {
+        sourcesCount = _sourcesCount;
         pathsAdvisor = new PathsAdvisor();
     }
 

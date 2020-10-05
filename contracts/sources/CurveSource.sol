@@ -94,7 +94,7 @@ contract CurveSourceView is OneRouterConstants {
     }
 
     function _calculateCurve3pool(IERC20 fromToken, uint256[] memory amounts, IOneRouterView.Swap memory swap) internal view returns(uint256[] memory rets, address dex, uint256 gas) {
-        return (_calculateCurveSelector(fromToken, swap, amounts, CurveHelper.CURVE_3POOL, false, CurveHelper.dynarr([_DAI, _USDC, _USDT])), address(CurveHelper.CURVE_3pool), 130_000);
+        return (_calculateCurveSelector(fromToken, swap, amounts, CurveHelper.CURVE_3POOL, false, CurveHelper.dynarr([_DAI, _USDC, _USDT])), address(CurveHelper.CURVE_3POOL), 130_000);
     }
 
     function _calculateCurveSelector(
