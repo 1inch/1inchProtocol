@@ -1,3 +1,7 @@
+# [DEPRECATED]
+
+1inchProtocol was deprecated. We recommend to use API instead of 1inchProtocol.
+
 # 1inch on-chain DeFi aggregation protocol
 
 First ever fully on-chain DEX aggregator protocol by 1inch
