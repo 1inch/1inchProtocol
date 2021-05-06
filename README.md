@@ -1,6 +1,6 @@
 # [DEPRECATED]
 
-1inchProtocol was deprecated. We recommend to use API instead of 1inchProtocol.
+1inchProtocol was deprecated. We recommend to use [API](https://docs.1inch.exchange/api/) instead of 1inchProtocol.
 
 # 1inch on-chain DeFi aggregation protocol
 
