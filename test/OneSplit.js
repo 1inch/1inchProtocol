@@ -73,7 +73,7 @@ contract('OneSplit', function ([_, addr1]) {
                 '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC
                 '1000000000000000000', // 1.0
                 10,
-                DISABLE_ALL.add(BALANCER_ALL), // enable only Mooniswap
+                DISABLE_ALL.add(BALANCER_ALL), // enable only Balancer
             );
 
             console.log('Swap: 1 ETH');
