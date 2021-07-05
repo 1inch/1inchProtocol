@@ -90,7 +90,7 @@ Then call method `swap` or `swapWithReferral` (see methods section) with param `
 
 Swap may be customized by flags (see flags section). There are 2 types of swap: direct swap and swap over transitional token.
 
-In case of direct swap each element of `distribution` array matches element of `splitExchanges` and represents fraction of trading off token as alerady described above.
+In case of direct swap each element of `distribution` array matches element of `splitExchanges` and represents fraction of trading off token as already described above.
 
 In case of swap with transitional token each element of `distribution` (256 bits) matches 2 swaps: second bytes are equal to swap to transitional token, lowest bytes are equal to swap to the desired token.
 
