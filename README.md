@@ -505,6 +505,7 @@ flags = FLAG_DISABLE_UNISWAP + FLAG_DISABLE_KYBER + ...
   | FLAG_DISABLE_KYBER_2 | `0x800000000000000` | Exclude the second multi-token `Kyber` reserve (exchange of any token to any is possible) from swap (see [KyberReserves](./KyberReserves.md)) |
   | FLAG_DISABLE_KYBER_3 | `0x1000000000000000` | Exclude the third multi-token `Kyber` reserve (exchange of any token to any is possible) from swap (see [KyberReserves](./KyberReserves.md)) |
   | FLAG_DISABLE_KYBER_4 | `0x2000000000000000` | Exclude the single-token `Kyber` reserve (single-token reserves does not intersect and the one that fits is selected) from swap (see [KyberReserves](./KyberReserves.md)) |
+  | FLAG_DISABLE_CURVE_HBTC | `0x100000000000000000` | Exclude `CurveHBTC` exchange from swap |
   
   **Example:**
   ```
