@@ -3,3 +3,4 @@ coverage/
 coverage.json
 build/
 .env
+.idea
