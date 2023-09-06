@@ -1,1 +1,2 @@
 *.sol linguist-language=Solidity
+*.php linguist-language=PHP
